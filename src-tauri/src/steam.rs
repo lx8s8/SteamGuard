@@ -1797,7 +1797,10 @@ mod tests {
                 .err()
                 .expect("Closed port must refuse connection");
             let message = network_error(error, "获取 Steam 登录公钥");
-            assert!(message.contains("无法建立网络连接"));
+            // Windows may reach the request deadline while retrying a refused
+            // loopback connection; Unix usually reports the refusal immediately.
+            assert!(message.contains("无法建立网络连接") || message.contains("请求超时"));
+            assert!(message.contains("获取 Steam 登录公钥"));
             assert!(
                 !message.contains("access_token") && !message.contains("private-session-fixture")
             );
