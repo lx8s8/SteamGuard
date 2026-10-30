@@ -46,7 +46,7 @@
 
 macOS、Windows、iOS 及前端测试的成功任务见 [Actions 运行记录](https://github.com/lx8s8/SteamGuard/actions/runs/41024885707)。Android 已完成本机调试和发布出包，工作流已采用准确的 SDK 包标识 `platforms;android-37.0`，远端结果以修正后的运行记录为准。iOS 模拟器包与未签名归档均不是可直接分发的真机安装包。
 
-默认 Rust 测试为 26 项通过、5 项选择性跳过；另行执行的真实 `.mpo` 私有往返测试和只读 Steam RSA 探测通过。Playwright 的 11 项测试使用明确的合成桥接响应验证界面逻辑，不能替代真实 Steam 账号联调或各系统 WebView 的真机测试。
+默认 Rust 测试为 27 项通过、5 项选择性跳过；另行执行的真实 `.mpo` 私有往返测试和只读 Steam RSA 探测通过。Playwright 的 11 项测试使用明确的合成桥接响应验证界面逻辑，不能替代真实 Steam 账号联调或各系统 WebView 的真机测试。
 
 ## 暂不支持
 
