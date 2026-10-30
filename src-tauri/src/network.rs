@@ -109,9 +109,7 @@ mod tests {
                 mode: ProxyMode::Manual,
                 proxy_url: url.into(),
             };
-            let error = manual_proxy(&settings)
-                .err()
-                .expect("Invalid proxy must be rejected");
+            let error = manual_proxy(&settings).expect_err("Invalid proxy must be rejected");
             assert!(!error.contains("private-password") && !error.contains("access_token"));
         }
         for url in [

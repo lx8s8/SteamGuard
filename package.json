@@ -1,7 +1,7 @@
 {
   "name": "steamguard",
   "private": true,
-  "version": "0.1.1",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -19,7 +19,8 @@
     "init:ios": "node scripts/mobile.mjs ios init",
     "test:ui": "playwright test",
     "package:ios:ipa": "node scripts/package-ios-ipa.mjs",
-    "build:ios:ipa": "npm run build:ios -- --no-sign --archive-only --ci && npm run package:ios:ipa"
+    "build:ios:ipa": "npm run build:ios -- --no-sign --archive-only --ci && npm run package:ios:ipa",
+    "test:release": "node --test tests/release.test.mjs"
   },
   "dependencies": {
     "react": "^19.1.0",

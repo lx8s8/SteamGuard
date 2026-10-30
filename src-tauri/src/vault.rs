@@ -153,7 +153,11 @@ impl Vault {
         self.key = Some(key(password, &self.salt)?);
         self.data = Some(VaultData::default());
         self.touch();
-        self.save()
+        if let Err(error) = self.save() {
+            self.lock();
+            return Err(error);
+        }
+        Ok(())
     }
     pub fn unlock(&mut self, password: &str) -> Result<(), String> {
         let bytes = fs::read(&self.path).map_err(|_| "无法读取令牌库")?;
@@ -197,7 +201,7 @@ impl Vault {
     }
     fn recover(&mut self, password: &str) -> Result<(), String> {
         let dir = self.path.parent().ok_or("令牌库目录无效")?;
-        let files = fs::read_dir(dir)
+        let mut files = fs::read_dir(dir)
             .map_err(|_| "无法读取恢复目录")?
             .filter_map(Result::ok)
             .map(|e| e.path())
@@ -207,6 +211,8 @@ impl Vault {
                     && p.extension().is_some_and(|x| x == "sgvault")
             })
             .collect::<Vec<_>>();
+        // Apply older checkpoints first so a later transfer cannot be overwritten.
+        files.sort_by_key(|p| fs::metadata(p).and_then(|m| m.modified()).ok());
         for path in files {
             let bytes = fs::read(&path).map_err(|_| "无法读取待恢复令牌")?;
             let recovered = decode(&bytes, password).map_err(|_| {
@@ -245,6 +251,31 @@ impl Vault {
             fs::remove_file(path).map_err(|_| "令牌已恢复，但恢复副本清理失败")?;
         }
         Ok(())
+    }
+    /// Commit local changes only after the encrypted replacement reaches disk.
+    pub fn update<T>(
+        &mut self,
+        change: impl FnOnce(&mut VaultData) -> Result<T, String>,
+    ) -> Result<T, String> {
+        let snapshot =
+            Zeroizing::new(serde_json::to_vec(self.ensure()?).map_err(|_| "无法创建令牌库事务")?);
+        let result = change(self.ensure()?).and_then(|value| {
+            self.save()?;
+            Ok(value)
+        });
+        if result.is_err() {
+            let original = serde_json::from_slice(&snapshot).map_err(|_| "无法恢复令牌库事务")?;
+            if let Some(current) = &mut self.data {
+                for token in &mut current.tokens {
+                    token.erase();
+                }
+                wipe_json(&mut current.sessions);
+            }
+            self.data = Some(original);
+        } else {
+            self.touch();
+        }
+        result
     }
     pub fn save(&self) -> Result<(), String> {
         let data = self.data.as_ref().ok_or("令牌库已锁定")?;
@@ -305,6 +336,47 @@ mod tests {
         v.unlock("fixture password").unwrap();
         assert_eq!(v.ensure().unwrap().tokens.len(), 1);
         v.lock();
+        fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn failed_save_rolls_back_local_changes() {
+        let dir = std::env::temp_dir().join(format!("steamguard-test-{}", uuid::Uuid::new_v4()));
+        let mut v = Vault::new(dir.join("vault.sgvault"));
+        v.create("fixture password").unwrap();
+        v.update(|d| {
+            d.tokens
+                .push(Token::new("original".into(), "hotp".into(), vec![1; 20]));
+            Ok(())
+        })
+        .unwrap();
+        // A directory at the temporary file path deterministically prevents writes.
+        fs::create_dir(v.path.with_extension("tmp")).unwrap();
+        assert!(v
+            .update(|d| {
+                d.tokens[0].counter += 1;
+                d.tokens[0].name = "changed".into();
+                d.sessions = serde_json::json!({"fixture":"session"});
+                Ok(())
+            })
+            .is_err());
+        let d = v.ensure().unwrap();
+        assert_eq!(d.tokens[0].counter, 0);
+        assert_eq!(d.tokens[0].name, "original");
+        assert!(d.sessions.is_null());
+        v.lock();
+        v.unlock("fixture password").unwrap();
+        assert_eq!(v.ensure().unwrap().tokens[0].counter, 0);
+        v.lock();
+        fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn failed_creation_does_not_leave_vault_unlocked() {
+        let dir = std::env::temp_dir().join(format!("steamguard-test-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        let mut v = Vault::new(dir.join("vault.sgvault"));
+        fs::create_dir(v.path.with_extension("tmp")).unwrap();
+        assert!(v.create("fixture password").is_err());
+        assert!(v.data.is_none() && v.key.is_none());
         fs::remove_dir_all(dir).unwrap();
     }
     #[test]

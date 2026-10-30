@@ -733,6 +733,7 @@ impl SteamService {
         Ok(items)
     }
 
+    #[allow(clippy::too_many_arguments)] // Explicit account, device and reviewed-row bindings.
     pub async fn act_confirmation(
         &self,
         token_id: &str,
@@ -1005,7 +1006,7 @@ impl SteamService {
                 "FinalizeAddAuthenticator",
                 FinalizeAuthenticatorRequest {
                     steam_id: session.steam_id.parse().map_err(|_| "SteamID 无效")?,
-                    authenticator_code: authenticator_code.into(),
+                    authenticator_code,
                     authenticator_time: server_time,
                     activation_code: sms_code.trim().into(),
                     validate_sms_code: true,
@@ -1794,8 +1795,7 @@ mod tests {
                 ))
                 .send()
                 .await
-                .err()
-                .expect("Closed port must refuse connection");
+                .expect_err("Closed port must refuse connection");
             let message = network_error(error, "获取 Steam 登录公钥");
             // Windows may reach the request deadline while retrying a refused
             // loopback connection; Unix usually reports the refusal immediately.

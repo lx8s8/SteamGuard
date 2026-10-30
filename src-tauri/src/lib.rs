@@ -68,27 +68,36 @@ impl AppState {
             return Ok(());
         }
         let mut v = self.vault()?;
-        let d = v.ensure()?;
-        if let Some(t) = d.tokens.iter_mut().find(|t| t.id == id) {
-            if let Some(expected) = &t.steam_id {
-                if expected != &session.steam_id {
-                    self.steam.logout(id);
-                    return Err("登录账号与令牌账号不一致".into());
-                }
+        if self.epoch.load(Ordering::SeqCst) != epoch {
+            self.steam.logout(id);
+            return Err("令牌库已锁定，登录已取消".into());
+        }
+        let result = v.update(|d| {
+            let t = d
+                .tokens
+                .iter_mut()
+                .find(|t| t.id == id)
+                .ok_or("令牌已删除，登录已取消")?;
+            if t.steam_id
+                .as_ref()
+                .is_some_and(|expected| expected != &session.steam_id)
+            {
+                return Err("登录账号与令牌账号不一致".into());
             }
             t.steam_id = Some(session.steam_id.clone());
             t.account_name = Some(session.account_name.clone());
-        } else {
+            if !d.sessions.is_object() {
+                d.sessions = serde_json::json!({});
+            }
+            d.sessions[id] = serde_json::to_value(&session).map_err(|_| "无法保存登录状态")?;
+            Ok(())
+        });
+        if result.is_err() {
             self.steam.logout(id);
-            return Err("令牌已删除，登录已取消".into());
         }
-        if !d.sessions.is_object() {
-            d.sessions = serde_json::json!({});
-        }
-        d.sessions[id] = serde_json::to_value(session).map_err(|_| "无法保存登录状态")?;
-        v.touch();
-        v.save()
+        result
     }
+
     fn timestamp(&self) -> u64 {
         (models::now() as i64 + self.time_offset.load(Ordering::Relaxed)).max(0) as u64
     }
@@ -318,26 +327,21 @@ fn import_commit(s: State<AppState>, preview_id: String) -> Result<usize, String
     if models::now().saturating_sub(p.created) > 300 {
         return Err("预览已过期，请重新导入".into());
     }
-    let old = v.ensure()?.tokens.clone();
-    let mut count = 0;
-    for mut t in p.tokens {
-        if !v
-            .ensure()?
-            .tokens
-            .iter()
-            .any(|e| e.kind == t.kind && e.secret == t.secret)
-        {
-            t.id = uuid::Uuid::new_v4().to_string();
-            v.ensure()?.tokens.push(t);
-            count += 1;
+    v.update(|d| {
+        let mut count = 0;
+        for mut t in p.tokens {
+            if !d
+                .tokens
+                .iter()
+                .any(|e| e.kind == t.kind && e.secret == t.secret)
+            {
+                t.id = uuid::Uuid::new_v4().to_string();
+                d.tokens.push(t);
+                count += 1;
+            }
         }
-    }
-    v.touch();
-    if let Err(e) = v.save() {
-        v.ensure()?.tokens = old;
-        return Err(e);
-    };
-    Ok(count)
+        Ok(count)
+    })
 }
 #[tauri::command]
 fn token_rename(s: State<AppState>, id: String, name: String) -> Result<(), String> {
@@ -345,70 +349,71 @@ fn token_rename(s: State<AppState>, id: String, name: String) -> Result<(), Stri
     if name.is_empty() || name.chars().count() > 120 {
         return Err("名称需为 1–120 个字符".into());
     }
-    let mut v = s.vault()?;
-    let t = v
-        .ensure()?
-        .tokens
-        .iter_mut()
-        .find(|t| t.id == id)
-        .ok_or("令牌不存在")?;
-    t.name = name.into();
-    v.touch();
-    v.save()
+    s.vault()?.update(|d| {
+        d.tokens
+            .iter_mut()
+            .find(|t| t.id == id)
+            .ok_or("令牌不存在")?
+            .name = name.into();
+        Ok(())
+    })
 }
 #[tauri::command]
 fn token_delete(s: State<AppState>, id: String) -> Result<(), String> {
     let mut v = s.vault()?;
-    let d = v.ensure()?;
-    if let Some(t) = d.tokens.iter_mut().find(|t| t.id == id) {
-        t.erase()
-    };
-    d.tokens.retain(|t| t.id != id);
-    if let Some(m) = d.sessions.as_object_mut() {
-        m.remove(&id);
-    };
+    v.update(|d| {
+        if let Some(t) = d.tokens.iter_mut().find(|t| t.id == id) {
+            t.erase();
+        }
+        d.tokens.retain(|t| t.id != id);
+        if let Some(m) = d.sessions.as_object_mut() {
+            m.remove(&id);
+        }
+        Ok(())
+    })?;
     s.steam.logout(&id);
-    v.touch();
-    v.save()
+    Ok(())
 }
 #[tauri::command]
 fn token_advance(s: State<AppState>, id: String) -> Result<(), String> {
-    let mut v = s.vault()?;
-    let t = v
-        .ensure()?
-        .tokens
-        .iter_mut()
-        .find(|t| t.id == id)
-        .ok_or("令牌不存在")?;
-    if t.kind != "hotp" {
-        return Err("只有 HOTP 令牌可增加计数".into());
-    }
-    t.counter = t.counter.checked_add(1).ok_or("计数溢出")?;
-    v.touch();
-    v.save()
+    s.vault()?.update(|d| {
+        let t = d
+            .tokens
+            .iter_mut()
+            .find(|t| t.id == id)
+            .ok_or("令牌不存在")?;
+        if t.kind != "hotp" {
+            return Err("只有 HOTP 令牌可增加计数".into());
+        }
+        t.counter = t.counter.checked_add(1).ok_or("计数溢出")?;
+        Ok(())
+    })
 }
 #[tauri::command]
 fn token_reorder(s: State<AppState>, ids: Vec<String>) -> Result<(), String> {
-    let mut v = s.vault()?;
-    let tokens = &mut v.ensure()?.tokens;
-    if ids.len() != tokens.len()
-        || ids.iter().collect::<std::collections::HashSet<_>>().len() != tokens.len()
-    {
-        return Err("排序数据无效".into());
-    }
-    let mut ordered = Vec::new();
-    for id in ids {
-        ordered.push(
-            tokens
-                .iter()
-                .find(|t| t.id == id)
-                .ok_or("令牌不存在")?
-                .clone(),
-        );
-    }
-    *tokens = ordered;
-    v.touch();
-    v.save()
+    s.vault()?.update(|d| {
+        let tokens = &mut d.tokens;
+        if ids.len() != tokens.len()
+            || ids.iter().collect::<std::collections::HashSet<_>>().len() != tokens.len()
+        {
+            return Err("排序数据无效".into());
+        }
+        let ordered = ids
+            .iter()
+            .map(|id| {
+                tokens
+                    .iter()
+                    .find(|t| &t.id == id)
+                    .cloned()
+                    .ok_or("令牌不存在".to_string())
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        for token in tokens.iter_mut() {
+            token.erase();
+        }
+        *tokens = ordered;
+        Ok(())
+    })
 }
 #[tauri::command]
 async fn vault_export(
@@ -590,9 +595,13 @@ async fn steam_begin_qr(s: State<'_, AppState>, id: String) -> Result<steam::Log
     } else {
         Some(s.token(&id)?)
     };
-    s.steam
+    let epoch = s.epoch.load(Ordering::SeqCst);
+    let result = s
+        .steam
         .begin_qr(&id, t.as_ref().and_then(|t| t.steam_id.as_deref()))
-        .await
+        .await?;
+    s.save_session(&id, epoch)?;
+    Ok(result)
 }
 #[tauri::command]
 async fn steam_submit_guard(
@@ -621,13 +630,15 @@ async fn steam_poll_login(
 #[tauri::command]
 fn steam_logout(s: State<AppState>, id: String) -> Result<(), String> {
     s.unlocked()?;
-    s.steam.logout(&id);
     let mut v = s.vault()?;
-    if let Some(m) = v.ensure()?.sessions.as_object_mut() {
-        m.remove(&id);
-    };
-    v.touch();
-    v.save()
+    v.update(|d| {
+        if let Some(m) = d.sessions.as_object_mut() {
+            m.remove(&id);
+        }
+        Ok(())
+    })?;
+    s.steam.logout(&id);
+    Ok(())
 }
 #[tauri::command]
 async fn steam_confirmations(

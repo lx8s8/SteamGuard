@@ -414,7 +414,7 @@ pub fn export_mpo(tokens: &[Token], password: Option<&str>) -> Result<Vec<u8>, S
 
 fn decode_hex(text: &str) -> Result<Vec<u8>, String> {
     let text: String = text.chars().filter(|c| !c.is_whitespace()).collect();
-    if text.len() % 2 != 0 || !text.is_ascii() {
+    if !text.len().is_multiple_of(2) || !text.is_ascii() {
         return Err("WinAuth 密钥十六进制无效".into());
     }
     text.as_bytes()

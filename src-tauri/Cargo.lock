@@ -4033,7 +4033,7 @@ checksum = "ff7589a1859b09232522bb9edf076ca7fcf14ded96685d3fa629db73023ffbb7"
 
 [[package]]
 name = "steamguard"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
  "aes",
  "aes-gcm",
