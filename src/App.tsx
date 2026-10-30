@@ -418,7 +418,7 @@ export default function App() {
           </div>
           <div className="sidebar-version">
             <span>STEAMGUARD</span>
-            <span>v0.1.1</span>
+            <span>v1.0.0</span>
           </div>
         </div>
       </aside>
@@ -1112,7 +1112,7 @@ export default function App() {
                     </span>
                     <div>
                       <h2>
-                        SteamGuard <span>0.1.1</span>
+                        SteamGuard <span>1.0.0</span>
                       </h2>
                       <p>
                         参考 Watt Toolkit 本地令牌功能构建。基于 Tauri

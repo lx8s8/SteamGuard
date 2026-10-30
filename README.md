@@ -1,5 +1,8 @@
 # SteamGuard
 
+正式版安装包见 [GitHub Releases](https://github.com/lx8s8/SteamGuard/releases/latest)。Android 使用 kasen 固定发布密钥；Windows 使用 kasen 自签名证书，macOS 为 ad-hoc 签名，iOS 提供 LiveContainer IPA。签名信任范围、升级备份和安装说明见 [发布说明](docs/RELEASE.md)。
+
+
 基于 Tauri 2、Rust 和 React 的本地令牌工具，从 WattToolkit / SteamTools 的本地令牌与 Steam 手机验证流程提取、改写。桌面使用侧栏布局，手机使用底部导航，适配 macOS、Windows、Android 和 iOS。
 
 令牌在本机生成；令牌库由主密码通过 Argon2id 派生密钥，以 AES-256-GCM 加密。Steam 登录与交易确认由 Rust 调用 Steam 接口，密码不保存，登录会话只写入加密令牌库。

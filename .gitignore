@@ -32,3 +32,12 @@ dist-ssr
 artifacts/
 test-results/
 playwright-report/
+
+# Private release signing identities
+*.jks
+*.keystore
+*.pfx
+*.p12
+*.key
+keystore.properties
+__pycache__/

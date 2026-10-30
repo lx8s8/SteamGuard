@@ -4,18 +4,18 @@ on:
   workflow_dispatch:
   push:
     branches: [main, master]
-    tags: ['v*']
+    tags: ["v*"]
   pull_request:
     paths:
-      - 'src/**'
-      - 'src-tauri/**'
-      - 'scripts/**'
-      - 'package*.json'
-      - 'tsconfig*.json'
-      - 'vite.config.ts'
-      - 'tests/**'
-      - 'playwright.config.ts'
-      - '.github/workflows/package.yml'
+      - "src/**"
+      - "src-tauri/**"
+      - "scripts/**"
+      - "package*.json"
+      - "tsconfig*.json"
+      - "vite.config.ts"
+      - "tests/**"
+      - "playwright.config.ts"
+      - ".github/workflows/package.yml"
 
 permissions:
   contents: read
@@ -35,12 +35,13 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: '24'
+          node-version: "24"
           cache: npm
       - run: npm ci
       - run: npm run check
       - run: npx playwright install --with-deps chromium
       - run: npm run test:ui
+      - run: npm run test:release
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
@@ -59,23 +60,25 @@ jobs:
             os: macos-latest
             target: aarch64-apple-darwin
             bundles: app,dmg
-            artifact: macOS-arm64-development
+            artifact: macOS-arm64-adhoc
           - name: macOS Intel
             os: macos-latest
             target: x86_64-apple-darwin
             bundles: app,dmg
-            artifact: macOS-x64-development
+            artifact: macOS-x64-adhoc
           - name: Windows x64
             os: windows-latest
             target: x86_64-pc-windows-msvc
             bundles: nsis,msi
-            artifact: Windows-x64-unsigned
+            artifact: Windows-x64
     runs-on: ${{ matrix.os }}
+    env:
+      RELEASE_SIGNING: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.STEAMGUARD_SIGNING != '' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: '24'
+          node-version: "24"
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -87,7 +90,27 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run test:core -- --locked
+      - name: Require signing for official Windows releases
+        if: runner.os == 'Windows' && startsWith(github.ref, 'refs/tags/v') && env.RELEASE_SIGNING != 'true'
+        run: throw 'Release signing secret is required'
+      - name: Prepare Windows signing
+        if: runner.os == 'Windows' && env.RELEASE_SIGNING == 'true'
+        env:
+          STEAMGUARD_SIGNING: ${{ secrets.STEAMGUARD_SIGNING }}
+        run: node scripts/prepare-signing.mjs windows
+      - name: Import Windows signing certificate
+        if: runner.os == 'Windows' && env.RELEASE_SIGNING == 'true'
+        env:
+          STEAMGUARD_SIGNING: ${{ secrets.STEAMGUARD_SIGNING }}
+        run: ./scripts/prepare-windows-signing.ps1
+      - name: Package signed Windows application
+        if: runner.os == 'Windows' && env.RELEASE_SIGNING == 'true'
+        run: npm run tauri -- build --ci --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --config "$env:STEAMGUARD_SIGNING_DIR/tauri-signing.json"
+      - name: Verify Windows signatures
+        if: runner.os == 'Windows' && env.RELEASE_SIGNING == 'true'
+        run: ./scripts/verify-windows-signing.ps1
       - name: Package desktop application
+        if: runner.os != 'Windows' || env.RELEASE_SIGNING != 'true'
         run: npm run tauri -- build --ci --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
       - name: Preserve macOS application executable bits
         if: runner.os == 'macOS'
@@ -108,20 +131,21 @@ jobs:
             src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
 
   android:
-    name: Android APK and unsigned AAB
+    name: Android release APK and AAB
     runs-on: ubuntu-latest
     env:
       NDK_VERSION: 28.2.13676358
+      RELEASE_SIGNING: ${{ startsWith(github.ref, 'refs/tags/v') && secrets.STEAMGUARD_SIGNING != '' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: '24'
+          node-version: "24"
           cache: npm
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: '21'
+          java-version: "21"
       - uses: android-actions/setup-android@v4
       - name: Install Android SDK and NDK
         shell: bash
@@ -136,13 +160,30 @@ jobs:
           workspaces: src-tauri -> target
           key: android
       - run: npm ci
-      - name: Build installable debug APK
-        run: npm run build:android -- --debug --target aarch64 x86_64 --ci
-      - name: Build unsigned release AAB
-        run: node scripts/mobile.mjs android build --aab --target aarch64 x86_64 --ci
+      - name: Require signing for official Android releases
+        if: startsWith(github.ref, 'refs/tags/v') && env.RELEASE_SIGNING != 'true'
+        run: exit 1
+      - name: Prepare Android signing
+        if: env.RELEASE_SIGNING == 'true'
+        env:
+          STEAMGUARD_SIGNING: ${{ secrets.STEAMGUARD_SIGNING }}
+        run: node scripts/prepare-signing.mjs android
+      - name: Build release APK and AAB
+        run: node scripts/mobile.mjs android build --apk --aab --target aarch64 x86_64 --ci
+      - name: Verify Android release signatures
+        if: env.RELEASE_SIGNING == 'true'
+        shell: bash
+        run: |
+          apk=src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release.apk
+          aab=src-tauri/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release.aab
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --verbose --print-certs "$apk" > "$RUNNER_TEMP/apk-signature.txt"
+          expected=$(node -p "require('./certificates/fingerprints.json').android.sha256.toLowerCase()")
+          grep -F "certificate SHA-256 digest: $expected" "$RUNNER_TEMP/apk-signature.txt"
+          jarsigner -verify "$aab"
+          keytool -printcert -jarfile "$aab" | grep -F "SHA256: $(echo "$expected" | sed 's/../&:/g;s/:$//' | tr '[:lower:]' '[:upper:]')"
       - uses: actions/upload-artifact@v7
         with:
-          name: Android-debug-APK-and-unsigned-release-AAB
+          name: Android-release-APK-and-AAB
           if-no-files-found: error
           retention-days: 14
           path: |
@@ -172,7 +213,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: '24'
+          node-version: "24"
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -184,8 +225,8 @@ jobs:
       - name: Ensure Apple build tools are available
         shell: bash
         env:
-          HOMEBREW_NO_AUTO_UPDATE: '1'
-          HOMEBREW_NO_INSTALL_CLEANUP: '1'
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
         run: |
           command -v pod >/dev/null || brew install cocoapods
           command -v xcodegen >/dev/null || brew install xcodegen
@@ -219,3 +260,35 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           path: artifacts/SteamGuard-${{ matrix.artifact }}.zip
+
+  release:
+    name: Publish official GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [ui, desktop, android, ios-simulator]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - uses: actions/download-artifact@v8
+        with:
+          path: downloaded-artifacts
+      - name: Collect verified installers and checksums
+        run: node scripts/collect-release.mjs
+      - name: Upload all assets before publishing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          tag="$GITHUB_REF_NAME"
+          if gh release view "$tag" --json isDraft > "$RUNNER_TEMP/release.json" 2>/dev/null; then
+            node -e "if (!JSON.parse(require('fs').readFileSync(process.argv[1])).isDraft) process.exit(1)" "$RUNNER_TEMP/release.json"
+          else
+            gh release create "$tag" --verify-tag --draft --title "SteamGuard $tag" --notes-file docs/RELEASE.md
+          fi
+          gh release upload "$tag" release/* --clobber
+          gh release edit "$tag" --draft=false --prerelease=false --latest

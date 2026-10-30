@@ -29,7 +29,7 @@ npm run tauri -- build --target aarch64-apple-darwin --bundles app,dmg --ci
 npm run tauri -- build --target x86_64-apple-darwin --bundles app,dmg --ci
 ```
 
-此时产物目录为 `src-tauri/target/<target>/release/bundle/`。默认构建不使用用户 Apple 发布证书，也不完成 Developer ID 签名与公证。公开分发需按 [Tauri macOS 签名文档](https://v2.tauri.app/distribute/sign/macos/) 配置证书与公证凭据。
+此时产物目录为 `src-tauri/target/<target>/release/bundle/`。默认构建使用 ad-hoc 签名，不完成 Developer ID 签名与公证。公开分发需按 [Tauri macOS 签名文档](https://v2.tauri.app/distribute/sign/macos/) 配置证书与公证凭据。
 
 本机已完成 ARM64 发布构建：未压缩 `.app` 约 6.83 MiB、DMG 约 3.38 MiB；调试构建也完成了原生界面检查。GitHub Actions 的 ARM64、Intel macOS 两项构建与产物上传均已通过。
 
@@ -42,7 +42,7 @@ npm ci
 npm run build:win
 ```
 
-NSIS 安装器位于 `src-tauri/target/release/bundle/nsis/`，MSI 位于 `src-tauri/target/release/bundle/msi/`。Windows x64 的 CI 编译、NSIS/MSI 打包和产物上传均已通过。默认安装包未进行 Windows 代码签名；未在 Windows 真机上执行安装或账号联调。
+NSIS 安装器位于 `src-tauri/target/release/bundle/nsis/`，MSI 位于 `src-tauri/target/release/bundle/msi/`。Windows x64 的 CI 编译、NSIS/MSI 打包和产物上传均已通过。正式 CI 安装包使用 kasen 自签名代码证书；未在 Windows 真机上执行安装或账号联调。
 
 ## Android
 
@@ -64,13 +64,11 @@ npm run build:android -- --debug --target aarch64 x86_64 --ci
 node scripts/mobile.mjs android build --apk --aab --target aarch64 x86_64 --ci
 ```
 
-本机 ARM64 发布构建也已通过，生成 `src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk` 和 `src-tauri/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release.aab`。CI 按 `outputs/bundle/**/*.aab` 收集发布 bundle。
+正式 CI 同时生成 `app-universal-release.apk` 和 `app-universal-release.aab`，包含 ARM64/x86_64，并使用 kasen 的持久发布密钥签名。APK 可直接安装；AAB 供分发平台使用。APK 和 AAB 的证书指纹必须与 `certificates/fingerprints.json` 一致。
 
-AAB 不能直接作为 APK 安装，未签名发布 APK 也需签名后安装。上架或发布正式 APK 前，按 [Tauri Android 签名文档](https://v2.tauri.app/distribute/sign/android/) 配置自己的 keystore。不要将 keystore 或密码提交到 Git。
+本机签名构建时，从仓库外的私有文件提供 `STEAMGUARD_SIGNING` 给 `node scripts/prepare-signing.mjs android`，再运行发布构建。不要将密钥内容直接放进终端命令。没有 `keystore.properties` 的开发构建仍输出未签名发布包，不能作为正式 Release 附件。
 
-本机还提供约 9.07 MiB 的优化测试 APK：发布 APK 使用 Android 默认调试证书重新签名，并通过 `apksigner verify`。它用于安装测试；正式分发仍应使用自己的发布密钥。未签名发布 APK 约 9.00 MiB、AAB 约 5.57 MiB。
-
-CI 调试 APK 使用临时调试证书，不同构建之间可能无法直接覆盖安装。若 Android 提示签名不一致，应先在旧应用中导出并保留加密令牌备份，再卸载重装；正式稳定分发需要自己的持久发布密钥。
+旧调试版与正式发布版签名不同；先导出并保留加密令牌备份。若 Android 要求卸载旧包，重装正式版后恢复备份。后续正式版本沿用相同签名，可覆盖升级。密钥保管及 CI 配置见 [签名说明](SIGNING.md)。
 
 Android 的原生文件保存使用系统文件选择器；不需要将令牌库写到公共存储目录。
 
@@ -143,6 +141,6 @@ Actions 单独上传 **`iOS-arm64-device-IPA-unsigned`**。在 iPhone 上先解�
 
 独立的 Linux 前端任务只安装 Node.js 与 Chromium，运行 TypeScript 检查和 Playwright 界面测试，不编译 Rust。原生构建任务分别使用对应平台工具链。
 
-所有产物作为 Actions artifacts 保留 14 天，不自动创建 GitHub Release，也不提交到应用商店。macOS/iOS 目录使用 `ditto` 打包为 ZIP，以保留应用可执行权限。工作流只使用只读仓库权限，不需要 Steam 密钥，也不加载本机真实令牌备份。
+所有构建产物作为 Actions artifacts 保留 14 天。仅正式版本标签使用配置的签名身份；主分支、Pull Request 和手动开发构建不加载签名 Secret。macOS/iOS 使用 `ditto` 保留可执行权限，不加载本机真实令牌备份或 Steam 密码。
 
-已完成的远端任务包括前端测试、macOS ARM64/Intel、Windows x64、iOS 模拟器和未签名真机归档；Android 调试与发布 APK/AAB 已在本机编译通过。Android 工作流使用修正后的 `platforms;android-37.0`，远端结果以对应运行记录为准。正式发布需配置各平台签名，并使用自有账号完成登录、短信流程与交易确认联调。
+推送与应用版本一致的 `v*` 标签后，所有测试及原生构建成功才会触发集中发布任务，收集四平台安装器、公开证书与 SHA-256 校验和；先完成草稿上传，再将 GitHub Release 发布为正式版。只有发布任务具有 `contents: write` 权限，其他任务维持只读权限。不会自动上传到应用商店。
