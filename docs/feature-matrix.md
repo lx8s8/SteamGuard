@@ -35,14 +35,14 @@
 
 ## 平台
 
-| 平台 | 布局与工程 | 构建方式 | 本机验证 |
+| 平台 | 布局与工程 | 构建方式 | 已验证结果 |
 | --- | --- | --- | --- |
-| macOS | 桌面侧栏、自适应窗口，Tauri 原生工程 | 本机或 GitHub macOS runner；`.app`/`.dmg` | ARM64 调试应用与 DMG 已编译；原生界面已检查 |
-| Windows | 桌面侧栏、自适应窗口，同一 Rust/React 代码 | GitHub Windows runner 或本机 Windows；NSIS/MSI | 已提供 CI，未在 macOS 宣称验证 Windows 安装包 |
-| Android | 手机底部导航、安全区域、原生文件保存 | Android SDK/NDK；调试 APK 与未签名发布 AAB | ARM64 Rust 原生代码已交叉编译；APK 完整出包结果待构建完成 |
-| iOS/iPadOS 15+ | 手机/平板响应式布局，Xcode 工程 | macOS/Xcode；模拟器 `.app` 与未签名真机归档 | ARM64 模拟器 `.app` 已编译、安装和启动；真机归档位于 `build/steamguard_iOS.xcarchive` |
+| macOS | 桌面侧栏、自适应窗口，Tauri 原生工程 | 本机或 GitHub macOS runner；`.app`/`.dmg` | ARM64 本机发布与原生界面验证完成；ARM64/Intel 两项 CI 构建及上传通过 |
+| Windows | 桌面侧栏、自适应窗口，同一 Rust/React 代码 | GitHub Windows runner 或本机 Windows；NSIS/MSI | x64 CI 编译、NSIS/MSI 打包与上传通过；未执行真机安装 |
+| Android | 手机底部导航、安全区域、原生文件保存 | Android SDK/NDK；调试 APK、未签名发布 APK/AAB | ARM64 调试 APK 与未签名发布 APK/AAB 本机编译通过，调试 APK 签名已校验 |
+| iOS/iPadOS 15+ | 手机/平板响应式布局，Xcode 工程 | macOS/Xcode；模拟器 `.app` 与未签名真机归档 | 本机模拟器安装启动、未签名真机归档通过；两项 CI 构建及上传均通过 |
 
-GitHub 工作流的存在表示构建配置已提供；某个平台只有在其实际流水线或本机编译成功后才算已通过构建验证。iOS 模拟器包与未签名归档均不是可直接分发的真机安装包。
+macOS、Windows、iOS 及前端测试的成功任务见 [Actions 运行记录](https://github.com/lx8s8/SteamGuard/actions/runs/41024885707)。Android 已完成本机调试和发布出包，工作流已采用准确的 SDK 包标识 `platforms;android-37.0`，远端结果以修正后的运行记录为准。iOS 模拟器包与未签名归档均不是可直接分发的真机安装包。
 
 默认 Rust 测试为 20 项通过、3 项选择性跳过；另行执行的真实 `.mpo` 私有往返测试和只读 Steam RSA 探测通过。Playwright 的 10 项测试使用明确的合成桥接响应验证界面逻辑，不能替代真实 Steam 账号联调或各系统 WebView 的真机测试。
 

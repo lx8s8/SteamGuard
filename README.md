@@ -15,6 +15,10 @@
 
 实现范围和验证边界见 [功能矩阵](docs/feature-matrix.md)。Steam 的短信、账号限制和交易状态取决于账号与服务端；编译通过不代表已用真实账户完成交易。
 
+![桌面界面，图中为自动化测试虚构账户](docs/screenshots/desktop.png)
+
+图中账户及验证码均为界面测试数据，应用首次启动时没有预置账户。
+
 ## 开发
 
 需要 Node.js 24、Rust 与 [Tauri 各平台前置依赖](https://v2.tauri.app/start/prerequisites/)。
@@ -46,7 +50,7 @@ WATT_TEST_MPO='/absolute/path/to/private-export.mpo' npm run test:core -- real_m
 
 有二级密码时设置 `WATT_TEST_PASSWORD`。启用原机器保护的备份需先在原设备导出可迁移版本。MemoryPack 新格式和 WattToolkit v1 `.dat` 尚不支持，详见 [导入兼容文档](docs/import-format.md)。
 
-已通过 20 项 Rust 默认测试和 10 项界面交互/响应式布局测试；3 项需要真实文件或网络的测试默认跳过。另行运行的私有原文件往返测试与真实 Steam 只读 RSA 协议探测均已通过。macOS 调试 `.app`/`.dmg` 和 ARM64 iOS 模拟器 `.app` 已在本机编译成功；其他平台构建结果见功能矩阵和实际 CI 记录。
+已通过 20 项 Rust 默认测试和 10 项界面交互/响应式布局测试；3 项需要真实文件或网络的测试默认跳过。另行运行的私有原文件往返测试与真实 Steam 只读 RSA 协议探测均已通过。macOS ARM64 发布 `.app`/`.dmg`、Android ARM64 调试 APK 与未签名发布 APK/AAB、iOS 未签名真机归档及模拟器 `.app` 已在本机编译成功，iOS 模拟器已完成安装启动。Windows NSIS/MSI、macOS ARM64/Intel、iOS 模拟器及真机归档的 CI 构建与产物上传均已通过，详见功能矩阵。
 
 ## 打包
 

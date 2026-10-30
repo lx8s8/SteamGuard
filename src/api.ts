@@ -1,42 +1,89 @@
-import { invoke, isTauri } from '@tauri-apps/api/core';
-import type { VaultStatus, TokenView, ImportPreview, LoginResult, Confirmation, MarketResult, Enrollment } from './types';
+import { invoke, isTauri } from "@tauri-apps/api/core";
+import type {
+  VaultStatus,
+  TokenView,
+  ImportPreview,
+  LoginResult,
+  Confirmation,
+  MarketResult,
+  Enrollment,
+} from "./types";
 
 export const native = isTauri();
-export const call = <T,>(command: string, args?: Record<string, unknown>): Promise<T> => {
-  if (!native) return Promise.reject(new Error('请通过 Tauri 应用使用此功能。浏览器仅用于界面预览。'));
+export const call = <T>(
+  command: string,
+  args?: Record<string, unknown>,
+): Promise<T> => {
+  if (!native)
+    return Promise.reject(
+      new Error("请通过 Tauri 应用使用此功能。浏览器仅用于界面预览。"),
+    );
   return invoke<T>(command, args);
 };
 export const api = {
-  status: () => native ? call<VaultStatus>('vault_status') : Promise.resolve({ initialized: false, locked: false, tokenCount: 0 }),
-  create: (password: string) => call<void>('vault_create', { password }),
-  unlock: (password: string) => call<void>('vault_unlock', { password }),
-  touch: () => call<void>('vault_touch'),
-  lock: () => call<void>('vault_lock'),
-  tokens: () => native ? call<TokenView[]>('list_tokens') : Promise.resolve([]),
-  preview: (args: { data?: number[]; filename?: string; text?: string; password?: string }) => call<ImportPreview>('import_preview', args),
-  commit: (previewId: string) => call<void>('import_commit', { previewId }),
-  rename: (id: string, name: string) => call<void>('token_rename', { id, name }),
-  remove: (id: string) => call<void>('token_delete', { id }),
-  export: (password: string, format: 'sgvault' | 'mpo' = 'sgvault') => call<string | null>('vault_export', { password, format }),
-  login: (id: string, username: string, password: string) => call<LoginResult>('steam_login', { id, username, password }),
-  guard: (id: string, code: string, codeType: number) => call<LoginResult>('steam_submit_guard', { id, code, codeType }),
-  poll: (id: string) => call<LoginResult>('steam_poll_login', { id }),
-  qrLogin: (id: string) => call<LoginResult>('steam_begin_qr', { id }),
-  enroll: (id: string, name?: string) => call<Enrollment>('steam_enroll_begin', { id, name }),
-  activate: (id: string, smsCode: string) => call<void>('steam_enroll_finalize', { id, smsCode }),
-  transferBegin: (id: string) => call<void>('steam_transfer_begin', { id }),
-  transferFinish: (id: string, smsCode: string, name?: string) => call<Enrollment>('steam_transfer_finish', { id, smsCode, name }),
-  removeGuard: (id: string, revocationCode: string) => call<void>('steam_remove_authenticator', { id, revocationCode }),
-  qrInfo: (id: string, url: string) => call<Record<string, unknown>>('steam_qr_info', { id, url }),
-  qrApprove: (id: string, url: string, approve: boolean) => call<void>('steam_qr_approve', { id, url, approve }),
-  uri: (id: string) => call<string>('token_uri', { id }),
-  tokenExport: (id: string, format: 'mafile' | 'otpauth') => call<string | null>('token_export', { id, format }),
-  logout: (id: string) => call<void>('steam_logout', { id }),
-  confirmations: (id: string) => call<Confirmation[]>('steam_confirmations', { id }),
-  confirm: (id: string, confirmationId: string, confirmationKey: string, approve: boolean) => call<void>('steam_confirmation_action', { id, confirmationId, confirmationKey, approve }),
-  market: (id: string) => call<MarketResult>('steam_market', { id }),
-  external: (url: string) => call<void>('open_external', { url }),
-  syncTime: () => call<void>('sync_time'),
-  nextHotp: (id: string) => call<void>('token_advance', { id }),
+  status: () =>
+    native
+      ? call<VaultStatus>("vault_status")
+      : Promise.resolve({ initialized: false, locked: false, tokenCount: 0 }),
+  create: (password: string) => call<void>("vault_create", { password }),
+  unlock: (password: string) => call<void>("vault_unlock", { password }),
+  touch: () => call<void>("vault_touch"),
+  lock: () => call<void>("vault_lock"),
+  tokens: () =>
+    native ? call<TokenView[]>("list_tokens") : Promise.resolve([]),
+  preview: (args: {
+    data?: number[];
+    filename?: string;
+    text?: string;
+    password?: string;
+  }) => call<ImportPreview>("import_preview", args),
+  commit: (previewId: string) => call<void>("import_commit", { previewId }),
+  rename: (id: string, name: string) =>
+    call<void>("token_rename", { id, name }),
+  remove: (id: string) => call<void>("token_delete", { id }),
+  export: (password: string, format: "sgvault" | "mpo" = "sgvault") =>
+    call<string | null>("vault_export", { password, format }),
+  login: (id: string, username: string, password: string) =>
+    call<LoginResult>("steam_login", { id, username, password }),
+  guard: (id: string, code: string, codeType: number) =>
+    call<LoginResult>("steam_submit_guard", { id, code, codeType }),
+  poll: (id: string) => call<LoginResult>("steam_poll_login", { id }),
+  qrLogin: (id: string) => call<LoginResult>("steam_begin_qr", { id }),
+  enroll: (id: string, name?: string) =>
+    call<Enrollment>("steam_enroll_begin", { id, name }),
+  activate: (id: string, smsCode: string) =>
+    call<void>("steam_enroll_finalize", { id, smsCode }),
+  transferBegin: (id: string) => call<void>("steam_transfer_begin", { id }),
+  transferFinish: (id: string, smsCode: string, name?: string) =>
+    call<Enrollment>("steam_transfer_finish", { id, smsCode, name }),
+  removeGuard: (id: string, revocationCode: string) =>
+    call<void>("steam_remove_authenticator", { id, revocationCode }),
+  qrInfo: (id: string, url: string) =>
+    call<Record<string, unknown>>("steam_qr_info", { id, url }),
+  qrApprove: (id: string, url: string, approve: boolean) =>
+    call<void>("steam_qr_approve", { id, url, approve }),
+  uri: (id: string) => call<string>("token_uri", { id }),
+  tokenExport: (id: string, format: "mafile" | "otpauth") =>
+    call<string | null>("token_export", { id, format }),
+  logout: (id: string) => call<void>("steam_logout", { id }),
+  confirmations: (id: string) =>
+    call<Confirmation[]>("steam_confirmations", { id }),
+  confirm: (
+    id: string,
+    confirmationId: string,
+    confirmationKey: string,
+    approve: boolean,
+  ) =>
+    call<void>("steam_confirmation_action", {
+      id,
+      confirmationId,
+      confirmationKey,
+      approve,
+    }),
+  market: (id: string) => call<MarketResult>("steam_market", { id }),
+  external: (url: string) => call<void>("open_external", { url }),
+  syncTime: () => call<void>("sync_time"),
+  nextHotp: (id: string) => call<void>("token_advance", { id }),
 };
-export const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
+export const errorText = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);

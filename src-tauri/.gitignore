@@ -3,6 +3,7 @@
 /gen/android/.gradle/
 /gen/android/local.properties
 /gen/android/**/build/
+/gen/android/**/.kotlin/
 /gen/apple/build/
 /gen/apple/Externals/
 /gen/apple/Pods/
