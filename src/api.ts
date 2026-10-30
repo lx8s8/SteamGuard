@@ -7,6 +7,8 @@ import type {
   Confirmation,
   MarketResult,
   Enrollment,
+  NetworkSettings,
+  NetworkReport,
 } from "./types";
 
 export const native = isTauri();
@@ -83,6 +85,10 @@ export const api = {
   market: (id: string) => call<MarketResult>("steam_market", { id }),
   external: (url: string) => call<void>("open_external", { url }),
   syncTime: () => call<void>("sync_time"),
+  networkSettings: () => call<NetworkSettings>("steam_network_settings"),
+  configureNetwork: (settings: NetworkSettings) =>
+    call<void>("steam_network_configure", { settings }),
+  networkDiagnostics: () => call<NetworkReport>("steam_network_diagnostics"),
   nextHotp: (id: string) => call<void>("token_advance", { id }),
 };
 export const errorText = (error: unknown) =>

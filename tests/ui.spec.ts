@@ -60,6 +60,25 @@ async function nativeFixture(page: Page) {
               return;
             case "vault_touch":
               return;
+            case "steam_network_settings":
+              return { mode: "system", proxyUrl: "" };
+            case "steam_network_configure":
+              return;
+            case "steam_network_diagnostics":
+              return {
+                platform: "windows",
+                mode: "manual",
+                checks: [
+                  { name: "Steam 认证接口", ok: true, latencyMs: 120 },
+                  { name: "Steam 时间校准", ok: true, latencyMs: 98 },
+                  {
+                    name: "Steam 社区",
+                    ok: false,
+                    latencyMs: 1000,
+                    error: "连接 Steam 失败（访问 Steam 社区：请求超时）",
+                  },
+                ],
+              };
             case "import_preview":
               return {
                 previewId: "fixture-preview",
@@ -280,11 +299,9 @@ test("new Steam enrollment requires an explicit start and recovery acknowledgmen
 test("QR approval shows request details before submitting a decision", async ({
   page,
 }) => {
-  const card = page
-    .locator(".token-card")
-    .filter({
-      has: page.getByRole("heading", { name: "测试 · Steam", exact: true }),
-    });
+  const card = page.locator(".token-card").filter({
+    has: page.getByRole("heading", { name: "测试 · Steam", exact: true }),
+  });
   await card.getByRole("button", { name: "已登录", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: "批准二维码登录" }).click();
@@ -309,6 +326,52 @@ test("locks the vault and removes token content", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "测试 · Steam", exact: true }),
   ).toHaveCount(0);
+});
+
+test("saves a chosen proxy only on explicit save and shows endpoint diagnostics", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "设置", exact: true }).first().click();
+  const panel = page.locator(".network-panel");
+  await panel.getByLabel("连接方式", { exact: true }).selectOption("manual");
+  await panel
+    .getByLabel("代理地址", { exact: true })
+    .fill("http://127.0.0.1:7890");
+  expect(
+    await page.evaluate(
+      () =>
+        ((window as any).__testCommands as any[]).filter(
+          (c) => c.command === "steam_network_configure",
+        ).length,
+    ),
+  ).toBe(0);
+  await panel
+    .getByRole("button", { name: "保存连接方式", exact: true })
+    .click();
+  await expect(panel.getByRole("status")).toContainText("连接方式已保存");
+  expect(
+    await page.evaluate(
+      () =>
+        ((window as any).__testCommands as any[]).find(
+          (c) => c.command === "steam_network_configure",
+        ).args.settings,
+    ),
+  ).toEqual({ mode: "manual", proxyUrl: "http://127.0.0.1:7890" });
+  await panel
+    .getByRole("button", { name: "检测已保存配置", exact: true })
+    .click();
+  await expect(panel.getByLabel("Steam 网络检测结果")).toContainText(
+    "Steam 认证接口",
+  );
+  await expect(panel.getByLabel("Steam 网络检测结果")).toContainText(
+    "访问 Steam 社区：请求超时",
+  );
+  await page.setViewportSize({ width: 360, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
 });
 
 for (const width of [360, 390, 768, 1180]) {

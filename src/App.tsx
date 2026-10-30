@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import QRCode from "qrcode";
 import { api, errorText, native } from "./api";
+import { SteamNetworkPanel } from "./SteamNetworkPanel";
 import type {
   Confirmation,
   Enrollment,
@@ -417,7 +418,7 @@ export default function App() {
           </div>
           <div className="sidebar-version">
             <span>STEAMGUARD</span>
-            <span>v0.1.0</span>
+            <span>v0.1.1</span>
           </div>
         </div>
       </aside>
@@ -1104,13 +1105,14 @@ export default function App() {
                       </span>
                     </div>
                   </section>
+                  <SteamNetworkPanel />
                   <section className="settings-panel about-panel">
                     <span className="brand-symbol">
                       <ShieldCheck size={26} />
                     </span>
                     <div>
                       <h2>
-                        SteamGuard <span>0.1.0</span>
+                        SteamGuard <span>0.1.1</span>
                       </h2>
                       <p>
                         参考 Watt Toolkit 本地令牌功能构建。基于 Tauri
@@ -1646,6 +1648,7 @@ function LoginDialog({
   const [result, setResult] = useState<LoginResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [networkOpen, setNetworkOpen] = useState(false);
   const [qrImage, setQrImage] = useState("");
   const [mode, setMode] = useState<"password" | "qr">("password");
   const [tool, setTool] = useState<
@@ -1732,6 +1735,20 @@ function LoginDialog({
     if (awaiting) void api.logout(token.id).catch(() => {});
     onClose();
   };
+  if (networkOpen)
+    return (
+      <Modal title="Steam 网络设置" onClose={close}>
+        <SteamNetworkPanel />
+        <div className="modal-actions">
+          <button
+            className="button secondary"
+            onClick={() => setNetworkOpen(false)}
+          >
+            返回登录
+          </button>
+        </div>
+      </Modal>
+    );
   return (
     <Modal
       title={isNew ? "添加 Steam 令牌" : "Steam 账户"}
@@ -2349,9 +2366,15 @@ function LoginDialog({
         </>
       )}
       {error && (
-        <div className="form-error" role="alert">
-          {error}
-        </div>
+        <>
+          <div className="form-error" role="alert">
+            {error}
+          </div>
+          <button className="text-button" onClick={() => setNetworkOpen(true)}>
+            <Globe2 size={15} />
+            检查网络与代理
+          </button>
+        </>
       )}
     </Modal>
   );

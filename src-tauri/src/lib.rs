@@ -1,5 +1,8 @@
+#[cfg(target_os = "android")]
+mod android_proxy;
 mod import;
 mod models;
+mod network;
 mod otp;
 mod steam;
 mod vault;
@@ -125,6 +128,12 @@ async fn vault_unlock(s: State<'_, AppState>, password: String) -> Result<(), St
         return Err(e);
     };
     if let Some(d) = &v.data {
+        if let Err(e) = s.steam.configure_network(d.network.clone()) {
+            v.lock();
+            return Err(e);
+        }
+    }
+    if let Some(d) = &v.data {
         if let Some(sessions) = d.sessions.as_object() {
             for (id, value) in sessions {
                 if let Ok(session) = serde_json::from_value(value.clone()) {
@@ -158,6 +167,7 @@ mod integration_tests {
         let data = vault::VaultData {
             tokens,
             sessions: serde_json::Value::Null,
+            ..Default::default()
         };
         let encrypted = vault::backup(&data, "disposable fixture password").unwrap();
         let restored = vault::decode(&encrypted, "disposable fixture password").unwrap();
@@ -772,6 +782,7 @@ fn persist_enrollment(
     let checkpoint = context.lease.checkpoint(&vault::VaultData {
         tokens: vec![t.clone()],
         sessions,
+        network: s.steam.network_settings(),
     })?;
     if s.epoch.load(Ordering::SeqCst) != context.epoch || v.data.is_none() {
         return Err(
@@ -869,29 +880,37 @@ async fn steam_remove_authenticator(
     v.save()
 }
 #[tauri::command]
+fn steam_network_settings(s: State<AppState>) -> Result<network::NetworkSettings, String> {
+    s.unlocked()?;
+    Ok(s.steam.network_settings())
+}
+#[tauri::command]
+fn steam_network_configure(
+    s: State<AppState>,
+    settings: network::NetworkSettings,
+) -> Result<(), String> {
+    let mut v = s.vault()?;
+    let old = v.ensure()?.network.clone();
+    s.steam.configure_network(settings.clone())?;
+    v.ensure()?.network = settings;
+    v.touch();
+    if let Err(e) = v.save() {
+        v.ensure()?.network = old.clone();
+        let _ = s.steam.configure_network(old);
+        return Err(e);
+    }
+    Ok(())
+}
+#[tauri::command]
+async fn steam_network_diagnostics(s: State<'_, AppState>) -> Result<steam::NetworkReport, String> {
+    s.unlocked()?;
+    s.steam.network_diagnostics().await
+}
+#[tauri::command]
 async fn sync_time(s: State<'_, AppState>) -> Result<i64, String> {
     s.unlocked()?;
     let start = models::now() as i64;
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(15))
-        .build()
-        .map_err(|_| "网络初始化失败")?;
-    let v: serde_json::Value = client
-        .post("https://api.steampowered.com/ITwoFactorService/QueryTime/v1/")
-        .send()
-        .await
-        .map_err(|_| "Steam 时间同步失败")?
-        .json()
-        .await
-        .map_err(|_| "Steam 时间响应无效")?;
-    let server = v["response"]["server_time"]
-        .as_u64()
-        .or_else(|| {
-            v["response"]["server_time"]
-                .as_str()
-                .and_then(|s| s.parse().ok())
-        })
-        .ok_or("Steam 时间响应缺少时间")? as i64;
+    let server = s.steam.server_time().await? as i64;
     let offset = server - (start + models::now() as i64) / 2;
     s.time_offset.store(offset, Ordering::Relaxed);
     Ok(offset)
@@ -965,6 +984,9 @@ pub fn run() {
             steam_transfer_begin,
             steam_transfer_finish,
             steam_remove_authenticator,
+            steam_network_settings,
+            steam_network_configure,
+            steam_network_diagnostics,
             sync_time,
             open_external
         ])

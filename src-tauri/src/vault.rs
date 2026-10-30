@@ -16,6 +16,8 @@ pub struct VaultData {
     pub tokens: Vec<Token>,
     #[serde(default)]
     pub sessions: serde_json::Value,
+    #[serde(default)]
+    pub network: crate::network::NetworkSettings,
 }
 pub fn wipe_json(v: &mut serde_json::Value) {
     use zeroize::Zeroize;
@@ -272,6 +274,12 @@ impl Vault {
 mod tests {
     use super::*;
     #[test]
+    fn old_vault_without_network_preferences_remains_compatible() {
+        let data: VaultData = serde_json::from_str(r#"{"tokens":[],"sessions":null}"#).unwrap();
+        assert!(data.network.mode == crate::network::ProxyMode::System);
+        assert!(data.network.proxy_url.is_empty());
+    }
+    #[test]
     fn interrupted_enrollment_recovers_after_unlock() {
         let dir = std::env::temp_dir().join(format!("steamguard-test-{}", uuid::Uuid::new_v4()));
         let mut v = Vault::new(dir.join("vault.sgvault"));
@@ -286,6 +294,7 @@ mod tests {
                     vec![1; 20],
                 )],
                 sessions: serde_json::Value::Null,
+                ..Default::default()
             })
             .unwrap();
         assert!(checkpoint.exists());
@@ -303,6 +312,7 @@ mod tests {
         let d = VaultData {
             tokens: vec![Token::new("fixture".into(), "totp".into(), vec![1; 20])],
             sessions: serde_json::Value::Null,
+            ..Default::default()
         };
         let b = backup(&d, "fixture password").unwrap();
         assert!(!String::from_utf8_lossy(&b).contains("fixture"));

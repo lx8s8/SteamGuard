@@ -1,6 +1,6 @@
 [package]
 name = "steamguard"
-version = "0.1.0"
+version = "0.1.1"
 description = "Local authenticator and Steam mobile confirmations"
 authors = ["SteamGuard contributors"]
 license = "GPL-3.0-only"
@@ -40,12 +40,16 @@ argon2 = "0.5"
 zeroize = { version = "1", features = ["derive"] }
 rand = "0.8"
 url = "2"
-reqwest = { version = "0.12", default-features = false, features = ["json", "cookies", "rustls-tls", "gzip"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "cookies", "rustls-tls", "gzip", "system-proxy", "socks"] }
 rsa = "0.9"
 prost = "0.13"
 rmpv = { version = "1", features = ["with-serde"] }
 lz4_flex = "0.11"
 roxmltree = "0.20"
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.21"
+ndk-context = "0.1"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
@@ -55,3 +59,6 @@ lto = true
 opt-level = 3
 panic = "abort"
 strip = true
+
+[dev-dependencies]
+rpassword = "7"
