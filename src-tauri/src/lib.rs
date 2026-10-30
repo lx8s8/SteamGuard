@@ -58,20 +58,22 @@ impl AppState {
     }
     fn save_session(&self, id: &str, epoch: u64) -> Result<(), String> {
         if self.epoch.load(Ordering::SeqCst) != epoch {
-            self.steam.logout(id);
+            // Locking already canceled the old backend generation. Do not log
+            // out a newer session established after the vault was unlocked.
             return Err("令牌库已锁定，登录已取消".into());
         }
-        let Some(session) = self.steam.export_session(id) else {
-            return Ok(());
-        };
         if id == "new-account" {
             return Ok(());
         }
         let mut v = self.vault()?;
         if self.epoch.load(Ordering::SeqCst) != epoch {
-            self.steam.logout(id);
             return Err("令牌库已锁定，登录已取消".into());
         }
+        // Capture the current session under the same vault lock used by logout.
+        // Otherwise a logout between the capture and this lock could be undone.
+        let Some(session) = self.steam.export_session(id) else {
+            return Ok(());
+        };
         let result = v.update(|d| {
             let t = d
                 .tokens
@@ -161,6 +163,40 @@ async fn vault_unlock(s: State<'_, AppState>, password: String) -> Result<(), St
 #[cfg(test)]
 mod integration_tests {
     use super::*;
+    #[test]
+    fn stale_login_completion_does_not_cancel_newer_session() {
+        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+        let steam = steam::SteamService::new().unwrap();
+        let access = format!(
+            "a.{}.b",
+            URL_SAFE_NO_PAD.encode(br#"{"sub":"123","aud":["mobile"]}"#)
+        );
+        steam
+            .restore_session(
+                "fixture",
+                steam::SteamSession {
+                    steam_id: "123".into(),
+                    account_name: "synthetic-fixture".into(),
+                    access_token: access,
+                    refresh_token: "synthetic-refresh".into(),
+                    session_id: "synthetic-session".into(),
+                },
+                Some("123"),
+            )
+            .unwrap();
+        let s = AppState {
+            vault: Mutex::new(vault::Vault::new(
+                std::env::temp_dir().join("unused-steamguard-fixture"),
+            )),
+            previews: Mutex::new(HashMap::new()),
+            steam,
+            epoch: AtomicU64::new(1),
+            time_offset: std::sync::atomic::AtomicI64::new(0),
+        };
+        assert!(s.save_session("fixture", 0).is_err());
+        assert!(s.steam.is_logged_in("fixture"));
+        s.steam.clear();
+    }
     #[test]
     #[ignore = "Set WATT_TEST_MPO to a private local backup; never logs account data"]
     fn private_mpo_encrypted_backup_and_legacy_export_roundtrip() {
