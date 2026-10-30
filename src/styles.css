@@ -3494,3 +3494,59 @@ main {
     min-height: 40px;
   }
 }
+.network-panel {
+  min-width: 0;
+}
+.network-panel > select,
+.network-panel > input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.network-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+.network-message {
+  color: var(--green, #7fd5b6);
+  font-size: 13px;
+  margin-top: 14px;
+}
+.network-results {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.network-results li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+  min-width: 0;
+}
+.network-results li > svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+.network-results li.ok > svg {
+  color: #7fd5b6;
+}
+.network-results li.failed > svg {
+  color: #f29b9b;
+}
+.network-results strong,
+.network-results span {
+  display: block;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.network-results span {
+  color: #8ca1b5;
+  margin-top: 5px;
+  line-height: 1.6;
+}

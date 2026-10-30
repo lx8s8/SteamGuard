@@ -1,5 +1,6 @@
 //! Steam mobile authentication and confirmations. Adapted from the protocols used
 //! by SteamKit, steam-session and WattToolkit; credentials remain in Rust.
+use crate::network::{NetworkClient, NetworkSettings};
 use base64::{
     engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD},
     Engine,
@@ -7,7 +8,7 @@ use base64::{
 use hmac::{Hmac, Mac};
 use prost::Message;
 use rand::{rngs::OsRng, RngCore};
-use reqwest::{header, Client};
+use reqwest::header;
 use rsa::{BigUint, Pkcs1v15Encrypt, RsaPublicKey};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -124,7 +125,7 @@ pub struct SteamService {
     lifecycle: Mutex<()>,
     generations: Mutex<HashMap<String, u64>>,
     next_generation: AtomicU64,
-    client: Client,
+    client: NetworkClient,
     pending: Mutex<HashMap<String, Pending>>,
     sessions: Mutex<HashMap<String, SteamSession>>,
     confirmations: Mutex<HashMap<String, Vec<Confirmation>>>,
@@ -133,13 +134,7 @@ pub struct SteamService {
 
 impl SteamService {
     pub fn new() -> Result<Self, String> {
-        let client = Client::builder()
-            .user_agent("okhttp/4.9.2")
-            // Fixed hosts only. Never forward a Steam cookie or access token across redirects.
-            .redirect(reqwest::redirect::Policy::none())
-            .timeout(Duration::from_secs(30))
-            .build()
-            .map_err(|_| "无法创建 Steam 网络客户端".to_string())?;
+        let client = NetworkClient::new()?;
         Ok(Self {
             lifecycle: Mutex::new(()),
             generations: Mutex::new(HashMap::new()),
@@ -149,6 +144,64 @@ impl SteamService {
             sessions: Mutex::new(HashMap::new()),
             confirmations: Mutex::new(HashMap::new()),
             reviewed_qr: Mutex::new(HashMap::new()),
+        })
+    }
+
+    pub fn network_settings(&self) -> NetworkSettings {
+        self.client.settings()
+    }
+    pub fn configure_network(&self, settings: NetworkSettings) -> Result<(), String> {
+        self.client.configure(settings)
+    }
+
+    pub async fn network_diagnostics(&self) -> Result<NetworkReport, String> {
+        let settings = self.client.settings();
+        // Re-read desktop system proxy settings after the user changes their VPN/proxy.
+        self.client.configure(settings.clone())?;
+        let started = Instant::now();
+        let rsa: Result<RsaKeyResponse, String> = self
+            .api(
+                "Authentication",
+                "GetPasswordRSAPublicKey",
+                RsaKeyRequest {
+                    account_name: "steamguard_protocol_probe".into(),
+                },
+                None,
+            )
+            .await;
+        let mut checks = vec![NetworkCheck::from_result(
+            "Steam 认证接口",
+            started,
+            rsa.and_then(|r| {
+                if r.modulus.is_empty() {
+                    Err("Steam 未返回登录公钥".into())
+                } else {
+                    Ok(())
+                }
+            }),
+        )];
+        if checks[0].ok {
+            let started = Instant::now();
+            let time = self.server_time().await.map(|_| ());
+            checks.push(NetworkCheck::from_result("Steam 时间校准", started, time));
+        }
+        let started = Instant::now();
+        let community = match self
+            .client
+            .get(COMMUNITY)
+            .timeout(Duration::from_secs(12))
+            .send()
+            .await
+        {
+            Ok(r) if r.status().is_success() || r.status().is_redirection() => Ok(()),
+            Ok(r) => Err(format!("Steam 社区返回 HTTP {}", r.status().as_u16())),
+            Err(e) => Err(network_error(e, "访问 Steam 社区")),
+        };
+        checks.push(NetworkCheck::from_result("Steam 社区", started, community));
+        Ok(NetworkReport {
+            platform: std::env::consts::OS.into(),
+            mode: settings.mode,
+            checks,
         })
     }
 
@@ -257,10 +310,11 @@ impl SteamService {
         let response = req
             .send()
             .await
-            .map_err(|_| "连接 Steam 失败，请检查网络后重试".to_string())?;
+            .map_err(|error| network_error(error, &format!("{service}.{method}")))?;
         if !response.status().is_success() {
             return Err(format!(
-                "Steam 服务返回 HTTP {}",
+                "{}失败（Steam HTTP {}）",
+                operation_label(method),
                 response.status().as_u16()
             ));
         }
@@ -640,7 +694,7 @@ impl SteamService {
             .query(&params)
             .send()
             .await
-            .map_err(|_| "读取 Steam 交易确认失败，请检查网络")?;
+            .map_err(|e| network_error(e, "读取 Steam 交易确认"))?;
         let body = community_json(response).await?;
         ensure_success(&body)?;
         let items = body["conf"]
@@ -727,13 +781,19 @@ impl SteamService {
         Ok(())
     }
 
-    async fn server_time(&self) -> Result<u64, String> {
-        let response = self
-            .client
+    fn time_request(&self) -> reqwest::RequestBuilder {
+        self.client
             .post(format!("{API}/ITwoFactorService/QueryTime/v1/"))
+            // Steam's HTTP frontend rejects a body-less POST with HTTP 411.
+            .form(&[("steamid", "0")])
+    }
+
+    pub async fn server_time(&self) -> Result<u64, String> {
+        let response = self
+            .time_request()
             .send()
             .await
-            .map_err(|_| "无法校准 Steam 时间，请检查网络")?;
+            .map_err(|e| network_error(e, "校准 Steam 时间"))?;
         let value = community_json(response).await?;
         let time = value["response"]["server_time"]
             .as_u64()
@@ -759,7 +819,7 @@ impl SteamService {
             ])
             .send()
             .await
-            .map_err(|_| "读取市场挂单失败，请检查网络")?;
+            .map_err(|e| network_error(e, "读取市场挂单"))?;
         let body = community_json(response).await?;
         ensure_success(&body)?;
         let listinginfo = body.get("listinginfo").or_else(|| body.get("listings"));
@@ -806,7 +866,7 @@ impl SteamService {
             ])
             .send()
             .await
-            .map_err(|_| "Steam 市场搜索失败，请检查网络")?;
+            .map_err(|e| network_error(e, "搜索 Steam 市场"))?;
         let body = community_json(response).await?;
         ensure_success(&body)?;
         let items: Vec<Value> = body["results"].as_array().into_iter().flatten().map(|row| {
@@ -1063,6 +1123,80 @@ impl SteamService {
         self.logout(id);
         Ok(())
     }
+}
+
+fn network_error(error: reqwest::Error, operation: &str) -> String {
+    // Classify locally; never put URLs (which can contain access tokens), request
+    // bodies, passwords or raw proxy errors into the webview or a diagnostic log.
+    let mut chain = String::new();
+    let mut cause: Option<&dyn std::error::Error> = Some(&error);
+    while let Some(current) = cause {
+        chain.push_str(&current.to_string().to_lowercase());
+        chain.push(' ');
+        cause = current.source();
+    }
+    let reason = if error.is_timeout() {
+        "请求超时"
+    } else if chain.contains("certificate")
+        || chain.contains("unknownissuer")
+        || chain.contains("certnotvalid")
+    {
+        "TLS 证书校验失败"
+    } else if chain.contains("dns")
+        || chain.contains("name resolution")
+        || chain.contains("nodename")
+        || chain.contains("failed to lookup")
+    {
+        "域名解析失败"
+    } else if chain.contains("proxy") || chain.contains("socks") {
+        "代理连接失败"
+    } else if error.is_connect() {
+        "无法建立网络连接"
+    } else {
+        "连接中断或响应读取失败"
+    };
+    format!(
+        "连接 Steam 失败（{}：{reason}），请检查当前网络或代理",
+        operation_label(operation)
+    )
+}
+
+fn operation_label(operation: &str) -> &str {
+    match operation.rsplit('.').next().unwrap_or(operation) {
+        "GetPasswordRSAPublicKey" => "获取登录公钥",
+        "BeginAuthSessionViaCredentials" => "提交账号密码",
+        "BeginAuthSessionViaQR" => "获取登录二维码",
+        "UpdateAuthSessionWithSteamGuardCode" => "提交登录验证码",
+        "PollAuthSessionStatus" => "查询登录结果",
+        "GenerateAccessTokenForApp" => "续期登录会话",
+        _ => operation,
+    }
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NetworkCheck {
+    name: String,
+    ok: bool,
+    latency_ms: u64,
+    error: Option<String>,
+}
+impl NetworkCheck {
+    fn from_result(name: &str, start: Instant, result: Result<(), String>) -> Self {
+        Self {
+            name: name.into(),
+            ok: result.is_ok(),
+            latency_ms: start.elapsed().as_millis() as u64,
+            error: result.err(),
+        }
+    }
+}
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NetworkReport {
+    platform: String,
+    mode: crate::network::ProxyMode,
+    checks: Vec<NetworkCheck>,
 }
 
 fn enrollment_result(
@@ -1629,6 +1763,60 @@ struct RemoveAuthenticatorResponse {
 mod tests {
     use super::*;
     #[test]
+    fn time_query_has_a_real_form_body_for_steam_http_frontend() {
+        let service = SteamService::new().unwrap();
+        let request = service.time_request().build().unwrap();
+        assert_eq!(request.method(), reqwest::Method::POST);
+        assert_eq!(
+            request.headers().get(header::CONTENT_TYPE).unwrap(),
+            "application/x-www-form-urlencoded"
+        );
+        let body = request.body().and_then(|b| b.as_bytes()).unwrap();
+        assert!(
+            !body.is_empty(),
+            "Steam returns HTTP 411 for a body-less time request"
+        );
+        assert!(url::form_urlencoded::parse(body).any(|(k, v)| k == "steamid" && v == "0"));
+    }
+    #[test]
+    fn connection_errors_do_not_expose_session_query_parameters() {
+        tauri::async_runtime::block_on(async {
+            let socket = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            let port = socket.local_addr().unwrap().port();
+            drop(socket);
+            let error = reqwest::Client::builder()
+                .no_proxy()
+                .timeout(Duration::from_secs(2))
+                .build()
+                .unwrap()
+                .get(format!(
+                    "http://127.0.0.1:{port}/?access_token=private-session-fixture"
+                ))
+                .send()
+                .await
+                .err()
+                .expect("Closed port must refuse connection");
+            let message = network_error(error, "获取 Steam 登录公钥");
+            assert!(message.contains("无法建立网络连接"));
+            assert!(
+                !message.contains("access_token") && !message.contains("private-session-fixture")
+            );
+        });
+    }
+    #[test]
+    #[ignore = "Read-only network diagnostic against public Steam endpoints; no account input"]
+    fn live_network_diagnostics_probe() {
+        tauri::async_runtime::block_on(async {
+            let service = SteamService::new().unwrap();
+            let report = service.network_diagnostics().await.unwrap();
+            println!("{}", serde_json::to_string(&report).unwrap());
+            assert!(
+                report.checks.iter().all(|c| c.ok),
+                "Public Steam connectivity diagnostic failed"
+            );
+        });
+    }
+    #[test]
     fn protobuf_guard_request_uses_fixed64_steamid() {
         let message = UpdateGuardRequest {
             client_id: 123,
@@ -1668,6 +1856,112 @@ mod tests {
             assert!(!response.modulus.is_empty());
             assert!(!response.exponent.is_empty());
             assert!(response.timestamp > 0);
+        });
+    }
+    #[test]
+    #[ignore = "Explicit account-owner login test: credentials from hidden terminal stdin, never logs secrets or performs transactions"]
+    fn live_credentials_login_probe() {
+        use std::io::{self, IsTerminal};
+        use zeroize::Zeroizing;
+        if !io::stdin().is_terminal() {
+            println!("Explicit owner login probe requires an interactive terminal; skipped.");
+            return;
+        }
+        let username = Zeroizing::new(
+            rpassword::prompt_password("Steam account (hidden input): ")
+                .expect("Read account from terminal"),
+        );
+        let password = Zeroizing::new(
+            rpassword::prompt_password("Steam password (hidden input): ")
+                .expect("Read password from terminal"),
+        );
+        tauri::async_runtime::block_on(async {
+            let service = SteamService::new().unwrap();
+            let tokens = std::env::var("WATT_TEST_MPO")
+                .ok()
+                .map(|path| {
+                    let bytes = Zeroizing::new(
+                        std::fs::read(path).expect("Read private local authenticator backup"),
+                    );
+                    crate::import::parse_import(&bytes, None, "private.mpo")
+                        .expect("Decode private local authenticator backup")
+                })
+                .unwrap_or_default();
+            let token = tokens.iter().find(|t| {
+                t.kind == "steam"
+                    && t.account_name
+                        .as_deref()
+                        .is_some_and(|n| n.eq_ignore_ascii_case(username.trim()))
+            });
+            let expected = token.and_then(|t| t.steam_id.as_deref());
+            let code = if let Some(token) = token {
+                let now = service
+                    .server_time()
+                    .await
+                    .expect("Steam time query failed");
+                Some(Zeroizing::new(crate::otp::code(token, now).unwrap()))
+            } else {
+                None
+            };
+            let result = service
+                .begin_login(
+                    "private-login-probe",
+                    username.trim(),
+                    password.trim_end_matches(['\r', '\n']),
+                    expected,
+                    code.as_deref().map(|s| s.as_str()),
+                )
+                .await;
+            let mut status = match result {
+                Ok(s) => s,
+                Err(e) => panic!("Login probe: {e}"),
+            };
+            println!("\nCredential exchange status: {}", status.status);
+            println!(
+                "Available guard types: {:?}",
+                status
+                    .guards
+                    .iter()
+                    .map(|g| g.confirmation_type)
+                    .collect::<Vec<_>>()
+            );
+            if status.status != "authenticated" && code.is_none() {
+                println!(
+                    "Additional Steam Guard approval required; no transaction actions performed."
+                );
+                service.clear();
+                return;
+            }
+            for _ in 0..6 {
+                if status.status == "authenticated" {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(status.poll_interval.max(1000)));
+                status = service
+                    .poll_login("private-login-probe")
+                    .await
+                    .expect("Steam login polling failed");
+            }
+            assert!(
+                status.status == "authenticated",
+                "Steam authentication did not complete"
+            );
+            let session = service
+                .export_session("private-login-probe")
+                .expect("Authenticated session missing");
+            check_mobile_token(&session.access_token, &session.steam_id)
+                .expect("Invalid mobile session");
+            println!("Authenticated mobile session verified; tokens remain in native memory only.");
+            if let Some(t) = token {
+                if let (Some(identity), Some(device)) = (&t.identity_secret, &t.device_id) {
+                    let rows = service
+                        .confirmations("private-login-probe", identity, device, expected)
+                        .await
+                        .expect("Read-only mobile confirmation query failed");
+                    println!("Read-only mobile confirmation query succeeded ({} rows); no approvals or transactions sent.",rows.len());
+                }
+            }
+            service.clear();
         });
     }
     #[test]

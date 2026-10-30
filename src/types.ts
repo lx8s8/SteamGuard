@@ -67,3 +67,13 @@ export interface Enrollment {
   revocationCode: string;
   needsActivation: boolean;
 }
+
+export interface NetworkSettings {
+  mode: "system" | "direct" | "manual";
+  proxyUrl: string;
+}
+export interface NetworkReport {
+  platform: string;
+  mode: NetworkSettings["mode"];
+  checks: { name: string; ok: boolean; latencyMs: number; error?: string }[];
+}
