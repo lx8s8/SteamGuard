@@ -126,7 +126,7 @@ jobs:
       - name: Install Android SDK and NDK
         shell: bash
         run: |
-          sdkmanager 'platforms;android-37' 'build-tools;37.0.0' "ndk;$NDK_VERSION"
+          sdkmanager 'platforms;android-37.0' 'build-tools;37.0.0' "ndk;$NDK_VERSION"
           echo "NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -146,8 +146,8 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           path: |
-            src-tauri/gen/android/app/build/outputs/apk/debug/*.apk
-            src-tauri/gen/android/app/build/outputs/bundle/release/*.aab
+            src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+            src-tauri/gen/android/app/build/outputs/bundle/**/*.aab
 
   ios-simulator:
     name: ${{ matrix.name }}
