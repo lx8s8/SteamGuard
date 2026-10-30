@@ -97,7 +97,7 @@ xcrun simctl launch booted dev.local.steamguard
 npm run build:ios -- --no-sign --archive-only --ci
 ```
 
-实际输出为 `src-tauri/gen/apple/build/steamguard_iOS.xcarchive`，已在本机编译通过，ZIP 约 5.2 MiB。该 `.xcarchive` 是未签名构建归档，不能直接装到 iPhone。真机安装、TestFlight 或 App Store 分发需要选择自己的 Apple Development Team、签名证书与 provisioning profile，再执行签名导出。仓库不预设任何公司或个人的开发团队。
+实际输出为 `src-tauri/gen/apple/build/steamguard_iOS.xcarchive`，已在本机编译通过，ZIP 约 5.2 MiB。该 `.xcarchive` 是 Xcode 构建归档，不能直接装到 iPhone，也不能直接导入 LiveContainer。通过常规 iOS 安装、TestFlight 或 App Store 分发需要选择自己的 Apple Development Team、签名证书与 provisioning profile，再执行签名导出。仓库不预设任何公司或个人的开发团队。
 
 ```sh
 APPLE_DEVELOPMENT_TEAM=YOUR_TEAM_ID npm run build:ios -- --export-method debugging --ci
@@ -105,9 +105,39 @@ APPLE_DEVELOPMENT_TEAM=YOUR_TEAM_ID npm run build:ios -- --export-method debuggi
 
 具体签名和分发方式见 [Tauri iOS 签名文档](https://v2.tauri.app/distribute/sign/ios/)。
 
+### LiveContainer 导入 IPA
+
+[LiveContainer 官方安装说明](https://github.com/LiveContainer/LiveContainer#installing-apps)要求选择 IPA。它不是 `.xcarchive` ZIP 或模拟器 `.app` ZIP；只修改扩展名也不能转换格式。必须使用真机应用并采用以下 ZIP 内部目录：
+
+```text
+Payload/
+  SteamGuard.app/
+    Info.plist
+    SteamGuard
+    ...
+```
+
+完整构建并打包：
+
+```sh
+npm run build:ios:ipa
+```
+
+已有真机归档时无需重新编译，直接执行：
+
+```sh
+npm run package:ios:ipa
+```
+
+产物是 `artifacts/SteamGuard-iOS-arm64-unsigned.ipa`。打包脚本检查 `iPhoneOS` 平台、ARM64 真机可执行文件、未加密状态、`Payload/*.app` 目录及 ZIP 完整性，并保留可执行权限；传入模拟器应用会被拒绝。不会使用本机 Apple 发布证书。
+
+Actions 单独上传 **`iOS-arm64-device-IPA-unsigned`**。在 iPhone 上先解压 GitHub 下载的外层 ZIP，取出里面的 `.ipa`，再在 LiveContainer 点“+”选择它。不要把外层 Actions ZIP、归档 ZIP 或 `.xcarchive` 文件夹当作 IPA 导入。
+
+这是供 LiveContainer 导入测试的未签名真机 IPA，不是可在普通 iOS 安装流程中直接安装的签名包。是否能在 LiveContainer 内启动、文件选择器和其他插件能否正常使用，尚未进行 LiveContainer 实机验证，不能由打包检查替代。
+
 ## GitHub Actions
 
-`.github/workflows/package.yml` 构建 Apple Silicon / Intel macOS、Windows x64、Android ARM64/x64，以及 ARM64 iOS 模拟器和未签名真机归档。触发方式为主分支提交、版本标签、相关 Pull Request 或手动运行。
+`.github/workflows/package.yml` 构建 Apple Silicon / Intel macOS、Windows x64、Android ARM64/x64，以及 ARM64 iOS 模拟器、未签名真机归档和单独的真机 IPA。触发方式为主分支提交、版本标签、相关 Pull Request 或手动运行。
 
 独立的 Linux 前端任务只安装 Node.js 与 Chromium，运行 TypeScript 检查和 Playwright 界面测试，不编译 Rust。原生构建任务分别使用对应平台工具链。
 

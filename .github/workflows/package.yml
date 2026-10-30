@@ -161,7 +161,7 @@ jobs:
             args: --debug
             artifact: iOS-arm64-simulator-app-unsigned
             extension: app
-          - name: iOS device archive (unsigned)
+          - name: iOS device IPA and archive (unsigned)
             target: aarch64
             rust-target: aarch64-apple-ios
             args: --archive-only
@@ -203,6 +203,16 @@ jobs:
           fi
           test -n "$bundle" && test -d "$bundle"
           ditto -c -k --sequesterRsrc --keepParent "$bundle" "artifacts/SteamGuard-${{ matrix.artifact }}.zip"
+      - name: Package device IPA for LiveContainer import
+        if: matrix.extension == 'xcarchive'
+        run: npm run package:ios:ipa
+      - uses: actions/upload-artifact@v7
+        if: matrix.extension == 'xcarchive'
+        with:
+          name: iOS-arm64-device-IPA-unsigned
+          if-no-files-found: error
+          retention-days: 14
+          path: artifacts/SteamGuard-iOS-arm64-unsigned.ipa
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}

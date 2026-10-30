@@ -17,7 +17,9 @@
     "build:ios:sim": "node scripts/mobile.mjs ios build --target aarch64-sim --debug",
     "init:android": "node scripts/mobile.mjs android init",
     "init:ios": "node scripts/mobile.mjs ios init",
-    "test:ui": "playwright test"
+    "test:ui": "playwright test",
+    "package:ios:ipa": "node scripts/package-ios-ipa.mjs",
+    "build:ios:ipa": "npm run build:ios -- --no-sign --archive-only --ci && npm run package:ios:ipa"
   },
   "dependencies": {
     "react": "^19.1.0",

@@ -60,7 +60,10 @@ WATT_TEST_MPO='/absolute/path/to/private-export.mpo' npm run test:core -- real_m
 | Windows | `npm run build:win` | NSIS `.exe`、MSI `.msi`，在 Windows 构建 |
 | Android | `npm run build:android -- --debug --target aarch64 --ci` | 可安装的调试 APK |
 | iOS 模拟器 | `npm run build:ios:sim -- --no-sign --ci` | ARM64 模拟器 `.app`，在 macOS 构建 |
+| iOS IPA / LiveContainer | `npm run build:ios:ipa` | 未签名真机 `.ipa`，包含 `Payload/SteamGuard.app` |
 | iOS 真机归档 | `npm run build:ios -- --no-sign --archive-only --ci` | 未签名 `.xcarchive`，不能直接安装到真机 |
+
+LiveContainer 请下载 Actions 的 **`iOS-arm64-device-IPA-unsigned`**，先解压下载得到的外层 ZIP，再在 LiveContainer 中选择里面的 `.ipa`。`iOS-arm64-device-archive-unsigned` 是 Xcode 归档，不能直接导入 LiveContainer；模拟器包也不能用于 iPhone。IPA 结构、真机架构与未加密状态已检查，LiveContainer 内启动和插件功能仍需实机验证。
 
 首次进行移动端开发可运行 `npm run init:android -- --ci` 或 `npm run init:ios -- --ci`。项目已包含原生工程，不必每次重新初始化。
 
