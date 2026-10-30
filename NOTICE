@@ -1,0 +1,17 @@
+SteamGuard is an independent Tauri/Rust implementation derived from the local
+authenticator behavior and export format of WattToolkit / SteamTools.
+
+Reference project: https://github.com/BeyondDimension/SteamTools
+Original authors: BeyondDimension and WattToolkit contributors.
+This project retains GPL-3.0-only licensing; see LICENSE.
+
+The WattToolkit embedded AES format parameters in import.rs are public client
+format constants. They are not a user's authenticator secrets. Private exported
+authenticators are never included in this repository.
+
+Steam protocol definitions were checked against Valve protocol definitions mirrored in SteamDatabase/Protobufs, together with
+ValvePython/steam and steam-session implementations.
+Steam and Steam Guard are trademarks of Valve Corporation. This application is
+not affiliated with or endorsed by Valve or BeyondDimension.
+
+Third-party libraries retain their own licenses as declared by their packages.

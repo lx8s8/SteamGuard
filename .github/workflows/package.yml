@@ -1,0 +1,211 @@
+name: Build desktop and mobile packages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    tags: ['v*']
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'src-tauri/**'
+      - 'scripts/**'
+      - 'package*.json'
+      - 'tsconfig*.json'
+      - 'vite.config.ts'
+      - 'tests/**'
+      - 'playwright.config.ts'
+      - '.github/workflows/package.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  ui:
+    name: Frontend interactions and responsive layouts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:ui
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: Frontend-UI-failure-traces
+          if-no-files-found: ignore
+          retention-days: 7
+          path: test-results/
+
+  desktop:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS Apple Silicon
+            os: macos-latest
+            target: aarch64-apple-darwin
+            bundles: app,dmg
+            artifact: macOS-arm64-development
+          - name: macOS Intel
+            os: macos-latest
+            target: x86_64-apple-darwin
+            bundles: app,dmg
+            artifact: macOS-x64-development
+          - name: Windows x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundles: nsis,msi
+            artifact: Windows-x64-unsigned
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: ${{ matrix.target }}
+      - run: npm ci
+      - run: npm run check
+      - run: npm run test:core -- --locked
+      - name: Package desktop application
+        run: npm run tauri -- build --ci --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+      - name: Preserve macOS application executable bits
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          app="src-tauri/target/${{ matrix.target }}/release/bundle/macos/SteamGuard.app"
+          ditto -c -k --sequesterRsrc --keepParent "$app" "artifacts/SteamGuard-${{ matrix.target }}.app.zip"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            artifacts/*.app.zip
+            src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+            src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.exe
+            src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi
+
+  android:
+    name: Android APK and unsigned AAB
+    runs-on: ubuntu-latest
+    env:
+      NDK_VERSION: 28.2.13676358
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v4
+      - name: Install Android SDK and NDK
+        shell: bash
+        run: |
+          sdkmanager 'platforms;android-37' 'build-tools;37.0.0' "ndk;$NDK_VERSION"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/$NDK_VERSION" >> "$GITHUB_ENV"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: android
+      - run: npm ci
+      - name: Build installable debug APK
+        run: npm run build:android -- --debug --target aarch64 x86_64 --ci
+      - name: Build unsigned release AAB
+        run: node scripts/mobile.mjs android build --aab --target aarch64 x86_64 --ci
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Android-debug-APK-and-unsigned-release-AAB
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            src-tauri/gen/android/app/build/outputs/apk/debug/*.apk
+            src-tauri/gen/android/app/build/outputs/bundle/release/*.aab
+
+  ios-simulator:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: iOS simulator app (unsigned)
+            target: aarch64-sim
+            rust-target: aarch64-apple-ios-sim
+            args: --debug
+            artifact: iOS-arm64-simulator-app-unsigned
+            extension: app
+          - name: iOS device archive (unsigned)
+            target: aarch64
+            rust-target: aarch64-apple-ios
+            args: --archive-only
+            artifact: iOS-arm64-device-archive-unsigned
+            extension: xcarchive
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: ${{ matrix.rust-target }}
+      - name: Ensure Apple build tools are available
+        shell: bash
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: '1'
+          HOMEBREW_NO_INSTALL_CLEANUP: '1'
+        run: |
+          command -v pod >/dev/null || brew install cocoapods
+          command -v xcodegen >/dev/null || brew install xcodegen
+      - run: npm ci
+      - name: Build unsigned iOS target
+        run: node scripts/mobile.mjs ios build --target ${{ matrix.target }} --no-sign --ci ${{ matrix.args }}
+      - name: Preserve Apple bundle permissions
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          if [ '${{ matrix.extension }}' = app ]; then
+            bundle=src-tauri/gen/apple/build/arm64-sim/SteamGuard.app
+          else
+            bundle=src-tauri/gen/apple/build/steamguard_iOS.xcarchive
+          fi
+          test -n "$bundle" && test -d "$bundle"
+          ditto -c -k --sequesterRsrc --keepParent "$bundle" "artifacts/SteamGuard-${{ matrix.artifact }}.zip"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          if-no-files-found: error
+          retention-days: 14
+          path: artifacts/SteamGuard-${{ matrix.artifact }}.zip

@@ -1,0 +1,15 @@
+/target/
+/gen/schemas/
+/gen/android/.gradle/
+/gen/android/local.properties
+/gen/android/**/build/
+/gen/apple/build/
+/gen/apple/Externals/
+/gen/apple/Pods/
+/gen/apple/**/*.xcuserstate
+/gen/apple/**/xcuserdata/
+/gen/apple/assets/
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
