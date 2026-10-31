@@ -4,6 +4,7 @@ mod import;
 mod models;
 mod network;
 mod otp;
+mod quick_access;
 mod steam;
 mod vault;
 
@@ -19,6 +20,7 @@ use std::{
 use tauri::{Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
+use tauri_plugin_quick_access::SecureAccessExt;
 use zeroize::Zeroizing;
 
 struct Preview {
@@ -113,15 +115,25 @@ struct VaultStatus {
     initialized: bool,
     locked: bool,
     token_count: usize,
+    preview_enabled: bool,
+    biometric_enabled: bool,
+    preview_active: bool,
 }
 #[tauri::command]
-fn vault_status(s: State<AppState>) -> Result<VaultStatus, String> {
+fn vault_status(
+    s: State<AppState>,
+    q: State<quick_access::QuickAccess>,
+) -> Result<VaultStatus, String> {
     let mut v = s.vault()?;
     let _ = v.ensure();
+    let prefs = q.preferences()?;
     Ok(VaultStatus {
         initialized: v.path.exists(),
         locked: v.data.is_none(),
         token_count: v.data.as_ref().map_or(0, |d| d.tokens.len()),
+        preview_enabled: prefs.preview_enabled,
+        biometric_enabled: prefs.biometric_enabled,
+        preview_active: q.active(),
     })
 }
 #[tauri::command]
@@ -130,36 +142,200 @@ async fn vault_create(s: State<'_, AppState>, password: String) -> Result<(), St
     s.vault()?.create(&p)
 }
 #[tauri::command]
-async fn vault_unlock(s: State<'_, AppState>, password: String) -> Result<(), String> {
+async fn vault_unlock(
+    app: tauri::AppHandle,
+    s: State<'_, AppState>,
+    q: State<'_, quick_access::QuickAccess>,
+    password: String,
+) -> Result<(), String> {
+    let _operation = q.operation()?;
     let p = Zeroizing::new(password);
-    let mut v = s.vault()?;
-    if v.data.is_some() {
-        return Err("保险库已解锁".into());
+    {
+        let mut v = s.vault()?;
+        if v.data.is_some() {
+            return Err("保险库已解锁".into());
+        }
+        if let Err(e) = v.unlock(&p) {
+            v.lock();
+            return Err(e);
+        }
+        restore_unlocked(&s, &mut v)?;
     }
-    if let Err(e) = v.unlock(&p) {
-        v.lock();
-        return Err(e);
-    };
+    q.clear();
+    refresh_device_preview(&app, &s, &q);
+    Ok(())
+}
+fn restore_unlocked(s: &AppState, v: &mut vault::Vault) -> Result<(), String> {
     if let Some(d) = &v.data {
         if let Err(e) = s.steam.configure_network(d.network.clone()) {
             v.lock();
             return Err(e);
         }
-    }
-    if let Some(d) = &v.data {
         if let Some(sessions) = d.sessions.as_object() {
             for (id, value) in sessions {
                 if let Ok(session) = serde_json::from_value(value.clone()) {
                     let Some(token) = d.tokens.iter().find(|t| &t.id == id) else {
                         continue;
                     };
-                    let expected = Some(token).and_then(|t| t.steam_id.as_deref());
-                    let _ = s.steam.restore_session(id, session, expected);
+                    let _ = s
+                        .steam
+                        .restore_session(id, session, token.steam_id.as_deref());
                 }
             }
         }
     }
     Ok(())
+}
+fn refresh_device_preview(app: &tauri::AppHandle, s: &AppState, q: &quick_access::QuickAccess) {
+    if !q.preferences().is_ok_and(|p| p.preview_enabled) {
+        return;
+    }
+    let epoch = s.epoch.load(Ordering::SeqCst);
+    if let Ok(value) = app.secure_access().read("preview") {
+        let value = Zeroizing::new(value);
+        if let Ok(key) = quick_access::read_key(&value) {
+            if let Ok(mut vault) = s.vault() {
+                if epoch == s.epoch.load(Ordering::SeqCst) && vault.data.is_some() {
+                    let _ = vault.preview_key(Some(key));
+                }
+            }
+        }
+    }
+}
+#[tauri::command]
+async fn quick_capabilities(
+    app: tauri::AppHandle,
+) -> Result<tauri_plugin_quick_access::Availability, String> {
+    app.secure_access().availability()
+}
+#[tauri::command]
+async fn quick_configure(
+    app: tauri::AppHandle,
+    s: State<'_, AppState>,
+    q: State<'_, quick_access::QuickAccess>,
+    slot: String,
+    enabled: bool,
+    password: String,
+) -> Result<(), String> {
+    use base64::Engine;
+    let _operation = q.operation()?;
+    if !["preview", "biometric"].contains(&slot.as_str()) {
+        return Err("未知的解锁选项".into());
+    }
+    let password = Zeroizing::new(password);
+    let credential = {
+        let v = s.vault()?;
+        if v.data.is_none() {
+            return Err("请先解锁保险库".into());
+        }
+        if enabled {
+            Some(v.credential(&password)?)
+        } else {
+            None
+        }
+    };
+    let epoch = s.epoch.load(Ordering::SeqCst);
+    if enabled {
+        let available = app.secure_access().availability()?;
+        if !available.supported || slot == "biometric" && !available.biometric_available {
+            return Err("请先在手机系统设置中启用指纹或 Face ID".into());
+        }
+    }
+    q.set(&slot, false)?;
+    if slot == "preview" {
+        q.clear();
+        s.vault()?.preview_key(None)?;
+    }
+    app.secure_access().remove(&slot)?;
+    if !enabled {
+        return Ok(());
+    }
+    let key = quick_access::new_key();
+    let value = if slot == "biometric" {
+        credential.ok_or("请确认主密码")?
+    } else {
+        Zeroizing::new(base64::engine::general_purpose::STANDARD.encode(key.as_ref()))
+    };
+    let result = (|| {
+        app.secure_access().write(&slot, &value)?;
+        let mut v = s.vault()?;
+        if epoch != s.epoch.load(Ordering::SeqCst) || v.data.is_none() {
+            return Err("保险库已锁定，请重新启用".into());
+        }
+        if slot == "preview" {
+            v.preview_key(Some(key))?;
+        }
+        q.set(&slot, true)
+    })();
+    if result.is_err() {
+        let _ = app.secure_access().remove(&slot);
+        if slot == "preview" {
+            let _ = s.vault()?.preview_key(None);
+        }
+    }
+    result
+}
+#[tauri::command]
+async fn quick_biometric_unlock(
+    app: tauri::AppHandle,
+    s: State<'_, AppState>,
+    q: State<'_, quick_access::QuickAccess>,
+) -> Result<(), String> {
+    let _operation = q.operation()?;
+    if !q.preferences()?.biometric_enabled {
+        return Err("尚未启用设备认证".into());
+    }
+    let epoch = s.epoch.load(Ordering::SeqCst);
+    let credential = Zeroizing::new(app.secure_access().read("biometric")?);
+    {
+        let mut v = s.vault()?;
+        if epoch != s.epoch.load(Ordering::SeqCst) {
+            return Err("解锁已取消，请重试".into());
+        }
+        if v.data.is_some() {
+            return Err("保险库已解锁".into());
+        }
+        v.unlock_credential(&credential)?;
+        restore_unlocked(&s, &mut v)?;
+    }
+    q.clear();
+    refresh_device_preview(&app, &s, &q);
+    Ok(())
+}
+#[tauri::command]
+async fn quick_preview_enter(
+    app: tauri::AppHandle,
+    s: State<'_, AppState>,
+    q: State<'_, quick_access::QuickAccess>,
+) -> Result<(), String> {
+    let _operation = q.operation()?;
+    if !q.preferences()?.preview_enabled {
+        return Err("尚未启用免密码预览".into());
+    }
+    let epoch = s.epoch.load(Ordering::SeqCst);
+    let value = Zeroizing::new(app.secure_access().read("preview")?);
+    let key = quick_access::read_key(&value)?;
+    let v = s.vault()?;
+    if epoch != s.epoch.load(Ordering::SeqCst) || v.data.is_some() {
+        return Err("访问状态已改变，请重试".into());
+    }
+    q.enter(quick_access::load_preview(&v.path, &key)?)
+}
+#[tauri::command]
+fn quick_preview_tokens(
+    s: State<AppState>,
+    q: State<quick_access::QuickAccess>,
+) -> Result<Vec<TokenView>, String> {
+    let v = s.vault()?;
+    if v.data.is_some() {
+        return Err("保险库已解锁，请刷新页面".into());
+    }
+    q.tokens(&v.path, s.timestamp())
+}
+#[tauri::command]
+fn quick_preview_exit(s: State<AppState>, q: State<quick_access::QuickAccess>) {
+    s.epoch.fetch_add(1, Ordering::SeqCst);
+    q.clear();
 }
 
 #[cfg(test)]
@@ -299,9 +475,10 @@ mod integration_tests {
     }
 }
 #[tauri::command]
-fn vault_lock(s: State<AppState>) -> Result<(), String> {
+fn vault_lock(s: State<AppState>, q: State<quick_access::QuickAccess>) -> Result<(), String> {
     s.epoch.fetch_add(1, Ordering::SeqCst);
     s.vault()?.lock();
+    q.clear();
     s.previews.lock().map_err(|_| "导入缓存不可用")?.clear();
     s.steam.clear();
     Ok(())
@@ -1077,8 +1254,12 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_quick_access::init())
         .setup(|app| {
             let path = app.path().app_data_dir()?.join("vault.sgvault");
+            app.manage(quick_access::QuickAccess::new(
+                path.parent().ok_or("存储目录无效")?,
+            ));
             let steam = steam::SteamService::new().map_err(std::io::Error::other)?;
             app.manage(AppState {
                 vault: Mutex::new(vault::Vault::new(path)),
@@ -1091,6 +1272,12 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             vault_status,
+            quick_capabilities,
+            quick_configure,
+            quick_biometric_unlock,
+            quick_preview_enter,
+            quick_preview_tokens,
+            quick_preview_exit,
             vault_create,
             vault_unlock,
             vault_lock,

@@ -39,7 +39,12 @@ async function nativeFixture(page: Page) {
         loggedIn: false,
       },
     ];
-    let locked = false;
+    const quickScenario = new URLSearchParams(location.search).get("quick");
+    let locked = !!quickScenario;
+    let previewEnabled = quickScenario === "preview";
+    let biometricEnabled =
+      quickScenario === "biometric" || quickScenario === "cancel";
+    let previewActive = false;
     let pendingLogin: {
       status: string;
       guards: { confirmationType: number; associatedMessage: string }[];
@@ -56,14 +61,58 @@ async function nativeFixture(page: Page) {
           commands.push({ command, args });
           switch (command) {
             case "vault_status":
-              return { initialized: true, locked, tokenCount: tokens.length };
+              return {
+                initialized: true,
+                locked,
+                tokenCount: tokens.length,
+                previewEnabled,
+                biometricEnabled,
+                previewActive,
+              };
             case "list_tokens":
               return locked ? [] : tokens;
             case "vault_unlock":
+              previewActive = false;
               locked = false;
               return;
             case "vault_lock":
+              previewActive = false;
               locked = true;
+              return;
+            case "quick_capabilities":
+              return {
+                supported: true,
+                biometricAvailable: true,
+                label: "Face ID",
+              };
+            case "quick_configure":
+              if (args.enabled && args.password !== "synthetic-vault-password")
+                throw new Error("主密码错误");
+              if (args.slot === "preview") previewEnabled = !!args.enabled;
+              else biometricEnabled = !!args.enabled;
+              return;
+            case "quick_preview_enter":
+              if (!previewEnabled) throw new Error("预览未启用");
+              previewActive = true;
+              return;
+            case "quick_preview_exit":
+              previewActive = false;
+              return;
+            case "quick_preview_tokens":
+              return previewActive
+                ? tokens.map((t) => ({
+                    ...t,
+                    loggedIn: false,
+                    hasIdentitySecret: false,
+                    steamId: undefined,
+                    accountName: undefined,
+                  }))
+                : [];
+            case "quick_biometric_unlock":
+              if (quickScenario === "cancel")
+                throw new Error("验证已取消，请使用主密码");
+              locked = false;
+              previewActive = false;
               return;
             case "vault_touch":
               return;
@@ -514,5 +563,135 @@ for (const width of [360, 390, 768, 1180]) {
     const box = await page.getByRole("dialog").boundingBox();
     expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+  });
+}
+
+test("quick access settings verify the password, keep failures recoverable, and can be disabled", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "设置", exact: true }).first().click();
+  const preview = page.getByRole("switch", { name: "免密码预览令牌" });
+  await expect(preview).toHaveAttribute("aria-checked", "false");
+  await preview.click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("能打开此应用的人都能查看、复制验证码");
+  await dialog.getByLabel("确认保险库主密码").fill("wrong-password");
+  await dialog.getByRole("button", { name: "确认启用" }).click();
+  await expect(dialog.getByRole("alert")).toHaveText("主密码错误");
+  await expect(preview).toHaveAttribute("aria-checked", "false");
+  await dialog.getByLabel("确认保险库主密码").fill("synthetic-vault-password");
+  await dialog.getByRole("button", { name: "确认启用" }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(preview).toHaveAttribute("aria-checked", "true");
+  await preview.click();
+  await expect(preview).toHaveAttribute("aria-checked", "false");
+  await page.getByRole("switch", { name: "设备生物认证解锁" }).click();
+  await dialog.getByLabel("确认保险库主密码").fill("synthetic-vault-password");
+  await dialog.getByRole("button", { name: "确认启用" }).click();
+  await expect(
+    page.getByRole("switch", { name: "设备生物认证解锁" }),
+  ).toHaveAttribute("aria-checked", "true");
+});
+
+test("startup preview exposes codes while keeping privileged actions locked", async ({
+  page,
+}) => {
+  await page.goto("/?quick=preview");
+  await expect(page.getByText("免密码预览", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "添加令牌", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "管理 测试 · Steam", exact: true }),
+  ).toBeDisabled();
+  expect(await commandCount(page, "list_tokens")).toBe(0);
+  await page
+    .getByRole("button", { name: "交易确认", exact: true })
+    .first()
+    .click();
+  await expect(page.getByLabel("解锁密码", { exact: true })).toBeVisible();
+  expect(await commandCount(page, "steam_confirmations")).toBe(0);
+  await page
+    .getByLabel("解锁密码", { exact: true })
+    .fill("synthetic-vault-password");
+  await page.getByRole("button", { name: "解锁保险库", exact: true }).click();
+  await expect(page.getByLabel("解锁密码", { exact: true })).toHaveCount(0);
+  expect(await commandCount(page, "vault_unlock")).toBe(1);
+});
+
+test("device authentication opens the vault and cancellation leaves the password fallback usable", async ({
+  page,
+}) => {
+  await page.goto("/?quick=biometric");
+  await expect(
+    page.getByRole("heading", { name: "测试 · Steam", exact: true }),
+  ).toBeVisible();
+  expect(await commandCount(page, "quick_biometric_unlock")).toBe(1);
+  expect(await commandCount(page, "vault_unlock")).toBe(0);
+  await page.goto("/?quick=cancel");
+  await expect(page.getByLabel("解锁密码", { exact: true })).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("验证已取消");
+  await page
+    .getByLabel("解锁密码", { exact: true })
+    .fill("synthetic-vault-password");
+  await page.getByRole("button", { name: "解锁保险库", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "测试 · Steam", exact: true }),
+  ).toBeVisible();
+});
+
+for (const width of [320, 390, 768, 844]) {
+  test(`phone layout stays readable without overflow at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: width === 844 ? 390 : 844 });
+    await expect(
+      page.getByRole("navigation", { name: "移动端导航" }),
+    ).toBeVisible();
+    expect(
+      await page
+        .locator("body")
+        .evaluate((el) => el.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+    const add = page.getByRole("button", { name: "添加令牌", exact: true });
+    expect((await add.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    if (width === 390)
+      await page.screenshot({
+        path: "artifacts/mobile-tokens.png",
+        fullPage: true,
+      });
+    await add.click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("button", { name: "粘贴密钥 / 链接" }).click();
+    const input = dialog.getByLabel("OTP 链接或令牌 JSON");
+    expect(
+      await input.evaluate((el) => parseFloat(getComputedStyle(el).fontSize)),
+    ).toBeGreaterThanOrEqual(16);
+    await input.focus();
+    if (width === 390)
+      await page.screenshot({ path: "artifacts/mobile-import.png" });
+    expect(
+      await page
+        .locator("body")
+        .evaluate((el) => el.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+    await dialog.getByRole("button", { name: "关闭", exact: true }).click();
+    await page
+      .getByRole("navigation", { name: "移动端导航" })
+      .getByRole("button", { name: "设置", exact: true })
+      .click();
+    await expect(
+      page.getByRole("switch", { name: "免密码预览令牌" }),
+    ).toBeVisible();
+    if (width === 390)
+      await page.screenshot({
+        path: "artifacts/mobile-settings.png",
+        fullPage: true,
+      });
+    expect(
+      await page
+        .locator("body")
+        .evaluate((el) => el.scrollWidth <= window.innerWidth),
+    ).toBe(true);
   });
 }

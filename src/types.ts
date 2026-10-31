@@ -4,6 +4,9 @@ export interface VaultStatus {
   initialized: boolean;
   locked: boolean;
   tokenCount: number;
+  previewEnabled?: boolean;
+  biometricEnabled?: boolean;
+  previewActive?: boolean;
 }
 export interface TokenView {
   id: string;
@@ -78,4 +81,10 @@ export interface NetworkReport {
   platform: string;
   mode: NetworkSettings["mode"];
   checks: { name: string; ok: boolean; latencyMs: number; error?: string }[];
+}
+
+export interface QuickCapabilities {
+  supported: boolean;
+  biometricAvailable: boolean;
+  label: string;
 }

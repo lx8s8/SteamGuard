@@ -1,6 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type {
   VaultStatus,
+  QuickCapabilities,
   TokenView,
   ImportPreview,
   LoginResult,
@@ -23,10 +24,20 @@ export const call = <T>(
   return invoke<T>(command, args);
 };
 export const api = {
-  status: () =>
+  status: (): Promise<VaultStatus> =>
     native
       ? call<VaultStatus>("vault_status")
       : Promise.resolve({ initialized: false, locked: false, tokenCount: 0 }),
+  quickCapabilities: () => call<QuickCapabilities>("quick_capabilities"),
+  quickConfigure: (
+    slot: "preview" | "biometric",
+    enabled: boolean,
+    password: string,
+  ) => call<void>("quick_configure", { slot, enabled, password }),
+  biometricUnlock: () => call<void>("quick_biometric_unlock"),
+  previewEnter: () => call<void>("quick_preview_enter"),
+  previewExit: () => call<void>("quick_preview_exit"),
+  previewTokens: () => call<TokenView[]>("quick_preview_tokens"),
   create: (password: string) => call<void>("vault_create", { password }),
   unlock: (password: string) => call<void>("vault_unlock", { password }),
   touch: () => call<void>("vault_touch"),

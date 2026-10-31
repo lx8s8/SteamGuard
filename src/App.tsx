@@ -1,11 +1,9 @@
 import {
   useCallback,
   useEffect,
-  useId,
   useRef,
   useState,
   type FormEvent,
-  type ReactNode,
 } from "react";
 import {
   ArrowDownToLine,
@@ -46,6 +44,8 @@ import {
 } from "lucide-react";
 import QRCode from "qrcode";
 import { api, errorText, native } from "./api";
+import { Modal } from "./Modal";
+import { QuickAccessSettings } from "./QuickAccessSettings";
 import { SteamNetworkPanel } from "./SteamNetworkPanel";
 import type {
   Confirmation,
@@ -90,79 +90,6 @@ const navigation: {
   },
 ];
 
-function Modal({
-  title,
-  eyebrow,
-  children,
-  onClose,
-  wide = false,
-}: {
-  title: string;
-  eyebrow?: string;
-  children: ReactNode;
-  onClose: () => void;
-  wide?: boolean;
-}) {
-  const id = useId();
-  const ref = useRef<HTMLDivElement>(null);
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement;
-    ref.current?.focus();
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCloseRef.current();
-      if (e.key === "Tab") {
-        const nodes = ref.current?.querySelectorAll<HTMLElement>(
-          'button:not(:disabled), input:not(:disabled), textarea, select, [tabindex="0"]',
-        );
-        if (!nodes?.length) return;
-        const first = nodes[0],
-          last = nodes[nodes.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-    document.addEventListener("keydown", handler);
-    return () => {
-      document.removeEventListener("keydown", handler);
-      previous?.focus();
-    };
-  }, []);
-  return (
-    <div
-      className="modal-backdrop"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        ref={ref}
-        tabIndex={-1}
-        className={`modal ${wide ? "modal-wide" : ""}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={id}
-      >
-        <div className="modal-heading">
-          <div>
-            {eyebrow && <span className="eyebrow">{eyebrow}</span>}
-            <h2 id={id}>{title}</h2>
-          </div>
-          <button className="icon-button" onClick={onClose} aria-label="关闭">
-            <X size={20} />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
 function Spinner() {
   return <LoaderCircle size={16} className="spin" />;
 }
@@ -194,6 +121,8 @@ function TokenIcon({ token }: { token: TokenView }) {
 }
 
 export default function App() {
+  const [showUnlock, setShowUnlock] = useState(false);
+  const startupAccess = useRef(false);
   const [page, setPage] = useState<Page>("tokens");
   const [status, setStatus] = useState<VaultStatus | null>(null);
   const [tokens, setTokens] = useState<TokenView[]>([]);
@@ -228,10 +157,33 @@ export default function App() {
     if (refreshing.current) return;
     refreshing.current = true;
     try {
-      const next = await api.status();
+      let next = await api.status();
+      if (!startupAccess.current) {
+        startupAccess.current = true;
+        if (next.initialized && next.locked) {
+          try {
+            if (next.previewEnabled) await api.previewEnter();
+            else if (next.biometricEnabled) await api.biometricUnlock();
+            next = await api.status();
+          } catch (error) {
+            notify(errorText(error), true);
+          }
+        }
+      }
       setStatus(next);
-      if (next.initialized && !next.locked) setTokens(await api.tokens());
-      else setTokens([]);
+      if (next.initialized && !next.locked) {
+        setTokens(await api.tokens());
+        setShowUnlock(false);
+      } else if (next.previewActive) {
+        try {
+          setTokens(await api.previewTokens());
+        } catch (error) {
+          setTokens([]);
+          await api.previewExit();
+          setStatus(await api.status());
+          notify(errorText(error), true);
+        }
+      } else setTokens([]);
     } catch (e) {
       notify(errorText(e), true);
     } finally {
@@ -260,6 +212,7 @@ export default function App() {
     setMarket(null);
   }, [active?.id]);
   const unlocked = !!status?.initialized && !status.locked;
+  const previewMode = !!status?.previewActive && !!status.locked;
   useEffect(() => {
     if (!unlocked) {
       setImportOpen(false);
@@ -418,7 +371,7 @@ export default function App() {
           </div>
           <div className="sidebar-version">
             <span>STEAMGUARD</span>
-            <span>v1.0.1</span>
+            <span>v1.1.0</span>
           </div>
         </div>
       </aside>
@@ -435,7 +388,11 @@ export default function App() {
             {!native && <span className="preview-badge">界面预览</span>}
             <span className="system-state">
               <span className={`status-dot ${!unlocked ? "muted" : ""}`} />
-              {unlocked ? "保险库已解锁" : "本地加密保护"}
+              {unlocked
+                ? "保险库已解锁"
+                : previewMode
+                  ? "令牌预览 · 只读"
+                  : "本地加密保护"}
             </span>
             <button
               className="icon-button"
@@ -498,9 +455,17 @@ export default function App() {
               <Spinner />
               <span>正在连接本地保险库…</span>
             </div>
-          ) : !unlocked ? (
+          ) : !unlocked && (!previewMode || page !== "tokens" || showUnlock) ? (
             <VaultGate
               initialized={status.initialized}
+              biometricEnabled={!!status.biometricEnabled}
+              previewEnabled={!!status.previewEnabled}
+              onPreview={async () => {
+                if (!previewMode) await api.previewEnter();
+                setShowUnlock(false);
+                setPage("tokens");
+                await refresh();
+              }}
               onReady={refresh}
               notify={notify}
             />
@@ -508,6 +473,24 @@ export default function App() {
             <>
               {page === "tokens" && (
                 <>
+                  {previewMode && (
+                    <div className="preview-notice">
+                      <div>
+                        <ShieldCheck size={22} />
+                        <div>
+                          <strong>免密码预览</strong>
+                          <p>可查看、复制验证码，保险库保持锁定。</p>
+                        </div>
+                      </div>
+                      <button
+                        className="button primary"
+                        onClick={() => setShowUnlock(true)}
+                      >
+                        <LockKeyhole size={16} />
+                        解锁全部功能
+                      </button>
+                    </div>
+                  )}
                   <div className="overview-grid">
                     <div className="overview-card">
                       <span className="overview-icon blue">
@@ -622,6 +605,7 @@ export default function App() {
                               <button
                                 className="icon-button token-menu"
                                 aria-label={`管理 ${token.name}`}
+                                disabled={!unlocked}
                                 onClick={() => setEditToken(token)}
                               >
                                 <Ellipsis size={19} />
@@ -664,9 +648,18 @@ export default function App() {
                               {token.kind === "steam" ? (
                                 <button
                                   className={`session-link ${token.loggedIn ? "connected" : ""}`}
-                                  onClick={() => setLoginToken(token)}
+                                  onClick={() =>
+                                    unlocked
+                                      ? setLoginToken(token)
+                                      : setShowUnlock(true)
+                                  }
                                 >
-                                  {token.enrollmentPending ? (
+                                  {previewMode ? (
+                                    <>
+                                      <LockKeyhole size={14} />
+                                      解锁后连接
+                                    </>
+                                  ) : token.enrollmentPending ? (
                                     <>
                                       <Clock3 size={12} />
                                       继续激活
@@ -686,6 +679,7 @@ export default function App() {
                               ) : token.kind === "hotp" ? (
                                 <button
                                   className="session-link"
+                                  disabled={!unlocked}
                                   onClick={() =>
                                     void run(() => api.nextHotp(token.id))
                                   }
@@ -1016,6 +1010,7 @@ export default function App() {
               )}
               {page === "settings" && (
                 <div className="settings-grid">
+                  <QuickAccessSettings status={status} onChange={refresh} />
                   <section className="settings-panel">
                     <div className="panel-title">
                       <span className="overview-icon green">
@@ -1030,7 +1025,9 @@ export default function App() {
                     <div className="setting-row">
                       <div>
                         <h3>锁定保险库</h3>
-                        <p>清除内存中的令牌，使用解锁密码重新打开。</p>
+                        <p>
+                          清除内存中的令牌，使用主密码或已启用的设备认证重新打开。
+                        </p>
                       </div>
                       <button
                         className="button secondary"
@@ -1112,7 +1109,7 @@ export default function App() {
                     </span>
                     <div>
                       <h2>
-                        SteamGuard <span>1.0.1</span>
+                        SteamGuard <span>1.1.0</span>
                       </h2>
                       <p>
                         参考 Watt Toolkit 本地令牌功能构建。基于 Tauri
@@ -1272,16 +1269,36 @@ export default function App() {
 
 function VaultGate({
   initialized,
+  biometricEnabled,
+  previewEnabled,
+  onPreview,
   onReady,
   notify,
 }: {
   initialized: boolean;
+  biometricEnabled: boolean;
+  previewEnabled: boolean;
+  onPreview: () => Promise<void>;
   onReady: () => Promise<void>;
   notify: (text: string, error?: boolean) => void;
 }) {
   const [password, setPassword] = useState("");
   const [repeat, setRepeat] = useState("");
   const [busy, setBusy] = useState(false);
+  const quick = async (biometric: boolean) => {
+    setBusy(true);
+    try {
+      if (biometric) {
+        await api.biometricUnlock();
+        setPassword("");
+        await onReady();
+      } else await onPreview();
+    } catch (e) {
+      notify(errorText(e), true);
+    } finally {
+      setBusy(false);
+    }
+  };
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!initialized && password !== repeat) {
@@ -1350,6 +1367,31 @@ function VaultGate({
             ? "输入密码，继续访问你的令牌与 Steam 账户。"
             : "只需一个密码，开始保护你的所有令牌。"}
         </p>
+        {initialized && (biometricEnabled || previewEnabled) && (
+          <div className="quick-gate-actions">
+            {biometricEnabled && (
+              <button
+                className="button primary full-width"
+                onClick={() => void quick(true)}
+                disabled={busy}
+              >
+                {busy ? <Spinner /> : <Fingerprint size={21} />}指纹 / Face ID
+                解锁
+              </button>
+            )}
+            {previewEnabled && (
+              <button
+                className="button secondary full-width"
+                onClick={() => void quick(false)}
+                disabled={busy}
+              >
+                免密码预览令牌
+                <ArrowRight size={17} />
+              </button>
+            )}
+            <span className="access-divider">或使用主密码</span>
+          </div>
+        )}
         <form onSubmit={(e) => void submit(e)}>
           <label className="field-label" htmlFor="vault-password">
             {initialized ? "解锁密码" : "设置解锁密码"}

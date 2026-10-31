@@ -4033,7 +4033,7 @@ checksum = "ff7589a1859b09232522bb9edf076ca7fcf14ded96685d3fa629db73023ffbb7"
 
 [[package]]
 name = "steamguard"
-version = "1.0.1"
+version = "1.1.0"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -4063,6 +4063,7 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-fs",
  "tauri-plugin-opener",
+ "tauri-plugin-quick-access",
  "url",
  "uuid",
  "zeroize",
@@ -4451,6 +4452,15 @@ dependencies = [
  "url",
  "windows",
  "zbus",
+]
+
+[[package]]
+name = "tauri-plugin-quick-access"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "tauri",
+ "tauri-plugin",
 ]
 
 [[package]]

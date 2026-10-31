@@ -56,3 +56,14 @@ macOS、Windows、iOS 及前端测试的成功任务见 [Actions 运行记录](h
 - 与原项目账号的云同步、WattToolkit 网络服务及全部非令牌插件。
 - 自动下单、自动出售、批量自动确认、Steam 客户端游戏登录或游戏会话模拟。
 - Apple Developer ID 公证、常规 iOS 分发及公共 CA 信任的 Windows 代码签名；Android 已使用固定发布密钥。
+
+## Mobile quick access (1.1.0)
+
+| Feature | Android | iOS | macOS / Windows |
+| --- | --- | --- | --- |
+| Phone layout, no page pinch zoom | Yes | Yes | Responsive narrow layout |
+| Optional read-only OTP preview | Keystore protected cache key | Device-only Keychain cache key | Password required |
+| Biometric full-vault unlock | Class 3 fingerprint / supported face | Touch ID / Face ID | Password required |
+| Password fallback and encrypted backup | Yes | Yes | Yes |
+
+Both quick-access settings are off by default and device-local. Preview allows code viewing/copying only. LiveContainer must support the app's Keychain and biometric API access; ordinary password unlock remains available.
