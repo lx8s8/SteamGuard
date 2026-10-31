@@ -2,13 +2,14 @@
 
 开源的本地令牌与 Steam 手机验证工具，支持 macOS、Windows、Android 和 iOS。管理动态验证码、Steam 登录与交易确认，令牌保存在本机加密保险库中。
 
-[下载正式版](https://github.com/lx8s8/SteamGuard/releases/latest) · [安装与迁移](docs/INSTALLATION.md) · [更新日志](CHANGELOG.md) · [备份与恢复](docs/BACKUP.md)
+[下载正式版](https://github.com/lx8s8/SteamGuard/releases/latest) · [安装与迁移](docs/INSTALLATION.md) · [更新日志](CHANGELOG.md) · [备份与恢复](docs/BACKUP.md) · [多端同步](docs/SYNC.md)
 
 ## 功能
 
 - **本地验证码**：支持 Steam Guard、TOTP 和 HOTP，提供复制、搜索与自定义分组。
 - **Steam 账号**：密码或二维码登录，支持 Steam Guard、邮箱验证与手机交易确认。
 - **备份与迁移**：导入 WattToolkit `.mpo`、Steam `.maFile`、OTP 链接等格式；支持加密导出、自动快照与历史恢复。
+- **多端同步**：使用坚果云或兼容 WebDAV 的网盘，端到端加密同步令牌与分组，支持离线合并和冲突确认。
 - **快捷访问**：手机可选择免密码预览验证码，或使用指纹、Touch ID / Face ID 解锁完整保险库。
 - **多端界面**：桌面侧栏与手机底部导航，手机首页直接显示令牌列表。
 
@@ -31,7 +32,7 @@
 
 保险库使用 Argon2id 和 AES-256-GCM 加密。主密码用于本机解密，应用不保存 Steam 登录密码。免密码预览仅开放验证码查看和复制，交易确认、令牌管理和导出仍需解锁。
 
-自动快照沿用保险库主密码，不依赖设备认证密钥恢复。iOS 可由系统备份收录加密数据，系统是否执行备份取决于设备设置；它不是跨设备实时同步。请参考[备份方案与恢复说明](docs/BACKUP.md)。
+自动快照沿用保险库主密码，不依赖设备认证密钥恢复。iOS 可由系统备份收录加密数据，系统是否执行备份取决于设备设置；它不是跨设备实时同步。请参考[备份方案与恢复说明](docs/BACKUP.md)。跨平台同步可连接自己的 WebDAV 网盘，详见[多端同步](docs/SYNC.md)。
 
 ## 开发
 
@@ -56,6 +57,7 @@ npm run build
 
 - [安装与迁移](docs/INSTALLATION.md)
 - [自动备份与恢复](docs/BACKUP.md)
+- [WebDAV 多端同步](docs/SYNC.md)
 - [导入格式兼容性](docs/import-format.md)
 - [功能范围](docs/feature-matrix.md)
 - [Steam 集成](docs/steam.md)

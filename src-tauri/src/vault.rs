@@ -22,6 +22,8 @@ pub struct VaultData {
     pub groups: Vec<String>,
     #[serde(default = "default_backup_enabled")]
     pub auto_backup: bool,
+    #[serde(default)]
+    pub sync: Option<crate::sync::State>,
 }
 impl Default for VaultData {
     fn default() -> Self {
@@ -31,6 +33,7 @@ impl Default for VaultData {
             network: Default::default(),
             groups: vec![],
             auto_backup: true,
+            sync: None,
         }
     }
 }
@@ -131,6 +134,7 @@ impl VaultData {
         }
         let mut count = 0;
         for mut token in tokens {
+            token.hotp_read_only = false;
             if let Some(existing) = self
                 .tokens
                 .iter_mut()
@@ -154,6 +158,7 @@ impl VaultData {
     pub fn merge_backup(&mut self, mut incoming: VaultData) -> usize {
         let mut count = 0;
         for mut token in incoming.tokens.drain(..) {
+            token.hotp_read_only = false;
             if let Some(existing) = self.tokens.iter_mut().find(|t| {
                 t.kind == token.kind
                     && (t.secret == token.secret
@@ -243,7 +248,7 @@ fn key(password: &str, salt: &[u8]) -> Result<Zeroizing<[u8; 32]>, String> {
         .map_err(|_| "无法派生加密密钥")?;
     Ok(key)
 }
-fn encrypt(data: &VaultData, key: &[u8; 32], salt: &[u8]) -> Result<Vec<u8>, String> {
+fn encrypt<T: Serialize>(data: &T, key: &[u8; 32], salt: &[u8]) -> Result<Vec<u8>, String> {
     let mut nonce = [0u8; 12];
     OsRng.fill_bytes(&mut nonce);
     let plain = Zeroizing::new(serde_json::to_vec(data).map_err(|_| "无法序列化令牌")?);
@@ -294,6 +299,26 @@ fn decode_key(data: &[u8], key: &[u8; 32], expected_salt: &[u8]) -> Result<Vault
     data.validate()?;
     Ok(data)
 }
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Portable<'a> {
+    tokens: &'a [Token],
+    sessions: &'a serde_json::Value,
+    network: &'a crate::network::NetworkSettings,
+    groups: &'a [String],
+    auto_backup: bool,
+}
+impl<'a> From<&'a VaultData> for Portable<'a> {
+    fn from(d: &'a VaultData) -> Self {
+        Self {
+            tokens: &d.tokens,
+            sessions: &d.sessions,
+            network: &d.network,
+            groups: &d.groups,
+            auto_backup: d.auto_backup,
+        }
+    }
+}
 pub fn backup(data: &VaultData, password: &str) -> Result<Vec<u8>, String> {
     data.validate()?;
     if password.chars().count() < 8 {
@@ -301,7 +326,7 @@ pub fn backup(data: &VaultData, password: &str) -> Result<Vec<u8>, String> {
     }
     let mut salt = [0u8; 16];
     OsRng.fill_bytes(&mut salt);
-    encrypt(data, &*key(password, &salt)?, &salt)
+    encrypt(&Portable::from(data), &*key(password, &salt)?, &salt)
 }
 
 pub struct Vault {
@@ -312,6 +337,8 @@ pub struct Vault {
     pub last_activity: u64,
     preview_key: Option<Zeroizing<[u8; 32]>>,
     pub backup_error: Option<String>,
+    pub sync_actor: String,
+    pub device_id: String,
 }
 impl Vault {
     pub fn new(path: PathBuf) -> Self {
@@ -323,6 +350,44 @@ impl Vault {
             last_activity: 0,
             preview_key: None,
             backup_error: None,
+            sync_actor: uuid::Uuid::new_v4().to_string(),
+            device_id: uuid::Uuid::new_v4().to_string(),
+        }
+    }
+    fn initialize_device(&mut self) -> Result<(), String> {
+        let path = self
+            .path
+            .parent()
+            .ok_or("存储目录无效")?
+            .join("device-only/sync-device.json");
+        if let Ok(bytes) = fs::read(&path) {
+            let id: String = serde_json::from_slice(&bytes).map_err(|_| "设备标识无效")?;
+            uuid::Uuid::parse_str(&id).map_err(|_| "设备标识无效")?;
+            self.device_id = id;
+        } else {
+            crate::quick_access::write_private(
+                &path,
+                &serde_json::to_vec(&self.device_id).map_err(|_| "无法编码设备标识")?,
+            )?;
+        }
+        Ok(())
+    }
+    fn bind_sync_device(&mut self) {
+        let valid = self.initialize_device().is_ok();
+        if let Some(data) = &mut self.data {
+            if !valid
+                || data
+                    .sync
+                    .as_ref()
+                    .is_some_and(|s| s.device != self.device_id)
+            {
+                data.sync = None;
+            }
+            if data.sync.is_none() {
+                for token in &mut data.tokens {
+                    token.hotp_read_only = false;
+                }
+            }
         }
     }
     pub fn create(&mut self, password: &str) -> Result<(), String> {
@@ -332,6 +397,7 @@ impl Vault {
         if password.chars().count() < 8 {
             return Err("主密码至少需要 8 个字符".into());
         }
+        self.initialize_device()?;
         OsRng.fill_bytes(&mut self.salt);
         self.key = Some(key(password, &self.salt)?);
         self.data = Some(VaultData::default());
@@ -353,6 +419,7 @@ impl Vault {
         self.salt.copy_from_slice(&salt);
         self.key = Some(key(password, &self.salt)?);
         self.data = Some(data);
+        self.bind_sync_device();
         self.touch();
         self.recover(Some(password))?;
         Ok(())
@@ -391,6 +458,7 @@ impl Vault {
         self.salt.copy_from_slice(&salt);
         self.key = Some(k);
         self.data = Some(data);
+        self.bind_sync_device();
         self.touch();
         if let Err(error) = self.recover(None) {
             self.lock();
@@ -413,6 +481,14 @@ impl Vault {
             }
         }
         Ok(())
+    }
+    pub fn portable_encrypted(&self) -> Result<Vec<u8>, String> {
+        let d = self.data.as_ref().ok_or("请先解锁保险库")?;
+        encrypt(
+            &Portable::from(d),
+            self.key.as_ref().ok_or("保险库已锁定")?,
+            &self.salt,
+        )
     }
     pub fn lock(&mut self) {
         if let Some(d) = &mut self.data {
@@ -523,10 +599,14 @@ impl Vault {
         result
     }
     pub fn save(&mut self) -> Result<(), String> {
-        let data = self.data.as_ref().ok_or("令牌库已锁定")?;
+        let data = self.data.as_mut().ok_or("令牌库已锁定")?;
+        crate::sync::record_local(data, &self.sync_actor)?;
         data.validate()?;
         let key = self.key.as_ref().ok_or("令牌库已锁定")?;
         let bytes = encrypt(data, key, &self.salt)?;
+        if bytes.len() > 20 * 1024 * 1024 {
+            return Err("保险库达到大小限制，请导出备份，断开同步后创建新的同步库".into());
+        }
         let dir = self.path.parent().ok_or("存储目录无效")?;
         fs::create_dir_all(dir).map_err(|_| "无法创建存储目录")?;
         let tmp = self.path.with_extension("tmp");
@@ -543,17 +623,48 @@ impl Vault {
         f.write_all(&bytes)
             .and_then(|_| f.sync_all())
             .map_err(|_| "无法写入令牌库")?;
-        let previous = fs::read(&self.path).ok();
+        let snapshots = if data.auto_backup {
+            let current = Zeroizing::new(
+                serde_json::to_vec(&Portable::from(&*data)).map_err(|_| "无法编码备份")?,
+            );
+            let mut old = fs::read(&self.path)
+                .ok()
+                .and_then(|bytes| decode_key(&bytes, key, &self.salt).ok());
+            let previous = old
+                .as_ref()
+                .and_then(|d| serde_json::to_vec(&Portable::from(d)).ok())
+                .map(Zeroizing::new);
+            // Sync bookkeeping must not rotate away useful authenticator snapshots.
+            let changed = previous.as_ref().map(|v| v.as_slice()) != Some(current.as_slice());
+            let snapshots = if changed {
+                Some((
+                    encrypt(&Portable::from(&*data), key, &self.salt)?,
+                    old.as_ref()
+                        .and_then(|d| encrypt(&Portable::from(d), key, &self.salt).ok()),
+                ))
+            } else {
+                None
+            };
+            if let Some(d) = &mut old {
+                for token in &mut d.tokens {
+                    token.erase();
+                }
+                wipe_json(&mut d.sessions);
+            }
+            snapshots
+        } else {
+            None
+        };
         fs::rename(tmp, &self.path).map_err(|_| "无法保存令牌库")?;
-        if data.auto_backup {
+        if let Some((portable, previous)) = snapshots {
             self.backup_error = crate::backup::record(
                 &self.path,
                 previous.as_deref(),
-                &bytes,
+                &portable,
                 crate::models::now(),
             )
             .err();
-        } else {
+        } else if !data.auto_backup {
             self.backup_error = None;
         }
         if let Some(key) = &self.preview_key {
@@ -567,6 +678,72 @@ impl Vault {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn portable_and_automatic_backups_exclude_sync_credentials_and_restored_devices_disconnect() {
+        let dir =
+            std::env::temp_dir().join(format!("steamguard-sync-backup-{}", uuid::Uuid::new_v4()));
+        let mut v = Vault::new(dir.join("vault.sgvault"));
+        v.create("synthetic-vault-password").unwrap();
+        let device = v.device_id.clone();
+        let (h, k) = crate::sync::create_header(
+            &uuid::Uuid::new_v4().to_string(),
+            "synthetic-sync-password",
+        )
+        .unwrap();
+        v.update(|d| {
+            d.tokens
+                .push(Token::new("Fixture".into(), "totp".into(), vec![42; 20]));
+            d.sync = Some(crate::sync::State::new(
+                "https://example.invalid/dav/".into(),
+                "fixture".into(),
+                "private-dav-credential".into(),
+                &h,
+                &k,
+                device,
+            ));
+            Ok(())
+        })
+        .unwrap();
+        let exported = backup(v.data.as_ref().unwrap(), "synthetic-backup-password").unwrap();
+        assert!(decode(&exported, "synthetic-backup-password")
+            .unwrap()
+            .sync
+            .is_none());
+        let portable = v.portable_encrypted().unwrap();
+        assert!(decode(&portable, "synthetic-vault-password")
+            .unwrap()
+            .sync
+            .is_none());
+        let snapshots = crate::backup::list(&v.path).unwrap();
+        let count = snapshots.len();
+        v.update(|d| {
+            d.sync.as_mut().unwrap().active = false;
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(crate::backup::list(&v.path).unwrap().len(), count);
+        for entry in snapshots {
+            let bytes = crate::backup::read(&v.path, &entry.name).unwrap();
+            assert!(decode(&bytes, "synthetic-vault-password")
+                .unwrap()
+                .sync
+                .is_none());
+        }
+        v.lock();
+        v.unlock("synthetic-vault-password").unwrap();
+        assert!(v.data.as_ref().unwrap().sync.is_some());
+        let restored_dir = dir.join("restored");
+        std::fs::create_dir_all(&restored_dir).unwrap();
+        let restored = restored_dir.join("vault.sgvault");
+        std::fs::copy(&v.path, &restored).unwrap();
+        let mut other = Vault::new(restored);
+        other.unlock("synthetic-vault-password").unwrap();
+        assert!(other.data.as_ref().unwrap().sync.is_none());
+        assert_eq!(other.data.as_ref().unwrap().tokens.len(), 1);
+        v.lock();
+        other.lock();
+        std::fs::remove_dir_all(dir).unwrap();
+    }
     #[test]
     fn old_vault_without_network_preferences_remains_compatible() {
         let data: VaultData = serde_json::from_str(r#"{"tokens":[],"sessions":null}"#).unwrap();

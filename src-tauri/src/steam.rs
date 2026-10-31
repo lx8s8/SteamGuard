@@ -2208,6 +2208,7 @@ mod tests {
                     steam: persistence,
                     epoch: AtomicU64::new(0),
                     time_offset: std::sync::atomic::AtomicI64::new(0),
+                    sync: crate::sync::Controller::default(),
                 };
                 state
                     .save_session(&token.id, 0)

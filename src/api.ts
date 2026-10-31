@@ -1,5 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type {
+  SyncStatus,
+  SyncConnection,
   VaultStatus,
   BackupStatus,
   QuickCapabilities,
@@ -25,6 +27,16 @@ export const call = <T>(
   return invoke<T>(command, args);
 };
 export const api = {
+  syncStatus: () => call<SyncStatus>("sync_status"),
+  syncConnect: (args: SyncConnection) =>
+    call<SyncStatus>("sync_connect", { ...args }),
+  syncRun: (automatic = false) => call<SyncStatus>("sync_run", { automatic }),
+  syncPause: (active: boolean) => call<SyncStatus>("sync_pause", { active }),
+  syncDisconnect: () => call<SyncStatus>("sync_disconnect"),
+  syncResolve: (id: string, choice: string) =>
+    call<SyncStatus>("sync_resolve", { id, choice }),
+  syncClaimHotp: (id: string, acknowledged: boolean) =>
+    call<SyncStatus>("sync_claim_hotp", { id, acknowledged }),
   status: (): Promise<VaultStatus> =>
     native
       ? call<VaultStatus>("vault_status")

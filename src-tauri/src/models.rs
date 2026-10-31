@@ -14,6 +14,8 @@ pub struct Token {
     pub digits: u32,
     pub period: u64,
     pub counter: u64,
+    #[serde(default)]
+    pub hotp_read_only: bool,
     pub steam_id: Option<String>,
     pub account_name: Option<String>,
     pub identity_secret: Option<String>,
@@ -34,6 +36,7 @@ impl Token {
             digits: if steam { 5 } else { 6 },
             period: 30,
             counter: 0,
+            hotp_read_only: false,
             steam_id: None,
             account_name: None,
             identity_secret: None,
@@ -85,6 +88,7 @@ impl Token {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenView {
+    pub hotp_read_only: bool,
     pub group: Option<String>,
     pub id: String,
     pub name: String,

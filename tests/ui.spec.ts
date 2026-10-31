@@ -42,6 +42,39 @@ async function nativeFixture(page: Page) {
         loggedIn: false,
       },
     ];
+    const syncScenario = new URLSearchParams(location.search).get("sync");
+    const syncState = {
+      configured: !!syncScenario,
+      active: true,
+      busy: false,
+      endpoint: "https://dav.example.test/very/long/webdav/path/",
+      username: "synthetic@example.test",
+      libraryId: "2971a71b-042c-4f28-b8ae-3c02b713f0f0",
+      dirty: false,
+      lastSuccess: 1793404800,
+      error: null as string | null,
+      conflicts:
+        syncScenario === "conflict"
+          ? [
+              {
+                id: "field-fixture",
+                name: "测试 · 通用 OTP",
+                field: "显示名称",
+                choices: [
+                  { id: "version-a", label: "电脑名称", local: true },
+                  { id: "version-b", label: "手机名称", local: false },
+                ],
+              },
+            ]
+          : [],
+    };
+    if (syncScenario === "hotp")
+      Object.assign(tokens[2], {
+        kind: "hotp",
+        code: "",
+        counter: 27,
+        hotpReadOnly: true,
+      });
     const quickScenario = new URLSearchParams(location.search).get("quick");
     let locked = !!quickScenario;
     let previewEnabled = quickScenario === "preview";
@@ -79,6 +112,38 @@ async function nativeFixture(page: Page) {
         invoke: async (command: string, args: Record<string, unknown> = {}) => {
           commands.push({ command, args });
           switch (command) {
+            case "sync_status":
+              return { ...syncState };
+            case "sync_connect":
+              if (args.password === "wrong-app-password")
+                throw new Error("网盘拒绝访问，请检查账号、应用密码和目录权限");
+              if (
+                args.mode === "join" &&
+                args.syncPassword !== "synthetic-sync-password"
+              )
+                throw new Error("同步密码错误，或云端文件已损坏");
+              Object.assign(syncState, {
+                configured: true,
+                endpoint: String(args.endpoint),
+                username: String(args.username),
+              });
+              return { ...syncState };
+            case "sync_run":
+              return { ...syncState };
+            case "sync_pause":
+              syncState.active = !!args.active;
+              return { ...syncState };
+            case "sync_disconnect":
+              syncState.configured = false;
+              return { ...syncState };
+            case "sync_resolve":
+              syncState.conflicts = [];
+              return { ...syncState };
+            case "sync_claim_hotp":
+              if (!args.acknowledged)
+                throw new Error("请确认旧设备已停止使用此 HOTP 令牌");
+              Object.assign(tokens[2], { hotpReadOnly: false, code: "123456" });
+              return { ...syncState };
             case "vault_status":
               return {
                 initialized: true,
@@ -901,4 +966,137 @@ test("an encrypted import can merge groups even when every token already exists"
   await expect(dialog).toHaveCount(0);
   await page.getByLabel("分组筛选").selectOption("group:恢复分组");
   await expect(page.locator(".token-card")).toHaveCount(1);
+});
+
+test("WebDAV creation reports auth failure and clears password fields after connection", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "设置", exact: true }).click();
+  const panel = page.locator(".sync-panel");
+  await panel
+    .getByLabel("网盘账号", { exact: true })
+    .fill("synthetic@example.test");
+  await panel
+    .getByLabel("网盘应用密码", { exact: true })
+    .fill("wrong-app-password");
+  await panel
+    .getByLabel("独立同步密码", { exact: true })
+    .fill("synthetic-sync-password");
+  await panel.getByRole("button", { name: "创建并同步", exact: true }).click();
+  await expect(panel.getByRole("alert")).toContainText("网盘拒绝访问");
+  await expect(panel.getByLabel("独立同步密码", { exact: true })).toHaveValue(
+    "synthetic-sync-password",
+  );
+  await panel
+    .getByLabel("网盘应用密码", { exact: true })
+    .fill("synthetic-app-password");
+  await panel.getByRole("button", { name: "创建并同步", exact: true }).click();
+  await expect(panel.getByText("同步库编号", { exact: true })).toBeVisible();
+  await expect(panel.getByLabel("网盘应用密码", { exact: true })).toHaveCount(
+    0,
+  );
+  await panel.getByRole("button", { name: "断开同步", exact: true }).click();
+  await expect(page.getByRole("dialog")).toContainText(
+    "本机令牌和云端同步库都会保留",
+  );
+  await page.getByRole("button", { name: "确认断开", exact: true }).click();
+  await expect(panel.getByLabel("网盘应用密码", { exact: true })).toHaveValue(
+    "",
+  );
+  await expect(panel.getByLabel("独立同步密码", { exact: true })).toHaveValue(
+    "",
+  );
+});
+
+test("joining a library passes its identifier and independent encryption password", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "设置", exact: true }).click();
+  const panel = page.locator(".sync-panel");
+  await panel.getByLabel("连接方式").selectOption("join");
+  await panel.getByLabel("网盘服务").selectOption("custom");
+  await panel
+    .getByLabel("WebDAV 地址")
+    .fill("https://dav.example.test/folder/");
+  await panel
+    .getByLabel("网盘账号", { exact: true })
+    .fill("synthetic@example.test");
+  await panel
+    .getByLabel("网盘应用密码", { exact: true })
+    .fill("synthetic-app-password");
+  await panel
+    .getByLabel("同步库编号", { exact: true })
+    .fill("2971a71b-042c-4f28-b8ae-3c02b713f0f0");
+  await panel
+    .getByLabel("独立同步密码", { exact: true })
+    .fill("synthetic-sync-password");
+  await panel.getByRole("button", { name: "加入并同步", exact: true }).click();
+  await expect(
+    panel.getByRole("switch", { name: "自动同步", exact: true }),
+  ).toBeChecked();
+  await panel.getByRole("switch", { name: "自动同步", exact: true }).click();
+  await expect(
+    panel.getByRole("switch", { name: "自动同步", exact: true }),
+  ).not.toBeChecked();
+  await panel.getByRole("button", { name: "立即同步", exact: true }).click();
+  expect(await commandCount(page, "sync_run")).toBeGreaterThan(0);
+});
+
+test("conflicting sync fields are kept until a version is explicitly selected", async ({
+  page,
+}) => {
+  await page.goto("/?sync=conflict");
+  await page.getByRole("button", { name: "设置", exact: true }).click();
+  const region = page.getByRole("region", { name: "同步冲突", exact: true });
+  await expect(
+    region.getByRole("button", { name: "保留所选版本", exact: true }),
+  ).toBeDisabled();
+  await region.getByLabel("手机名称").check();
+  await region
+    .getByRole("button", { name: "保留所选版本", exact: true })
+    .click();
+  await expect(region).toHaveCount(0);
+  expect(await commandCount(page, "sync_resolve")).toBe(1);
+});
+
+test("HOTP on a secondary device cannot copy or advance and transfer requires acknowledgment", async ({
+  page,
+}) => {
+  await page.goto("/?sync=hotp");
+  const card = page
+    .locator(".token-card")
+    .filter({ hasText: "测试 · 通用 OTP" });
+  await expect(card.getByText("仅主设备", { exact: true })).toBeDisabled();
+  await expect(card.getByRole("button", { name: "下一验证码" })).toBeDisabled();
+  await page.getByRole("button", { name: "设置", exact: true }).click();
+  await page.getByRole("button", { name: "切换到本机", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(
+    dialog.getByRole("button", { name: "设为主设备", exact: true }),
+  ).toBeDisabled();
+  await dialog.getByRole("checkbox").check();
+  await dialog.getByRole("button", { name: "设为主设备", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(await commandCount(page, "sync_claim_hotp")).toBe(1);
+});
+
+test("encrypted sync settings fit a narrow phone and preview never starts cloud sync", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.goto("/?sync=conflict");
+  await page.getByRole("button", { name: "设置", exact: true }).click();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: "artifacts/mobile-sync-v1.3.0.png",
+    fullPage: true,
+  });
+  await page.goto("/?quick=preview&sync=connected");
+  await expect(page.getByText("免密码预览", { exact: true })).toBeVisible();
+  await page.waitForTimeout(2300);
+  expect(await commandCount(page, "sync_run")).toBe(0);
 });
