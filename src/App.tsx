@@ -418,7 +418,7 @@ export default function App() {
           </div>
           <div className="sidebar-version">
             <span>STEAMGUARD</span>
-            <span>v1.0.0</span>
+            <span>v1.0.1</span>
           </div>
         </div>
       </aside>
@@ -1112,7 +1112,7 @@ export default function App() {
                     </span>
                     <div>
                       <h2>
-                        SteamGuard <span>1.0.0</span>
+                        SteamGuard <span>1.0.1</span>
                       </h2>
                       <p>
                         参考 Watt Toolkit 本地令牌功能构建。基于 Tauri
@@ -1664,13 +1664,30 @@ function LoginDialog({
   const [removeChecked, setRemoveChecked] = useState(false);
   const authenticated = !!token.loggedIn || result?.status === "authenticated";
   const awaiting = result?.status === "guard" || result?.status === "pending";
+  const canSubmitCode =
+    awaiting &&
+    !result?.guardSubmitted &&
+    !!result?.guards.some(
+      (g) => g.confirmationType === 2 || g.confirmationType === 3,
+    );
+  const canUseLocalGuard =
+    canSubmitCode &&
+    !isNew &&
+    token.kind === "steam" &&
+    !!result?.guards.some((g) => g.confirmationType === 3);
   const acceptStatus = async (next: LoginResult) => {
     setResult(next);
+    setError(next.message || "");
     setPassword("");
-    const option = next.guards.find(
-      (g) => g.confirmationType === 3 || g.confirmationType === 2,
-    );
-    if (option) setCodeType(option.confirmationType);
+    const option =
+      next.guards.find((g) => g.confirmationType === 3) ||
+      next.guards.find((g) => g.confirmationType === 2);
+    if (option)
+      setCodeType((current) =>
+        next.guards.some((g) => g.confirmationType === current)
+          ? current
+          : option.confirmationType,
+      );
     if (next.status === "authenticated" && !isNew) {
       await onComplete();
       onClose();
@@ -1688,7 +1705,7 @@ function LoginDialog({
     }
   };
   useEffect(() => {
-    if (!awaiting) return;
+    if (!awaiting || busy) return;
     let stopped = false;
     const timer = setTimeout(
       () => {
@@ -1707,7 +1724,7 @@ function LoginDialog({
       stopped = true;
       clearTimeout(timer);
     };
-  }, [result, token.id, awaiting]);
+  }, [result, token.id, awaiting, busy]);
   useEffect(() => {
     let stopped = false;
     setQrImage("");
@@ -1765,6 +1782,14 @@ function LoginDialog({
         </div>
         {authenticated && <span className="secure-tag">已登录</span>}
       </div>
+      {!isNew && (
+        <p className="form-hint">
+          当前令牌账号：{token.accountName || "未记录"} · SteamID：
+          {token.steamId && !/^0+$/.test(token.steamId)
+            ? token.steamId
+            : "未关联，使用当前令牌验证成功后补全"}
+        </p>
+      )}
       {activation ? (
         <>
           <p className="dialog-intro">
@@ -2220,7 +2245,9 @@ function LoginDialog({
                 void request(async () =>
                   acceptStatus(
                     await (awaiting
-                      ? api.guard(token.id, code, codeType)
+                      ? canSubmitCode
+                        ? api.guard(token.id, code, codeType)
+                        : api.poll(token.id)
                       : api.login(token.id, username, password)),
                   ),
                 );
@@ -2229,12 +2256,32 @@ function LoginDialog({
               {awaiting ? (
                 <>
                   <p className="dialog-intro">
-                    Steam 需要额外验证。可输入令牌或邮箱验证码，或在已登录的
-                    Steam 手机应用中批准。
+                    {result?.guardSubmitted
+                      ? "验证码已提交，正在等待 Steam 完成登录。"
+                      : "请完成 Steam 返回的验证方式：令牌验证码、邮箱验证码或手机应用批准。"}
                   </p>
-                  {result?.guards.some(
-                    (g) => g.confirmationType === 2 || g.confirmationType === 3,
-                  ) && (
+                  {canUseLocalGuard && (
+                    <div className="local-guard-panel">
+                      <button
+                        type="button"
+                        className="button secondary"
+                        disabled={busy}
+                        onClick={() =>
+                          void request(async () =>
+                            acceptStatus(await api.guardLocal(token.id)),
+                          )
+                        }
+                      >
+                        <ShieldCheck size={16} />
+                        使用当前令牌验证
+                      </button>
+                      <p className="form-hint">
+                        使用 Steam
+                        服务器时间生成最新验证码并直接提交，无需复制；邮箱验证仍需输入邮件中的验证码。
+                      </p>
+                    </div>
+                  )}
+                  {canSubmitCode && (
                     <>
                       <label className="field-label" htmlFor="guard-type">
                         验证方式
@@ -2329,14 +2376,37 @@ function LoginDialog({
                   className="button primary"
                   disabled={
                     busy ||
-                    (awaiting ? !code.trim() : !username.trim() || !password)
+                    (awaiting
+                      ? canSubmitCode && !code.trim()
+                      : !username.trim() || !password)
                   }
                 >
                   {busy ? <Spinner /> : <LogIn size={16} />}
-                  {awaiting ? "提交验证码" : "安全登录"}
+                  {awaiting
+                    ? canSubmitCode
+                      ? "提交验证码"
+                      : "检查登录状态"
+                    : "安全登录"}
                 </button>
               </div>
             </form>
+          )}
+          {awaiting && mode === "password" && (
+            <button
+              type="button"
+              className="text-button"
+              disabled={busy}
+              onClick={() =>
+                void request(async () => {
+                  await api.logout(token.id);
+                  setResult(null);
+                  setCode("");
+                  setError("");
+                })
+              }
+            >
+              重新输入账号
+            </button>
           )}
           {mode === "qr" && (
             <div className="modal-actions">

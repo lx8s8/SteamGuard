@@ -562,11 +562,14 @@ fn json_string(v: &Json, keys: &[&str]) -> Option<String> {
 }
 
 fn apply_steam_data(token: &mut Token, steam: &Json) {
-    token.steam_id = json_string(steam, &["steamid", "steam_id", "steamId"]).or_else(|| {
-        steam
-            .get("Session")
-            .and_then(|s| json_string(s, &["SteamID", "SteamId", "steamid"]))
-    });
+    token.steam_id = json_string(steam, &["steamid", "steam_id", "steamId"])
+        .filter(|id| crate::models::known_steam_id(Some(id)).is_some())
+        .or_else(|| {
+            steam
+                .get("Session")
+                .and_then(|session| json_string(session, &["SteamID", "SteamId", "steamid"]))
+        })
+        .filter(|id| crate::models::known_steam_id(Some(id)).is_some());
     token.account_name = json_string(steam, &["account_name", "accountName"]);
     token.identity_secret = json_string(steam, &["identity_secret", "identitySecret"]);
     token.device_id = json_string(steam, &["device_id", "deviceId"]).or(token.device_id.take());
@@ -934,6 +937,18 @@ mod tests {
     }
 
     #[test]
+    fn zero_steam_id_uses_nested_session_identity() {
+        let tokens = parse_import(br#"{"shared_secret":"MTIzNDU2Nzg5MDEyMzQ1Njc4OTA=","steamid":0,"Session":{"SteamID":"76561198000000001"}}"#, None, "fixture.maFile").unwrap();
+        assert_eq!(tokens[0].steam_id.as_deref(), Some("76561198000000001"));
+        let tokens = parse_import(
+            br#"{"shared_secret":"MTIzNDU2Nzg5MDEyMzQ1Njc4OTA=","steamid":"0"}"#,
+            None,
+            "fixture.maFile",
+        )
+        .unwrap();
+        assert!(tokens[0].steam_id.is_none());
+    }
+    #[test]
     fn imports_plain_winauth_xml_and_rejects_encrypted() {
         let tokens = parse_import(br#"<WinAuth><WinAuthAuthenticator type="WinAuth.GoogleAuthenticator"><name>Fixture</name><authenticatordata><secretdata>31323334353637383930</secretdata></authenticatordata></WinAuthAuthenticator></WinAuth>"#, None, "fixture.xml").unwrap();
         assert_eq!(tokens[0].name, "Fixture");
@@ -961,10 +976,30 @@ mod tests {
         )
         .unwrap();
         assert!(!tokens.is_empty());
+        let legacy_zero = tokens
+            .iter()
+            .filter(|token| {
+                token
+                    .steam_data
+                    .as_ref()
+                    .is_some_and(|data| data.get("steamid").is_some_and(|v| v == "0" || v == 0))
+            })
+            .count();
+        println!(
+            "Private import metadata only: records={}, legacy_zero_id={}, known_id={}",
+            tokens.len(),
+            legacy_zero,
+            tokens
+                .iter()
+                .filter(|token| crate::models::known_steam_id(token.steam_id.as_deref()).is_some())
+                .count()
+        );
         for token in tokens {
             assert!(!token.secret.is_empty());
             if token.kind == "steam" {
-                assert!(token.steam_id.is_some());
+                if let Some(id) = &token.steam_id {
+                    assert!(crate::models::known_steam_id(Some(id)).is_some());
+                }
                 assert!(token.identity_secret.is_some());
                 assert!(token.device_id.is_some());
             }

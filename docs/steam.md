@@ -56,3 +56,12 @@ WATT_TEST_MPO='/absolute/path/to/private.mpo' cargo test --manifest-path src-tau
 ```
 
 The terminal prompts for both values without echoing them. Do not put credentials in source, command arguments, environment files, CI variables or diagnostic reports. The backup path is optional; without a matching local authenticator the test stops when an additional Guard approval is needed.
+
+
+## Login and Guard fixes in 1.0.1
+
+Legacy SteamID `0`/empty values consistently mean unknown at import, challenge verification and persistence. A positive mismatched SteamID remains an error; unknown identities are persisted only after the local shared secret produces a Steam-accepted code. An authenticated session now records whether the local authenticator was verified, with a backwards-compatible default for existing saved sessions.
+
+The previous error table incorrectly mapped EResult 88 to "two-factor required" and 85 to "expired code". The corrected meanings follow the [SteamKit protocol definitions](https://github.com/SteamRE/SteamKit/blob/master/Resources/SteamLanguage/eresult.steamd). Guard failures keep the current client/request IDs and allowed methods. Local codes are generated from Steam time after the initial network exchange. The UI provides direct local-code submission, manual/email input and phone approval when offered; polling does not reset a chosen method and is paused during submissions.
+
+The owner-authorized live probe additionally exercises the native persistence/binding layer, using a temporary encrypted vault protected by a random password. Private temporary files are removed by a scope guard; no account identifiers, secrets or passwords are logged. This catches the prior distinction between successful network authentication and a failed local save.

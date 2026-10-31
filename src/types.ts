@@ -34,6 +34,8 @@ export interface LoginResult {
   guards: { confirmationType: number; associatedMessage: string }[];
   pollInterval: number;
   qrUrl?: string;
+  message?: string;
+  guardSubmitted?: boolean;
 }
 export interface Confirmation {
   id: string;

@@ -45,6 +45,8 @@ pub struct LoginStatus {
     /// Milliseconds. Callers must respect this interval before polling again.
     pub poll_interval: u64,
     pub qr_url: Option<String>,
+    pub message: Option<String>,
+    pub guard_submitted: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -68,6 +70,8 @@ pub struct SteamSession {
     pub access_token: String,
     pub refresh_token: String,
     pub session_id: String,
+    #[serde(default)]
+    pub local_guard_verified: bool,
 }
 
 /// Returned only to native commands, which must save this into the encrypted vault.
@@ -98,14 +102,18 @@ struct Pending {
     qr_url: Option<String>,
     created: Instant,
     last_poll: Option<Instant>,
+    message: Option<String>,
+    guard_submitted: bool,
+    local_guard_verified: bool,
 }
 impl Pending {
     fn status(&self) -> LoginStatus {
         LoginStatus {
-            status: if self
-                .guards
-                .iter()
-                .any(|g| [2, 3].contains(&g.confirmation_type))
+            status: if !self.guard_submitted
+                && self
+                    .guards
+                    .iter()
+                    .any(|g| [2, 3].contains(&g.confirmation_type))
             {
                 "guard"
             } else {
@@ -117,11 +125,45 @@ impl Pending {
             guards: self.guards.clone(),
             poll_interval: self.interval,
             qr_url: self.qr_url.clone(),
+            message: self.message.clone(),
+            guard_submitted: self.guard_submitted,
         }
     }
 }
 
+enum ApiFailure {
+    Other(String),
+    Steam { result: u32, operation: String },
+}
+impl From<String> for ApiFailure {
+    fn from(value: String) -> Self {
+        Self::Other(value)
+    }
+}
+impl ApiFailure {
+    fn message(self) -> String {
+        match self {
+            Self::Other(message) => message,
+            Self::Steam { result, operation } => format!(
+                "{operation}失败：{}（EResult {result}）",
+                steam_error(result)
+            ),
+        }
+    }
+    fn guard_retry(&self) -> bool {
+        matches!(
+            self,
+            Self::Steam {
+                result: 65 | 71 | 85 | 88 | 89 | 93,
+                ..
+            }
+        )
+    }
+}
+
 pub struct SteamService {
+    #[cfg(test)]
+    api_base: String,
     lifecycle: Mutex<()>,
     generations: Mutex<HashMap<String, u64>>,
     next_generation: AtomicU64,
@@ -136,6 +178,8 @@ impl SteamService {
     pub fn new() -> Result<Self, String> {
         let client = NetworkClient::new()?;
         Ok(Self {
+            #[cfg(test)]
+            api_base: API.into(),
             lifecycle: Mutex::new(()),
             generations: Mutex::new(HashMap::new()),
             next_generation: AtomicU64::new(1),
@@ -257,6 +301,9 @@ impl SteamService {
             .unwrap()
             .insert(id.into(), generation);
         self.pending.lock().unwrap().remove(id);
+        self.sessions.lock().unwrap().remove(id);
+        self.confirmations.lock().unwrap().remove(id);
+        self.reviewed_qr.lock().unwrap().remove(id);
         generation
     }
 
@@ -283,6 +330,16 @@ impl SteamService {
         Ok(())
     }
 
+    fn api_base(&self) -> &str {
+        #[cfg(test)]
+        {
+            &self.api_base
+        }
+        #[cfg(not(test))]
+        {
+            API
+        }
+    }
     async fn api<Req: Message, Res: Message + Default>(
         &self,
         service: &str,
@@ -290,7 +347,18 @@ impl SteamService {
         request: Req,
         access: Option<&str>,
     ) -> Result<Res, String> {
-        let url = format!("{API}/I{service}Service/{method}/v1/");
+        self.api_detailed(service, method, request, access)
+            .await
+            .map_err(ApiFailure::message)
+    }
+    async fn api_detailed<Req: Message, Res: Message + Default>(
+        &self,
+        service: &str,
+        method: &str,
+        request: Req,
+        access: Option<&str>,
+    ) -> Result<Res, ApiFailure> {
+        let url = format!("{}/I{service}Service/{method}/v1/", self.api_base());
         let encoded = STANDARD.encode(request.encode_to_vec());
         let mut req = if method == "GetPasswordRSAPublicKey" {
             self.client.get(url).query(&[
@@ -316,7 +384,8 @@ impl SteamService {
                 "{}失败（Steam HTTP {}）",
                 operation_label(method),
                 response.status().as_u16()
-            ));
+            )
+            .into());
         }
         if let Some(result) = response
             .headers()
@@ -325,14 +394,17 @@ impl SteamService {
             .and_then(|v| v.parse::<u32>().ok())
         {
             if result != 1 {
-                return Err(steam_error(result));
+                return Err(ApiFailure::Steam {
+                    result,
+                    operation: operation_label(method).into(),
+                });
             }
         }
         let bytes = response
             .bytes()
             .await
             .map_err(|_| "Steam 响应读取失败".to_string())?;
-        Res::decode(bytes).map_err(|_| "Steam 返回了无法识别的协议数据".to_string())
+        Res::decode(bytes).map_err(|_| ApiFailure::Other("Steam 返回了无法识别的协议数据".into()))
     }
 
     pub async fn begin_login(
@@ -341,7 +413,7 @@ impl SteamService {
         username: &str,
         password: &str,
         expected_steam_id: Option<&str>,
-        automatic_guard: Option<&str>,
+        automatic_guard: Option<&crate::models::Token>,
     ) -> Result<LoginStatus, String> {
         if username.trim().is_empty() || password.is_empty() {
             return Err("请输入 Steam 登录名和密码".into());
@@ -402,14 +474,35 @@ impl SteamService {
             qr_url: None,
             created: Instant::now(),
             last_poll: None,
+            message: None,
+            guard_submitted: false,
+            local_guard_verified: false,
         };
         let result = pending.status();
-        let can_auto =
-            expected_steam_id.is_some() && pending.guards.iter().any(|g| g.confirmation_type == 3);
+        let can_auto = automatic_guard.is_some_and(|token| {
+            crate::models::known_steam_id(expected_steam_id).is_some()
+                || token
+                    .account_name
+                    .as_deref()
+                    .is_some_and(|name| name.trim().eq_ignore_ascii_case(username.trim()))
+        }) && pending
+            .guards
+            .iter()
+            .any(|guard| guard.confirmation_type == 3);
         self.install_pending(id, pending)?;
         if can_auto {
-            if let Some(code) = automatic_guard {
-                return self.submit_guard_for(id, code, 3, Some(generation)).await;
+            if let Some(token) = automatic_guard {
+                return match self
+                    .submit_local_guard_for(id, token, Some(generation))
+                    .await
+                {
+                    Ok(status) => Ok(status),
+                    Err(error) => self.guard_retry_status(
+                        id,
+                        generation,
+                        format!("自动令牌验证未完成：{error}。可以在此继续验证。"),
+                    ),
+                };
             }
         }
         Ok(result)
@@ -450,6 +543,9 @@ impl SteamService {
             qr_url: Some(result.challenge_url),
             created: Instant::now(),
             last_poll: None,
+            message: None,
+            guard_submitted: false,
+            local_guard_verified: false,
         };
         let status = pending.status();
         self.install_pending(id, pending)?;
@@ -461,16 +557,92 @@ impl SteamService {
         id: &str,
         code: &str,
         code_type: u32,
+        token: Option<&crate::models::Token>,
     ) -> Result<LoginStatus, String> {
-        self.submit_guard_for(id, code, code_type, None).await
+        let pending = self.pending_for(id)?;
+        let mut local = false;
+        if let Some(token) = token {
+            if token.kind != "steam" {
+                return Err("请选择 Steam 令牌".into());
+            }
+            check_identity(
+                pending
+                    .steam_id
+                    .as_deref()
+                    .ok_or("请使用手机批准二维码登录")?,
+                token.steam_id.as_deref(),
+            )?;
+            if code_type == 3 {
+                let now = self
+                    .server_time()
+                    .await
+                    .unwrap_or_else(|_| crate::models::now());
+                local = [now.saturating_sub(30), now, now.saturating_add(30)]
+                    .iter()
+                    .any(|&time| {
+                        crate::otp::code(token, time)
+                            .is_ok_and(|current| current.eq_ignore_ascii_case(code.trim()))
+                    });
+            }
+        }
+        self.submit_guard_for(id, code, code_type, Some(pending.generation), local)
+            .await
     }
-
+    pub async fn submit_local_guard(
+        &self,
+        id: &str,
+        token: &crate::models::Token,
+    ) -> Result<LoginStatus, String> {
+        self.submit_local_guard_for(id, token, None).await
+    }
+    async fn submit_local_guard_for(
+        &self,
+        id: &str,
+        token: &crate::models::Token,
+        expected_generation: Option<u64>,
+    ) -> Result<LoginStatus, String> {
+        if token.kind != "steam" {
+            return Err("请选择 Steam 令牌".into());
+        }
+        let pending = self.pending_for(id)?;
+        if expected_generation.is_some_and(|g| g != pending.generation) {
+            return Err("Steam 登录已被替换，请重新验证".into());
+        }
+        check_identity(
+            pending
+                .steam_id
+                .as_deref()
+                .ok_or("二维码登录请在 Steam 手机应用中批准")?,
+            token.steam_id.as_deref(),
+        )?;
+        // Generate after RSA/auth-session requests, using Steam time rather than a
+        // code captured before a slow proxy request or from an unsynchronized PC.
+        let now = self.server_time().await?;
+        let code = zeroize::Zeroizing::new(crate::otp::code(token, now)?);
+        self.submit_guard_for(id, &code, 3, Some(pending.generation), true)
+            .await
+    }
+    fn guard_retry_status(
+        &self,
+        id: &str,
+        generation: u64,
+        message: String,
+    ) -> Result<LoginStatus, String> {
+        let _lifecycle = self.lifecycle.lock().unwrap();
+        self.ensure_generation(id, generation)?;
+        let mut all = self.pending.lock().unwrap();
+        let pending = all.get_mut(id).ok_or("请重新开始 Steam 登录")?;
+        pending.message = Some(message);
+        pending.guard_submitted = false;
+        Ok(pending.status())
+    }
     async fn submit_guard_for(
         &self,
         id: &str,
         code: &str,
         code_type: u32,
         expected_generation: Option<u64>,
+        local: bool,
     ) -> Result<LoginStatus, String> {
         if ![2, 3].contains(&code_type) {
             return Err("不支持的 Steam 验证码类型".into());
@@ -495,8 +667,8 @@ impl SteamService {
             .as_deref()
             .and_then(|s| s.parse().ok())
             .ok_or("二维码登录请使用 Steam 手机 App 扫描确认")?;
-        let _: Empty = self
-            .api(
+        let response: Result<Empty, ApiFailure> = self
+            .api_detailed(
                 "Authentication",
                 "UpdateAuthSessionWithSteamGuardCode",
                 UpdateGuardRequest {
@@ -507,7 +679,22 @@ impl SteamService {
                 },
                 None,
             )
-            .await?;
+            .await;
+        if let Err(error) = response {
+            if error.guard_retry() {
+                return self.guard_retry_status(id, pending.generation, error.message());
+            }
+            return Err(error.message());
+        }
+        {
+            let _lifecycle = self.lifecycle.lock().unwrap();
+            self.ensure_generation(id, pending.generation)?;
+            let mut all = self.pending.lock().unwrap();
+            let current = all.get_mut(id).ok_or("登录会话已结束，请重新登录")?;
+            current.message = None;
+            current.guard_submitted = true;
+            current.local_guard_verified |= local;
+        }
         // Keep the same challenge. Retrying a login would invalidate emailed codes.
         self.ensure_generation(id, pending.generation)?;
         self.poll_login_for(id, Some(pending.generation)).await
@@ -554,8 +741,8 @@ impl SteamService {
                 p.last_poll = Some(Instant::now());
             }
         }
-        let result: PollResponse = self
-            .api(
+        let response: Result<PollResponse, ApiFailure> = self
+            .api_detailed(
                 "Authentication",
                 "PollAuthSessionStatus",
                 PollRequest {
@@ -564,7 +751,14 @@ impl SteamService {
                 },
                 None,
             )
-            .await?;
+            .await;
+        let result = match response {
+            Ok(result) => result,
+            Err(error) if error.guard_retry() => {
+                return self.guard_retry_status(id, pending.generation, error.message())
+            }
+            Err(error) => return Err(error.message()),
+        };
         if result.access_token.is_empty() && result.refresh_token.is_empty() {
             let _lifecycle = self.lifecycle.lock().unwrap();
             self.ensure_generation(id, pending.generation)?;
@@ -602,6 +796,7 @@ impl SteamService {
             access_token: result.access_token,
             refresh_token: result.refresh_token,
             session_id: random_hex(12),
+            local_guard_verified: false,
         };
         if session.access_token.is_empty() {
             self.refresh_session(&mut session).await?;
@@ -611,9 +806,13 @@ impl SteamService {
         // The challenge generation and session insertion share the cancellation lock.
         let _lifecycle = self.lifecycle.lock().unwrap();
         self.ensure_generation(id, pending.generation)?;
-        if self.pending.lock().unwrap().remove(id).is_none() {
-            return Err("登录已取消".into());
-        }
+        let completed = self
+            .pending
+            .lock()
+            .unwrap()
+            .remove(id)
+            .ok_or("登录已取消")?;
+        session.local_guard_verified = completed.local_guard_verified;
         self.sessions.lock().unwrap().insert(id.into(), session);
         Ok(LoginStatus {
             status: "authenticated".into(),
@@ -622,6 +821,8 @@ impl SteamService {
             guards: vec![],
             poll_interval: pending.interval,
             qr_url: None,
+            message: None,
+            guard_submitted: true,
         })
     }
 
@@ -784,7 +985,10 @@ impl SteamService {
 
     fn time_request(&self) -> reqwest::RequestBuilder {
         self.client
-            .post(format!("{API}/ITwoFactorService/QueryTime/v1/"))
+            .post(format!(
+                "{}/ITwoFactorService/QueryTime/v1/",
+                self.api_base()
+            ))
             // Steam's HTTP frontend rejects a body-less POST with HTTP 411.
             .form(&[("steamid", "0")])
     }
@@ -1247,10 +1451,19 @@ fn random_hex(bytes: usize) -> String {
     OsRng.fill_bytes(&mut buf);
     buf.iter().map(|b| format!("{b:02x}")).collect()
 }
-fn check_identity(actual: &str, expected: Option<&str>) -> Result<(), String> {
-    if let Some(expected) = expected.filter(|s| !s.is_empty() && *s != "0") {
-        if actual != expected {
-            return Err("登录的 Steam 账号与此令牌不一致，已拒绝绑定".into());
+pub(crate) fn check_identity(actual: &str, expected: Option<&str>) -> Result<(), String> {
+    if let Some(expected) = crate::models::known_steam_id(expected) {
+        if actual.trim() != expected {
+            let suffix = |id: &str| {
+                id.chars()
+                    .rev()
+                    .take(6)
+                    .collect::<String>()
+                    .chars()
+                    .rev()
+                    .collect::<String>()
+            };
+            return Err(format!("登录账号与所选令牌不一致（令牌 SteamID 尾号 {}，登录账号尾号 {}）。请使用此令牌对应的 Steam 登录账户，或选择正确的令牌。", suffix(expected), suffix(actual)));
         }
     }
     Ok(())
@@ -1354,11 +1567,14 @@ fn steam_error(result: u32) -> String {
     match result {
         5 => "Steam 登录名或密码错误".into(),
         15 => "Steam 拒绝访问，请重新登录".into(),
-        65 => "Steam 验证码错误，请重试".into(),
+        65 => "邮箱验证码不匹配，请输入当前登录邮件中的验证码".into(),
+        71 => "邮箱验证码已过期，请重新登录获取新邮件".into(),
         84 => "Steam 请求过于频繁，请稍后重试".into(),
-        85 => "Steam 验证码已过期，请使用新的验证码".into(),
-        88 => "Steam 需要双重验证".into(),
-        89 => "Steam 验证码错误，请重试".into(),
+        85 => "Steam 要求手机双重验证，请完成当前登录的验证码或手机批准".into(),
+        87 => "Steam 暂时限制登录，请稍后再试".into(),
+        88 => "Steam 令牌验证码不匹配，请校准时间后重试；若令牌已转移，请导入最新令牌".into(),
+        89 => "Steam 短信激活码不匹配，请核对短信".into(),
+        93 => "Steam 时间不同步，请校准时间后重试".into(),
         _ => format!("Steam 请求失败（EResult {result}）"),
     }
 }
@@ -1897,22 +2113,13 @@ mod tests {
                         .is_some_and(|n| n.eq_ignore_ascii_case(username.trim()))
             });
             let expected = token.and_then(|t| t.steam_id.as_deref());
-            let code = if let Some(token) = token {
-                let now = service
-                    .server_time()
-                    .await
-                    .expect("Steam time query failed");
-                Some(Zeroizing::new(crate::otp::code(token, now).unwrap()))
-            } else {
-                None
-            };
             let result = service
                 .begin_login(
                     "private-login-probe",
                     username.trim(),
                     password.trim_end_matches(['\r', '\n']),
                     expected,
-                    code.as_deref().map(|s| s.as_str()),
+                    token,
                 )
                 .await;
             let mut status = match result {
@@ -1928,7 +2135,7 @@ mod tests {
                     .map(|g| g.confirmation_type)
                     .collect::<Vec<_>>()
             );
-            if status.status != "authenticated" && code.is_none() {
+            if status.status != "authenticated" && token.is_none() {
                 println!(
                     "Additional Steam Guard approval required; no transaction actions performed."
                 );
@@ -1963,6 +2170,62 @@ mod tests {
                         .expect("Read-only mobile confirmation query failed");
                     println!("Read-only mobile confirmation query succeeded ({} rows); no approvals or transactions sent.",rows.len());
                 }
+            }
+            if let Some(token) = token {
+                struct PrivateDirectory(std::path::PathBuf);
+                impl Drop for PrivateDirectory {
+                    fn drop(&mut self) {
+                        let _ = std::fs::remove_dir_all(&self.0);
+                    }
+                }
+                let directory = PrivateDirectory(
+                    std::env::temp_dir()
+                        .join(format!("steamguard-private-test-{}", uuid::Uuid::new_v4())),
+                );
+                std::fs::create_dir(&directory.0).unwrap();
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    std::fs::set_permissions(&directory.0, std::fs::Permissions::from_mode(0o700))
+                        .unwrap();
+                }
+                let password = zeroize::Zeroizing::new(random_hex(32));
+                let mut vault = crate::vault::Vault::new(directory.0.join("vault.sgvault"));
+                vault.create(&password).unwrap();
+                vault
+                    .update(|data| {
+                        data.tokens.push(token.clone());
+                        Ok(())
+                    })
+                    .unwrap();
+                let persistence = SteamService::new().unwrap();
+                persistence
+                    .restore_session(&token.id, session.clone(), token.steam_id.as_deref())
+                    .unwrap();
+                let state = crate::AppState {
+                    vault: Mutex::new(vault),
+                    previews: Mutex::new(HashMap::new()),
+                    steam: persistence,
+                    epoch: AtomicU64::new(0),
+                    time_offset: std::sync::atomic::AtomicI64::new(0),
+                };
+                state
+                    .save_session(&token.id, 0)
+                    .expect("Native account binding failed");
+                let mut vault = state.vault.lock().unwrap();
+                assert!(
+                    vault.ensure().unwrap().tokens[0].steam_id.as_deref()
+                        == Some(session.steam_id.as_str())
+                );
+                vault.lock();
+                vault.unlock(&password).unwrap();
+                assert!(
+                    vault.ensure().unwrap().tokens[0].steam_id.as_deref()
+                        == Some(session.steam_id.as_str())
+                );
+                vault.lock();
+                state.steam.clear();
+                println!("Native account binding and encrypted save/unlock verified; temporary private files removed.");
             }
             service.clear();
         });
@@ -2002,6 +2265,9 @@ mod tests {
             qr_url: None,
             created: Instant::now(),
             last_poll: None,
+            message: None,
+            guard_submitted: false,
+            local_guard_verified: false,
         };
         assert!(service.install_pending("fixture", pending(first)).is_err());
         service.install_pending("fixture", pending(second)).unwrap();
@@ -2030,6 +2296,186 @@ mod tests {
             hex,
             "a537eabcb0f09401ddc696f977bedd5ef77a93b5d85bc9a2da8241724fb50347"
         );
+    }
+    #[test]
+    fn guard_error_codes_and_unknown_identity_are_consistent() {
+        assert!(steam_error(88).contains("不匹配"));
+        assert!(!steam_error(88).contains("需要双重验证"));
+        assert!(steam_error(85).contains("双重验证"));
+        assert!(steam_error(71).contains("过期"));
+        for id in [None, Some("0"), Some(""), Some(" 0 ")] {
+            assert!(check_identity("123", id).is_ok());
+        }
+        assert!(check_identity("123", Some("124")).is_err());
+    }
+
+    #[test]
+    fn guard_failure_keeps_challenge_and_local_retry_uses_fresh_server_time() {
+        use std::{
+            io::{Read, Write},
+            net::TcpListener,
+        };
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = format!("http://{}", listener.local_addr().unwrap());
+        let mut token = crate::models::Token::new(
+            "synthetic".into(),
+            "steam".into(),
+            b"12345678901234567890".to_vec(),
+        );
+        token.steam_id = Some("0".into());
+        token.account_name = Some("fixture".into());
+        let first_time = 1_700_000_000;
+        let second_time = first_time + 60;
+        let first_code = crate::otp::code(&token, first_time).unwrap();
+        let second_code = crate::otp::code(&token, second_time).unwrap();
+        assert_ne!(first_code, second_code);
+        let server = std::thread::spawn(move || {
+            let routes = [
+                "GetPasswordRSAPublicKey",
+                "BeginAuthSessionViaCredentials",
+                "QueryTime",
+                "UpdateAuthSessionWithSteamGuardCode",
+                "QueryTime",
+                "UpdateAuthSessionWithSteamGuardCode",
+                "PollAuthSessionStatus",
+            ];
+            for (index, route) in routes.iter().enumerate() {
+                let (mut stream, _) = listener.accept().unwrap();
+                stream
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                let mut bytes = Vec::new();
+                let body_at;
+                loop {
+                    let mut chunk = [0; 4096];
+                    let len = stream.read(&mut chunk).unwrap();
+                    assert!(len > 0);
+                    bytes.extend_from_slice(&chunk[..len]);
+                    if let Some(at) = bytes.windows(4).position(|w| w == b"\r\n\r\n") {
+                        body_at = at + 4;
+                        break;
+                    }
+                }
+                let headers = String::from_utf8_lossy(&bytes[..body_at]).to_string();
+                assert!(headers.lines().next().unwrap().contains(route));
+                let length = headers
+                    .lines()
+                    .find_map(|line| {
+                        line.to_ascii_lowercase()
+                            .strip_prefix("content-length:")
+                            .map(|v| v.trim().parse::<usize>().unwrap())
+                    })
+                    .unwrap_or(0);
+                while bytes.len() < body_at + length {
+                    let mut chunk = [0; 4096];
+                    let len = stream.read(&mut chunk).unwrap();
+                    assert!(len > 0);
+                    bytes.extend_from_slice(&chunk[..len]);
+                }
+                let form =
+                    url::form_urlencoded::parse(&bytes[body_at..]).collect::<HashMap<_, _>>();
+                let (result, response) = match index {
+                    0 => (
+                        1,
+                        RsaKeyResponse {
+                            modulus: format!("c{}1", "a".repeat(510)),
+                            exponent: "010001".into(),
+                            timestamp: 1,
+                        }
+                        .encode_to_vec(),
+                    ),
+                    1 => (
+                        1,
+                        BeginCredentialsResponse {
+                            client_id: 1,
+                            request_id: vec![1],
+                            interval: 1.0,
+                            steam_id: 123,
+                            allowed: vec![AllowedConfirmation {
+                                confirmation_type: 3,
+                                message: "".into(),
+                            }],
+                        }
+                        .encode_to_vec(),
+                    ),
+                    2 | 4 => (
+                        1,
+                        format!(
+                            "{{\"response\":{{\"server_time\":{}}}}}",
+                            if index == 2 { first_time } else { second_time }
+                        )
+                        .into_bytes(),
+                    ),
+                    3 | 5 => {
+                        let payload = STANDARD
+                            .decode(form["input_protobuf_encoded"].as_bytes())
+                            .unwrap();
+                        let update = UpdateGuardRequest::decode(payload.as_slice()).unwrap();
+                        assert_eq!(update.client_id, 1);
+                        assert_eq!(update.steam_id, 123);
+                        assert_eq!(update.code_type, 3);
+                        assert_eq!(
+                            update.code,
+                            if index == 3 {
+                                &first_code
+                            } else {
+                                &second_code
+                            }
+                            .as_str()
+                        );
+                        (if index == 3 { 88 } else { 1 }, vec![])
+                    }
+                    _ => {
+                        let access = format!(
+                            "a.{}.b",
+                            URL_SAFE_NO_PAD.encode(br#"{"sub":"123","aud":["mobile"]}"#)
+                        );
+                        (
+                            1,
+                            PollResponse {
+                                access_token: access,
+                                refresh_token: "synthetic-refresh".into(),
+                                account_name: "fixture".into(),
+                                ..Default::default()
+                            }
+                            .encode_to_vec(),
+                        )
+                    }
+                };
+                let header = format!("HTTP/1.1 200 OK\r\nx-eresult: {result}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",response.len());
+                stream.write_all(header.as_bytes()).unwrap();
+                stream.write_all(&response).unwrap();
+            }
+        });
+        tauri::async_runtime::block_on(async {
+            let mut service = SteamService::new().unwrap();
+            service.api_base = address;
+            service.client = NetworkClient::local_test_client();
+            let first = service
+                .begin_login(
+                    "fixture",
+                    "fixture",
+                    "synthetic-password",
+                    Some("0"),
+                    Some(&token),
+                )
+                .await
+                .unwrap();
+            assert_eq!(first.status, "guard");
+            assert!(first.message.unwrap().contains("EResult 88"));
+            assert!(!first.guard_submitted);
+            assert!(!service.is_logged_in("fixture"));
+            let second = service.submit_local_guard("fixture", &token).await.unwrap();
+            assert_eq!(second.status, "authenticated");
+            assert!(
+                service
+                    .export_session("fixture")
+                    .unwrap()
+                    .local_guard_verified
+            );
+            service.clear();
+        });
+        server.join().unwrap();
     }
     #[test]
     fn rejects_cross_account_binding() {
