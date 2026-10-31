@@ -97,3 +97,10 @@ pub fn now() -> u64 {
         .unwrap_or_default()
         .as_secs()
 }
+
+/// Legacy backups use 0/empty SteamID to mean unknown, never a different account.
+pub fn known_steam_id(value: Option<&str>) -> Option<&str> {
+    value
+        .map(str::trim)
+        .filter(|v| !v.is_empty() && !v.bytes().all(|b| b == b'0'))
+}

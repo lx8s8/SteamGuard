@@ -78,6 +78,19 @@ impl NetworkClient {
             inner: Mutex::new((settings, client)),
         })
     }
+    #[cfg(test)]
+    pub fn local_test_client() -> Self {
+        Self {
+            inner: Mutex::new((
+                NetworkSettings::default(),
+                Client::builder()
+                    .no_proxy()
+                    .timeout(Duration::from_secs(5))
+                    .build()
+                    .unwrap(),
+            )),
+        }
+    }
     pub fn settings(&self) -> NetworkSettings {
         self.inner.lock().unwrap().0.clone()
     }

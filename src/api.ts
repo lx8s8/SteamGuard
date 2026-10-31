@@ -49,6 +49,8 @@ export const api = {
     call<LoginResult>("steam_login", { id, username, password }),
   guard: (id: string, code: string, codeType: number) =>
     call<LoginResult>("steam_submit_guard", { id, code, codeType }),
+  guardLocal: (id: string) =>
+    call<LoginResult>("steam_submit_local_guard", { id }),
   poll: (id: string) => call<LoginResult>("steam_poll_login", { id }),
   qrLogin: (id: string) => call<LoginResult>("steam_begin_qr", { id }),
   enroll: (id: string, name?: string) =>

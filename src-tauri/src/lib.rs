@@ -80,11 +80,13 @@ impl AppState {
                 .iter_mut()
                 .find(|t| t.id == id)
                 .ok_or("令牌已删除，登录已取消")?;
-            if t.steam_id
-                .as_ref()
-                .is_some_and(|expected| expected != &session.steam_id)
+            steam::check_identity(&session.steam_id, t.steam_id.as_deref())?;
+            if models::known_steam_id(t.steam_id.as_deref()).is_none()
+                && !session.local_guard_verified
             {
-                return Err("登录账号与令牌账号不一致".into());
+                return Err(
+                    "此令牌尚未关联 SteamID，请重新登录并使用“当前令牌验证”后再关联账号".into(),
+                );
             }
             t.steam_id = Some(session.steam_id.clone());
             t.account_name = Some(session.account_name.clone());
@@ -180,6 +182,7 @@ mod integration_tests {
                     access_token: access,
                     refresh_token: "synthetic-refresh".into(),
                     session_id: "synthetic-session".into(),
+                    local_guard_verified: true,
                 },
                 Some("123"),
             )
@@ -196,6 +199,70 @@ mod integration_tests {
         assert!(s.save_session("fixture", 0).is_err());
         assert!(s.steam.is_logged_in("fixture"));
         s.steam.clear();
+    }
+    #[test]
+    fn legacy_unknown_id_binds_only_after_local_proof_and_never_rebinds_another_account() {
+        use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
+        for (expected, proof, succeeds) in [
+            ("0", true, true),
+            ("0", false, false),
+            ("123", false, true),
+            ("124", true, false),
+        ] {
+            let directory = std::env::temp_dir()
+                .join(format!("steamguard-binding-test-{}", uuid::Uuid::new_v4()));
+            let mut vault = vault::Vault::new(directory.join("vault.sgvault"));
+            vault.create("synthetic-vault-password").unwrap();
+            let mut token = Token::new("synthetic".into(), "steam".into(), vec![1; 20]);
+            token.steam_id = Some(expected.into());
+            let id = token.id.clone();
+            vault
+                .update(|data| {
+                    data.tokens.push(token);
+                    Ok(())
+                })
+                .unwrap();
+            let steam = steam::SteamService::new().unwrap();
+            steam
+                .restore_session(
+                    &id,
+                    steam::SteamSession {
+                        steam_id: "123".into(),
+                        account_name: "synthetic".into(),
+                        access_token: format!(
+                            "a.{}.b",
+                            URL_SAFE_NO_PAD.encode(br#"{"sub":"123","aud":["mobile"]}"#)
+                        ),
+                        refresh_token: "synthetic-refresh".into(),
+                        session_id: "synthetic-session".into(),
+                        local_guard_verified: proof,
+                    },
+                    None,
+                )
+                .unwrap();
+            let state = AppState {
+                vault: Mutex::new(vault),
+                previews: Mutex::new(HashMap::new()),
+                steam,
+                epoch: AtomicU64::new(0),
+                time_offset: std::sync::atomic::AtomicI64::new(0),
+            };
+            assert_eq!(state.save_session(&id, 0).is_ok(), succeeds);
+            let mut vault = state.vault.lock().unwrap();
+            assert_eq!(
+                vault.ensure().unwrap().tokens[0].steam_id.as_deref(),
+                Some(if succeeds { "123" } else { expected })
+            );
+            vault.lock();
+            vault.unlock("synthetic-vault-password").unwrap();
+            assert_eq!(
+                vault.ensure().unwrap().tokens[0].steam_id.as_deref(),
+                Some(if succeeds { "123" } else { expected })
+            );
+            vault.lock();
+            state.steam.clear();
+            std::fs::remove_dir_all(directory).unwrap();
+        }
     }
     #[test]
     #[ignore = "Set WATT_TEST_MPO to a private local backup; never logs account data"]
@@ -604,12 +671,6 @@ async fn steam_login(
     };
     let p = Zeroizing::new(password);
     let epoch = s.epoch.load(Ordering::SeqCst);
-    let code = Zeroizing::new(
-        t.as_ref()
-            .map(|t| otp::code(t, s.timestamp()))
-            .transpose()?
-            .unwrap_or_default(),
-    );
     let r = s
         .steam
         .begin_login(
@@ -617,10 +678,12 @@ async fn steam_login(
             &username,
             &p,
             t.as_ref().and_then(|t| t.steam_id.as_deref()),
-            if code.is_empty() { None } else { Some(&code) },
+            t.as_ref(),
         )
         .await?;
-    s.save_session(&id, epoch)?;
+    if r.status == "authenticated" {
+        s.save_session(&id, epoch)?;
+    }
     Ok(r)
 }
 #[tauri::command]
@@ -636,7 +699,9 @@ async fn steam_begin_qr(s: State<'_, AppState>, id: String) -> Result<steam::Log
         .steam
         .begin_qr(&id, t.as_ref().and_then(|t| t.steam_id.as_deref()))
         .await?;
-    s.save_session(&id, epoch)?;
+    if result.status == "authenticated" {
+        s.save_session(&id, epoch)?;
+    }
     Ok(result)
 }
 #[tauri::command]
@@ -648,9 +713,32 @@ async fn steam_submit_guard(
 ) -> Result<steam::LoginStatus, String> {
     s.unlocked()?;
     let epoch = s.epoch.load(Ordering::SeqCst);
-    let r = s.steam.submit_guard(&id, &code, code_type).await?;
-    s.save_session(&id, epoch)?;
+    let token = if id == "new-account" {
+        None
+    } else {
+        Some(s.token(&id)?)
+    };
+    let r = s
+        .steam
+        .submit_guard(&id, &code, code_type, token.as_ref())
+        .await?;
+    if r.status == "authenticated" {
+        s.save_session(&id, epoch)?;
+    }
     Ok(r)
+}
+#[tauri::command]
+async fn steam_submit_local_guard(
+    s: State<'_, AppState>,
+    id: String,
+) -> Result<steam::LoginStatus, String> {
+    let token = s.token(&id)?;
+    let epoch = s.epoch.load(Ordering::SeqCst);
+    let result = s.steam.submit_local_guard(&id, &token).await?;
+    if result.status == "authenticated" {
+        s.save_session(&id, epoch)?;
+    }
+    Ok(result)
 }
 #[tauri::command]
 async fn steam_poll_login(
@@ -660,7 +748,9 @@ async fn steam_poll_login(
     s.unlocked()?;
     let epoch = s.epoch.load(Ordering::SeqCst);
     let r = s.steam.poll_login(&id).await?;
-    s.save_session(&id, epoch)?;
+    if r.status == "authenticated" {
+        s.save_session(&id, epoch)?;
+    }
     Ok(r)
 }
 #[tauri::command]
@@ -1018,6 +1108,7 @@ pub fn run() {
             steam_login,
             steam_begin_qr,
             steam_submit_guard,
+            steam_submit_local_guard,
             steam_poll_login,
             steam_logout,
             steam_confirmations,

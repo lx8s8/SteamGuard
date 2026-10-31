@@ -40,6 +40,13 @@ async function nativeFixture(page: Page) {
       },
     ];
     let locked = false;
+    let pendingLogin: {
+      status: string;
+      guards: { confirmationType: number; associatedMessage: string }[];
+      pollInterval: number;
+      message?: string;
+      guardSubmitted?: boolean;
+    } | null = null;
     const commands: { command: string; args: Record<string, unknown> }[] = [];
     Object.assign(window, {
       isTauri: true,
@@ -114,12 +121,41 @@ async function nativeFixture(page: Page) {
               ];
             case "steam_confirmation_action":
               return;
-            case "steam_login":
-              return {
+            case "steam_login": {
+              const scenario = (
+                window as unknown as { __guardScenario?: string }
+              ).__guardScenario;
+              pendingLogin = {
                 status: "guard",
-                guards: [{ confirmationType: 3, associatedMessage: "" }],
-                pollInterval: 10_000,
+                guards:
+                  scenario === "phone-only"
+                    ? [{ confirmationType: 4, associatedMessage: "" }]
+                    : [
+                        { confirmationType: 3, associatedMessage: "" },
+                        {
+                          confirmationType: 2,
+                          associatedMessage: "f***@example.invalid",
+                        },
+                      ],
+                pollInterval: 1000,
+                message:
+                  scenario === "auto-mismatch"
+                    ? "提交登录验证码失败：Steam 令牌验证码不匹配（EResult 88）"
+                    : undefined,
+                guardSubmitted: false,
               };
+              return { ...pendingLogin };
+            }
+            case "steam_submit_local_guard": {
+              const token = tokens.find((t) => t.id === args.id);
+              if (token) token.loggedIn = true;
+              return {
+                status: "authenticated",
+                guards: [],
+                pollInterval: 1000,
+                guardSubmitted: true,
+              };
+            }
             case "steam_submit_guard": {
               const token = tokens.find((t) => t.id === args.id);
               if (token) token.loggedIn = true;
@@ -137,7 +173,9 @@ async function nativeFixture(page: Page) {
                 qrUrl: "https://s.team/q/1/123456789",
               };
             case "steam_poll_login":
-              return { status: "pending", guards: [], pollInterval: 10_000 };
+              return pendingLogin
+                ? { ...pendingLogin }
+                : { status: "pending", guards: [], pollInterval: 10_000 };
             case "steam_logout":
               return;
             case "steam_enroll_begin":
@@ -266,6 +304,82 @@ test("password login handles Steam Guard status and QR login displays a QR code"
       name: "Steam 登录二维码，请使用 Steam 手机应用扫描",
     }),
   ).toBeVisible();
+});
+
+test("a rejected automatic code leaves an in-app local-token retry without resending the password", async ({
+  page,
+}) => {
+  await page.evaluate(() =>
+    Object.assign(window, { __guardScenario: "auto-mismatch" }),
+  );
+  const card = page
+    .locator(".token-card")
+    .filter({ has: page.getByRole("heading", { name: "测试 · 待登录" }) });
+  await card.getByRole("button", { name: "连接 Steam" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("密码", { exact: true }).fill("synthetic-password");
+  await dialog.getByRole("button", { name: "安全登录" }).click();
+  await expect(dialog.getByText(/EResult 88/)).toBeVisible();
+  await expect(dialog.getByLabel("验证码", { exact: true })).toBeVisible();
+  await dialog
+    .getByRole("button", { name: "使用当前令牌验证", exact: true })
+    .click();
+  await expect(dialog).toHaveCount(0);
+  expect(await commandCount(page, "steam_login")).toBe(1);
+  expect(await commandCount(page, "steam_submit_local_guard")).toBe(1);
+});
+
+test("email selection survives login polling and sends the chosen code type", async ({
+  page,
+}) => {
+  await page.clock.install();
+  const card = page
+    .locator(".token-card")
+    .filter({ has: page.getByRole("heading", { name: "测试 · 待登录" }) });
+  await card.getByRole("button", { name: "连接 Steam" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("密码", { exact: true }).fill("synthetic-password");
+  await dialog.getByRole("button", { name: "安全登录" }).click();
+  await dialog.getByLabel("验证方式").selectOption("2");
+  await page.clock.fastForward(1500);
+  await expect
+    .poll(() => commandCount(page, "steam_poll_login"))
+    .toBeGreaterThan(0);
+  await expect(dialog.getByLabel("验证方式")).toHaveValue("2");
+  await dialog.getByLabel("验证码", { exact: true }).fill("ABCDE");
+  await dialog.getByRole("button", { name: "提交验证码", exact: true }).click();
+  const args = await page.evaluate(
+    () =>
+      (
+        window as unknown as {
+          __testCommands: { command: string; args: Record<string, unknown> }[];
+        }
+      ).__testCommands.find((c) => c.command === "steam_submit_guard")?.args,
+  );
+  expect(args?.codeType).toBe(2);
+});
+
+test("phone-only Steam approval does not demand an unavailable code", async ({
+  page,
+}) => {
+  await page.evaluate(() =>
+    Object.assign(window, { __guardScenario: "phone-only" }),
+  );
+  const card = page
+    .locator(".token-card")
+    .filter({ has: page.getByRole("heading", { name: "测试 · 待登录" }) });
+  await card.getByRole("button", { name: "连接 Steam" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("密码", { exact: true }).fill("synthetic-password");
+  await dialog.getByRole("button", { name: "安全登录" }).click();
+  await expect(dialog.getByLabel("验证码", { exact: true })).toHaveCount(0);
+  await expect(
+    dialog.getByRole("button", { name: "检查登录状态", exact: true }),
+  ).toBeEnabled();
+  await dialog
+    .getByRole("button", { name: "检查登录状态", exact: true })
+    .click();
+  expect(await commandCount(page, "steam_submit_guard")).toBe(0);
 });
 
 test("new Steam enrollment requires an explicit start and recovery acknowledgment", async ({
