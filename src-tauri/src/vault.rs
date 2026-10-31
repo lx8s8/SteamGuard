@@ -93,17 +93,28 @@ fn encrypt(data: &VaultData, key: &[u8; 32], salt: &[u8]) -> Result<Vec<u8>, Str
     .map_err(|_| "无法写入加密备份".into())
 }
 pub fn decode(data: &[u8], password: &str) -> Result<VaultData, String> {
+    let e = envelope(data)?;
+    let salt = STANDARD.decode(&e.salt).map_err(|_| "备份盐值错误")?;
+    decode_key(data, &*key(password, &salt)?, &salt)
+}
+fn envelope(data: &[u8]) -> Result<Envelope, String> {
     let e: Envelope = serde_json::from_slice(data).map_err(|_| "加密备份格式错误")?;
     if e.format != "SteamGuard Vault" || e.version != 1 || e.kdf != "argon2id-v19-m19456-t2-p1" {
         return Err("不支持的加密备份版本".into());
     }
+    Ok(e)
+}
+fn decode_key(data: &[u8], key: &[u8; 32], expected_salt: &[u8]) -> Result<VaultData, String> {
+    let e = envelope(data)?;
     let salt = STANDARD.decode(&e.salt).map_err(|_| "备份盐值错误")?;
+    if salt != expected_salt {
+        return Err("设备密钥与令牌库不匹配，请使用主密码解锁".into());
+    }
     let nonce = STANDARD.decode(&e.nonce).map_err(|_| "备份随机数错误")?;
     if salt.len() != 16 || nonce.len() != 12 {
         return Err("备份参数无效".into());
     }
-    let k = key(password, &salt)?;
-    let cipher = Aes256Gcm::new_from_slice(k.as_ref()).map_err(|_| "密钥错误")?;
+    let cipher = Aes256Gcm::new_from_slice(key).map_err(|_| "密钥错误")?;
     let ciphertext = STANDARD.decode(&e.ciphertext).map_err(|_| "备份内容无效")?;
     let plain = Zeroizing::new(
         cipher
@@ -131,6 +142,7 @@ pub struct Vault {
     key: Option<Zeroizing<[u8; 32]>>,
     salt: [u8; 16],
     pub last_activity: u64,
+    preview_key: Option<Zeroizing<[u8; 32]>>,
 }
 impl Vault {
     pub fn new(path: PathBuf) -> Self {
@@ -140,6 +152,7 @@ impl Vault {
             key: None,
             salt: [0; 16],
             last_activity: 0,
+            preview_key: None,
         }
     }
     pub fn create(&mut self, password: &str) -> Result<(), String> {
@@ -171,7 +184,64 @@ impl Vault {
         self.key = Some(key(password, &self.salt)?);
         self.data = Some(data);
         self.touch();
-        self.recover(password)?;
+        self.recover(Some(password))?;
+        Ok(())
+    }
+    /// This credential stays between Rust and the device's protected native store.
+    pub fn credential(&self, password: &str) -> Result<Zeroizing<String>, String> {
+        let current = self.key.as_ref().ok_or("请先解锁保险库")?;
+        let candidate = key(password, &self.salt)?;
+        let mismatch = current
+            .iter()
+            .zip(candidate.iter())
+            .fold(0u8, |a, (x, y)| a | (x ^ y));
+        if mismatch != 0 {
+            return Err("主密码错误".into());
+        }
+        Ok(Zeroizing::new(serde_json::json!({"key":STANDARD.encode(current.as_ref()), "salt":STANDARD.encode(self.salt)}).to_string()))
+    }
+    pub fn unlock_credential(&mut self, credential: &str) -> Result<(), String> {
+        #[derive(Deserialize, zeroize::Zeroize, zeroize::ZeroizeOnDrop)]
+        #[serde(deny_unknown_fields)]
+        struct Credential {
+            key: String,
+            salt: String,
+        }
+        let c: Credential = serde_json::from_str(credential).map_err(|_| "设备密钥格式错误")?;
+        let k = crate::quick_access::read_key(&c.key)?;
+        let salt = STANDARD.decode(&c.salt).map_err(|_| "设备密钥格式错误")?;
+        if salt.len() != 16 {
+            return Err("设备密钥格式错误".into());
+        }
+        let bytes = fs::read(&self.path).map_err(|_| "无法读取令牌库")?;
+        if bytes.len() > 20 * 1024 * 1024 {
+            return Err("令牌库过大".into());
+        }
+        let data = decode_key(&bytes, &k, &salt)?;
+        self.salt.copy_from_slice(&salt);
+        self.key = Some(k);
+        self.data = Some(data);
+        self.touch();
+        if let Err(error) = self.recover(None) {
+            self.lock();
+            return Err(error);
+        }
+        Ok(())
+    }
+    pub fn preview_key(&mut self, key: Option<Zeroizing<[u8; 32]>>) -> Result<(), String> {
+        self.preview_key = key;
+        if let Some(key) = &self.preview_key {
+            crate::quick_access::save_preview(
+                &self.path,
+                &self.data.as_ref().ok_or("请先解锁保险库")?.tokens,
+                key,
+            )?;
+        } else {
+            let path = crate::quick_access::preview_path(&self.path);
+            if path.exists() {
+                fs::remove_file(path).map_err(|_| "无法清除预览缓存")?;
+            }
+        }
         Ok(())
     }
     pub fn lock(&mut self) {
@@ -183,6 +253,7 @@ impl Vault {
         }
         self.data = None;
         self.key = None;
+        self.preview_key = None;
     }
     pub fn touch(&mut self) {
         self.last_activity = crate::models::now();
@@ -199,7 +270,7 @@ impl Vault {
             salt: self.salt,
         })
     }
-    fn recover(&mut self, password: &str) -> Result<(), String> {
+    fn recover(&mut self, password: Option<&str>) -> Result<(), String> {
         let dir = self.path.parent().ok_or("令牌库目录无效")?;
         let mut files = fs::read_dir(dir)
             .map_err(|_| "无法读取恢复目录")?
@@ -215,7 +286,11 @@ impl Vault {
         files.sort_by_key(|p| fs::metadata(p).and_then(|m| m.modified()).ok());
         for path in files {
             let bytes = fs::read(&path).map_err(|_| "无法读取待恢复令牌")?;
-            let recovered = decode(&bytes, password).map_err(|_| {
+            let recovered = match password {
+                Some(p) => decode(&bytes, p),
+                None => decode_key(&bytes, self.key.as_ref().ok_or("令牌库已锁定")?, &self.salt),
+            }
+            .map_err(|_| {
                 "存在未恢复的 Steam 令牌，请保留 recovery 文件并使用其创建时的主密码导入"
             })?;
             let data = self.data.as_mut().ok_or("令牌库已锁定")?;
@@ -298,6 +373,11 @@ impl Vault {
             .and_then(|_| f.sync_all())
             .map_err(|_| "无法写入令牌库")?;
         fs::rename(tmp, &self.path).map_err(|_| "无法保存令牌库")?;
+        if let Some(key) = &self.preview_key {
+            // A preview failure must not lose a newly enrolled authenticator. Its
+            // vault hash makes any previous snapshot unusable after this save.
+            let _ = crate::quick_access::save_preview(&self.path, &data.tokens, key);
+        }
         Ok(())
     }
 }
@@ -393,5 +473,40 @@ mod tests {
         let mut e: serde_json::Value = serde_json::from_slice(&b).unwrap();
         e["ciphertext"] = serde_json::Value::String(STANDARD.encode([0; 32]));
         assert!(decode(&serde_json::to_vec(&e).unwrap(), "fixture password").is_err());
+    }
+    #[test]
+    fn device_credential_unlocks_saved_changes_and_recovery_but_not_another_vault() {
+        let dir = std::env::temp_dir().join(format!("steamguard-device-{}", uuid::Uuid::new_v4()));
+        let mut v = Vault::new(dir.join("vault.sgvault"));
+        v.create("fixture password").unwrap();
+        assert!(v.credential("wrong password").is_err());
+        let credential = v.credential("fixture password").unwrap();
+        let preview_key = crate::quick_access::new_key();
+        v.preview_key(Some(preview_key)).unwrap();
+        let lease = v.lease().unwrap();
+        v.update(|d| {
+            d.tokens
+                .push(Token::new("original".into(), "totp".into(), vec![1; 20]));
+            Ok(())
+        })
+        .unwrap();
+        let recovered = VaultData {
+            tokens: vec![Token::new("recovered".into(), "steam".into(), vec![2; 20])],
+            ..Default::default()
+        };
+        lease.checkpoint(&recovered).unwrap();
+        v.lock();
+        v.unlock_credential(&credential).unwrap();
+        assert_eq!(v.ensure().unwrap().tokens.len(), 2);
+        v.lock();
+        let mut other = Vault::new(dir.join("other.sgvault"));
+        other.create("fixture password").unwrap();
+        other.lock();
+        assert!(other.unlock_credential(&credential).is_err());
+        assert!(other.data.is_none());
+        v.unlock("fixture password").unwrap();
+        assert_eq!(v.ensure().unwrap().tokens.len(), 2);
+        v.lock();
+        fs::remove_dir_all(dir).unwrap();
     }
 }

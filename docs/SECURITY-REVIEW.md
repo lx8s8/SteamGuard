@@ -26,3 +26,15 @@
 统一未知 SteamID 的语义，增加未知账号绑定必须具有本地令牌验证码证明的检查，保留真实跨账号拒绝。登录未完成时不再保存先前会话，新挑战清除旧的原生会话/审批缓存。只在验证码被 Steam 接受后记录本地验证证明；邮箱/手机批准本身不证明一个缺失 SteamID 的本地密钥属于该账号。
 
 31 项 Rust 测试、14 项界面测试和 3 项发布测试通过；模拟协议验证错误码 88 可恢复、同一挑战重试及服务器时间更新。原始 MPO 私有测试确认其 SteamID 为占位值，授权账号真实登录后再验证原生绑定、加密保存与解锁。真实交易和账号令牌变更未执行。
+
+## v1.1.0
+
+快捷访问通过项目内原生插件实现，不向 WebView 暴露通用的 Keychain / Keystore 读写命令或保险库解密密钥。启用必须在完整解锁状态下再次验证主密码；设置替换先关闭旧授权，系统操作失败保持关闭。认证进行时加互斥锁，锁定世代改变会拒绝过期结果。
+
+生物认证保存的是已派生的保险库密钥和盐，不保存主密码。Android AES-256-GCM Keystore 密钥要求每次强生物认证，通过 BiometricPrompt.CryptoObject 授权实际加解密，录入变更使密钥失效；禁止应用数据自动备份。iOS Keychain 使用 WhenPasscodeSetThisDeviceOnly + biometryCurrentSet，不同步到 iCloud；每次读取使用新 LAContext，无认证复用。没有生物特征、认证取消、锁定或密钥失效时保留主密码回退，不静默绕过验证。
+
+免密码预览使用另一个随机密钥及 AES-GCM 缓存，只包含令牌显示信息和 OTP 参数；不复制 identity_secret、steam_data、会话、设备 ID 或恢复码。预览命令不解锁 Vault，也不恢复 Steam 会话。完整权限仍由 Rust 的 Vault.ensure 检查，而非前端开关；HOTP 不允许在预览中递增。预览绑定当前加密库的 SHA-256，任何更新使旧快照失效；写入失败不影响保存新 Steam 令牌。关闭时先禁止访问，再删除缓存与设备密钥。
+
+参考 [Android 生物认证与 CryptoObject](https://developer.android.com/identity/sign-in/biometric-auth)、[Apple biometryCurrentSet](https://developer.apple.com/documentation/security/secaccesscontrolcreateflags/biometrycurrentset)。不能保证越狱/root 设备或所有 LiveContainer 版本的系统安全服务行为。桌面快捷访问未开放。
+
+发布前本机检查：33 项 Rust 原生测试、21 项界面/布局测试及 3 项发布测试通过；Clippy 与格式检查通过。Android ARM64 调试 APK 和 iOS ARM64 模拟器应用构建成功，iOS 已启动检查页面。生物认证成功/取消的界面回归使用合成桥接；真实手机生物特征和 LiveContainer 内认证仍需对应设备验证。
