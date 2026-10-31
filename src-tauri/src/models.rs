@@ -6,6 +6,8 @@ pub struct Token {
     pub id: String,
     pub name: String,
     pub issuer: String,
+    #[serde(default)]
+    pub group: Option<String>,
     pub kind: String,
     pub secret: Vec<u8>,
     pub algorithm: String,
@@ -27,6 +29,7 @@ impl Token {
             issuer: if steam { "Steam".into() } else { String::new() },
             kind,
             secret,
+            group: None,
             algorithm: "SHA1".into(),
             digits: if steam { 5 } else { 6 },
             period: 30,
@@ -39,6 +42,13 @@ impl Token {
         }
     }
     pub fn validate(&self) -> Result<(), String> {
+        if self
+            .group
+            .as_ref()
+            .is_some_and(|g| g.trim().is_empty() || g.trim() != g || g.chars().count() > 40)
+        {
+            return Err("分组名称需为 1–40 个字符".into());
+        }
         if self.secret.is_empty() || self.secret.len() > 4096 {
             return Err("令牌密钥为空或过长".into());
         }
@@ -75,6 +85,7 @@ impl Token {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenView {
+    pub group: Option<String>,
     pub id: String,
     pub name: String,
     pub issuer: String,

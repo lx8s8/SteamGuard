@@ -42,7 +42,7 @@ impl Drop for AccessLease<'_> {
 }
 impl QuickAccess {
     pub fn new(dir: &Path) -> Self {
-        let path = dir.join("quick-access.json");
+        let path = dir.join("device-only").join("quick-access.json");
         let preferences = fs::read(&path)
             .ok()
             .and_then(|b| serde_json::from_slice(&b).ok())
@@ -109,6 +109,7 @@ impl QuickAccess {
                 let code = otp::code(&token, now);
                 token.erase();
                 Ok(TokenView {
+                    group: t.group.clone(),
                     id: t.id.clone(),
                     name: t.name.clone(),
                     issuer: t.issuer.clone(),
@@ -139,6 +140,8 @@ struct PreviewToken {
     id: String,
     name: String,
     issuer: String,
+    #[serde(default)]
+    group: Option<String>,
     kind: String,
     secret: Vec<u8>,
     algorithm: String,
@@ -152,6 +155,7 @@ impl PreviewToken {
             id: t.id.clone(),
             name: t.name.clone(),
             issuer: t.issuer.clone(),
+            group: t.group.clone(),
             kind: t.kind.clone(),
             secret: t.secret.clone(),
             algorithm: t.algorithm.clone(),
@@ -164,6 +168,7 @@ impl PreviewToken {
         let mut t = Token::new(self.name.clone(), self.kind.clone(), self.secret.clone());
         t.id = self.id.clone();
         t.issuer = self.issuer.clone();
+        t.group = self.group.clone();
         t.algorithm = self.algorithm.clone();
         t.digits = self.digits;
         t.period = self.period;
@@ -185,7 +190,9 @@ struct Envelope {
     ciphertext: String,
 }
 pub fn preview_path(vault_path: &Path) -> PathBuf {
-    vault_path.with_file_name("preview.encrypted")
+    vault_path
+        .with_file_name("device-only")
+        .join("preview.encrypted")
 }
 fn vault_hash(path: &Path) -> Result<String, String> {
     Ok(format!(

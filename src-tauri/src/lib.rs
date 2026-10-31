@@ -1,5 +1,6 @@
 #[cfg(target_os = "android")]
 mod android_proxy;
+mod backup;
 mod import;
 mod models;
 mod network;
@@ -24,6 +25,7 @@ use tauri_plugin_quick_access::SecureAccessExt;
 use zeroize::Zeroizing;
 
 struct Preview {
+    groups: Vec<String>,
     tokens: Vec<Token>,
     created: u64,
 }
@@ -499,6 +501,7 @@ fn list_tokens(s: State<AppState>) -> Result<Vec<TokenView>, String> {
         .iter()
         .map(|t| {
             Ok(TokenView {
+                group: t.group.clone(),
                 id: t.id.clone(),
                 name: t.name.clone(),
                 issuer: t.issuer.clone(),
@@ -531,6 +534,8 @@ struct ImportPreview {
     preview_id: String,
     tokens: Vec<serde_json::Value>,
     duplicates: usize,
+    group_count: usize,
+    can_commit: bool,
 }
 #[tauri::command]
 async fn import_preview(
@@ -547,9 +552,12 @@ async fn import_preview(
         return Err("请选择不超过 10 MB 的令牌文件".into());
     }
     let filename = filename.unwrap_or_default();
-    let mut tokens =
+    let mut imported_groups = vec![];
+    let tokens =
         if filename.ends_with(".sgvault") || bytes.windows(16).any(|w| w == b"SteamGuard Vault") {
-            vault::decode(&bytes, &p)?.tokens
+            let decoded = vault::decode(&bytes, &p)?;
+            imported_groups = decoded.group_names();
+            decoded.tokens
         } else {
             import::parse_import(
                 &bytes,
@@ -567,26 +575,44 @@ async fn import_preview(
     let existing = &v.ensure()?.tokens;
     let count = tokens.len();
     let mut seen = std::collections::HashSet::new();
-    tokens.retain(|t| {
-        !existing
-            .iter()
-            .any(|e| e.kind == t.kind && e.secret == t.secret)
-            && seen.insert((t.kind.clone(), t.secret.clone()))
+    let visible = tokens
+        .iter()
+        .filter(|t| {
+            !existing
+                .iter()
+                .any(|e| e.kind == t.kind && e.secret == t.secret)
+                && seen.insert((t.kind.clone(), t.secret.clone()))
+        })
+        .collect::<Vec<_>>();
+    let metadata_changes = tokens.iter().any(|t| {
+        existing.iter().any(|e| {
+            e.kind == t.kind
+                && e.secret == t.secret
+                && (e.group.is_none() && t.group.is_some()
+                    || t.kind == "hotp" && t.counter > e.counter)
+        })
     });
+    let new_groups = imported_groups
+        .iter()
+        .any(|g| !v.data.as_ref().is_some_and(|d| d.group_names().contains(g)));
     let result = ImportPreview {
         preview_id: uuid::Uuid::new_v4().to_string(),
-        tokens: tokens
+        tokens: visible
             .iter()
             .map(|t| serde_json::json!({"name":t.name,"issuer":t.issuer,"kind":t.kind}))
             .collect(),
-        duplicates: count - tokens.len(),
+        duplicates: count - visible.len(),
+        group_count: imported_groups.len(),
+        can_commit: !visible.is_empty() || metadata_changes || new_groups,
     };
+    drop(visible);
     let mut previews = s.previews.lock().map_err(|_| "导入缓存不可用")?;
     previews.retain(|_, p| models::now().saturating_sub(p.created) < 300);
     previews.clear();
     previews.insert(
         result.preview_id.clone(),
         Preview {
+            groups: imported_groups,
             tokens,
             created: models::now(),
         },
@@ -607,21 +633,125 @@ fn import_commit(s: State<AppState>, preview_id: String) -> Result<usize, String
     if models::now().saturating_sub(p.created) > 300 {
         return Err("预览已过期，请重新导入".into());
     }
-    v.update(|d| {
-        let mut count = 0;
-        for mut t in p.tokens {
-            if !d
-                .tokens
-                .iter()
-                .any(|e| e.kind == t.kind && e.secret == t.secret)
-            {
-                t.id = uuid::Uuid::new_v4().to_string();
-                d.tokens.push(t);
-                count += 1;
-            }
+    v.update(|d| Ok(d.merge_import(p.tokens, p.groups)))
+}
+#[tauri::command]
+fn token_groups(s: State<AppState>) -> Result<Vec<String>, String> {
+    Ok(s.vault()?.ensure()?.group_names())
+}
+#[tauri::command]
+fn token_group_manage(
+    s: State<AppState>,
+    action: String,
+    name: String,
+    next: Option<String>,
+) -> Result<(), String> {
+    s.vault()?
+        .update(|d| d.manage_group(&action, &name, next.as_deref()))
+}
+#[tauri::command]
+fn token_update(
+    s: State<AppState>,
+    id: String,
+    name: String,
+    group: Option<String>,
+) -> Result<(), String> {
+    let name = name.trim();
+    if name.is_empty() || name.chars().count() > 120 {
+        return Err("名称需为 1–120 个字符".into());
+    }
+    s.vault()?.update(|d| {
+        if group.as_ref().is_some_and(|g| !d.group_names().contains(g)) {
+            return Err("分组不存在，请先创建分组".into());
         }
-        Ok(count)
+        let token = d
+            .tokens
+            .iter_mut()
+            .find(|t| t.id == id)
+            .ok_or("令牌不存在")?;
+        token.name = name.into();
+        token.group = group;
+        Ok(())
     })
+}
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BackupStatus {
+    enabled: bool,
+    entries: Vec<backup::BackupEntry>,
+    error: Option<String>,
+    system_backup: String,
+}
+#[tauri::command]
+async fn backup_status(
+    app: tauri::AppHandle,
+    s: State<'_, AppState>,
+) -> Result<BackupStatus, String> {
+    let (enabled, entries, error, path) = {
+        let v = s.vault()?;
+        (
+            v.data.as_ref().is_none_or(|d| d.auto_backup),
+            backup::list(&v.path)?,
+            v.backup_error.clone(),
+            v.path.parent().ok_or("存储目录无效")?.to_owned(),
+        )
+    };
+    #[cfg(target_os = "ios")]
+    let system_backup = match app
+        .secure_access()
+        .configure_backup(&path.to_string_lossy())
+    {
+        Ok(()) => "ios-system".into(),
+        Err(_) => "ios-unavailable".into(),
+    };
+    #[cfg(not(target_os = "ios"))]
+    let system_backup = {
+        let _ = (&app, &path);
+        "local".into()
+    };
+    Ok(BackupStatus {
+        enabled,
+        entries,
+        error,
+        system_backup,
+    })
+}
+#[tauri::command]
+fn backup_configure(s: State<AppState>, enabled: bool) -> Result<(), String> {
+    s.vault()?.update(|d| {
+        d.auto_backup = enabled;
+        Ok(())
+    })
+}
+#[tauri::command]
+fn backup_now(s: State<AppState>) -> Result<(), String> {
+    let mut v = s.vault()?;
+    v.ensure()?;
+    let bytes = std::fs::read(&v.path).map_err(|_| "无法读取令牌库")?;
+    backup::record(&v.path, None, &bytes, models::now())?;
+    v.backup_error = None;
+    Ok(())
+}
+#[tauri::command]
+async fn backup_export(
+    app: tauri::AppHandle,
+    s: State<'_, AppState>,
+    name: String,
+) -> Result<Option<String>, String> {
+    let bytes = {
+        let v = s.vault()?;
+        backup::read(&v.path, &name)?
+    };
+    save_file(&app, &format!("SteamGuard-{name}"), "sgvault", bytes).await
+}
+#[tauri::command]
+fn backup_restore(s: State<AppState>, name: String, password: String) -> Result<usize, String> {
+    let password = Zeroizing::new(password);
+    let mut v = s.vault()?;
+    v.ensure()?;
+    let bytes = Zeroizing::new(backup::read(&v.path, &name)?);
+    let data = vault::decode(&bytes, &password)?;
+    v.update(|d| Ok(d.merge_backup(data)))
 }
 #[tauri::command]
 fn token_rename(s: State<AppState>, id: String, name: String) -> Result<(), String> {
@@ -1097,6 +1227,7 @@ fn persist_enrollment(
         tokens: vec![t.clone()],
         sessions,
         network: s.steam.network_settings(),
+        ..Default::default()
     })?;
     if s.epoch.load(Ordering::SeqCst) != context.epoch || v.data.is_none() {
         return Err(
@@ -1257,6 +1388,17 @@ pub fn run() {
         .plugin(tauri_plugin_quick_access::init())
         .setup(|app| {
             let path = app.path().app_data_dir()?.join("vault.sgvault");
+            std::fs::create_dir_all(path.parent().ok_or("存储目录无效")?.join("device-only"))?;
+            #[cfg(target_os = "ios")]
+            {
+                let handle = app.handle().clone();
+                let directory = path.parent().ok_or("存储目录无效")?.to_owned();
+                tauri::async_runtime::spawn(async move {
+                    let _ = handle
+                        .secure_access()
+                        .configure_backup(&directory.to_string_lossy());
+                });
+            }
             app.manage(quick_access::QuickAccess::new(
                 path.parent().ok_or("存储目录无效")?,
             ));
@@ -1285,6 +1427,14 @@ pub fn run() {
             list_tokens,
             import_preview,
             import_commit,
+            token_groups,
+            token_group_manage,
+            token_update,
+            backup_status,
+            backup_configure,
+            backup_now,
+            backup_export,
+            backup_restore,
             token_rename,
             token_delete,
             token_advance,

@@ -3,10 +3,11 @@ import Security
 import Tauri
 import WebKit
 
+private struct BackupPolicy: Decodable { let directory: String }
 private struct AccessArgs: Decodable { let slot: String; let data: String? }
 
 final class QuickAccessPlugin: Plugin {
-    private let service = "dev.local.steamguard.quick-access.v1"
+    private let service = "com.kasen.steamguard.quick-access.v1"
     private func query(_ slot: String) throws -> [String: Any] {
         guard slot == "preview" || slot == "biometric" else { throw AccessError.invalid }
         return [kSecClass as String: kSecClassGenericPassword,
@@ -17,6 +18,22 @@ final class QuickAccessPlugin: Plugin {
     override func load(webview: WKWebView) {
         webview.scrollView.pinchGestureRecognizer?.isEnabled = false
         webview.scrollView.bouncesZoom = false
+    }
+    @objc func configureBackup(_ invoke: Invoke) throws {
+        let args = try invoke.parseArgs(BackupPolicy.self)
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].standardizedFileURL
+        var directory = URL(fileURLWithPath: args.directory, isDirectory: true).standardizedFileURL
+        guard directory.path == support.path || directory.path.hasPrefix(support.path + "/") else {
+            invoke.reject("备份目录不在应用存储区域"); return
+        }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        var included = URLResourceValues(); included.isExcludedFromBackup = false
+        try directory.setResourceValues(included)
+        var deviceOnly = directory.appendingPathComponent("device-only", isDirectory: true)
+        try FileManager.default.createDirectory(at: deviceOnly, withIntermediateDirectories: true)
+        var excluded = URLResourceValues(); excluded.isExcludedFromBackup = true
+        try deviceOnly.setResourceValues(excluded)
+        invoke.resolve()
     }
     @objc func availability(_ invoke: Invoke) {
         let context = LAContext()

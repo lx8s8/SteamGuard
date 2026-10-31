@@ -1,6 +1,6 @@
 name: steamguard
 options:
-  bundleIdPrefix: dev.local.steamguard
+  bundleIdPrefix: com.kasen.steamguard
   deploymentTarget:
     iOS: 15.0
 fileGroups: [../../src]
@@ -11,7 +11,7 @@ settingGroups:
   app:
     base:
       PRODUCT_NAME: SteamGuard
-      PRODUCT_BUNDLE_IDENTIFIER: dev.local.steamguard
+      PRODUCT_BUNDLE_IDENTIFIER: com.kasen.steamguard
 targetTemplates:
   app:
     type: application
@@ -57,8 +57,8 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        CFBundleShortVersionString: 1.1.0
-        CFBundleVersion: "1.1.0"
+        CFBundleShortVersionString: 1.2.0
+        CFBundleVersion: "1.2.0"
     entitlements:
       path: steamguard_iOS/steamguard_iOS.entitlements
     scheme:

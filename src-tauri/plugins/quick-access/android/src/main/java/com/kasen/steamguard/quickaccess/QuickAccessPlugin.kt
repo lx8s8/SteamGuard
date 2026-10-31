@@ -1,4 +1,4 @@
-package dev.steamguard.quickaccess
+package com.kasen.steamguard.quickaccess
 
 import android.app.Activity
 import android.os.Build

@@ -19,6 +19,7 @@ import {
   Download,
   Ellipsis,
   FileKey2,
+  FolderOpen,
   Fingerprint,
   Globe2,
   KeyRound,
@@ -44,6 +45,8 @@ import {
 } from "lucide-react";
 import QRCode from "qrcode";
 import { api, errorText, native } from "./api";
+import { BackupPanel, BackupBrowser } from "./BackupPanel";
+import { TokenGroups } from "./TokenGroups";
 import { Modal } from "./Modal";
 import { QuickAccessSettings } from "./QuickAccessSettings";
 import { SteamNetworkPanel } from "./SteamNetworkPanel";
@@ -127,6 +130,9 @@ export default function App() {
   const [status, setStatus] = useState<VaultStatus | null>(null);
   const [tokens, setTokens] = useState<TokenView[]>([]);
   const [search, setSearch] = useState("");
+  const [groups, setGroups] = useState<string[]>([]);
+  const [groupFilter, setGroupFilter] = useState("all");
+  const [groupsOpen, setGroupsOpen] = useState(false);
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("name");
   const [busy, setBusy] = useState(false);
@@ -173,17 +179,27 @@ export default function App() {
       setStatus(next);
       if (next.initialized && !next.locked) {
         setTokens(await api.tokens());
+        setGroups(await api.groups());
         setShowUnlock(false);
       } else if (next.previewActive) {
         try {
-          setTokens(await api.previewTokens());
+          const previewTokens = await api.previewTokens();
+          setTokens(previewTokens);
+          setGroups([
+            ...new Set(
+              previewTokens.map((t) => t.group).filter((g): g is string => !!g),
+            ),
+          ]);
         } catch (error) {
           setTokens([]);
           await api.previewExit();
           setStatus(await api.status());
           notify(errorText(error), true);
         }
-      } else setTokens([]);
+      } else {
+        setTokens([]);
+        setGroups([]);
+      }
     } catch (e) {
       notify(errorText(e), true);
     } finally {
@@ -204,6 +220,14 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [notification]);
+  useEffect(() => {
+    if (
+      groupFilter !== "all" &&
+      groupFilter !== "ungrouped" &&
+      !groups.includes(groupFilter.slice(6))
+    )
+      setGroupFilter("all");
+  }, [groups, groupFilter]);
   const steamTokens = tokens.filter((t) => t.kind === "steam");
   const active = steamTokens.find((t) => t.id === account) ?? steamTokens[0];
   useEffect(() => {
@@ -215,6 +239,7 @@ export default function App() {
   const previewMode = !!status?.previewActive && !!status.locked;
   useEffect(() => {
     if (!unlocked) {
+      setGroupsOpen(false);
       setImportOpen(false);
       setLoginToken(null);
       setEditToken(null);
@@ -264,6 +289,10 @@ export default function App() {
         (filter === "all" ||
           (filter === "other" && t.kind !== "steam") ||
           t.kind === filter) &&
+        (groupFilter === "all" ||
+          (groupFilter === "ungrouped"
+            ? !t.group
+            : t.group === groupFilter.slice(6))) &&
         `${t.name} ${t.issuer} ${t.accountName ?? ""}`
           .toLowerCase()
           .includes(search.toLowerCase()),
@@ -325,7 +354,7 @@ export default function App() {
   const current = navigation.find((n) => n.id === page)!;
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${page === "tokens" ? "token-home" : ""}`}>
       <aside className="sidebar">
         <a
           className="brand"
@@ -371,7 +400,7 @@ export default function App() {
           </div>
           <div className="sidebar-version">
             <span>STEAMGUARD</span>
-            <span>v1.1.0</span>
+            <span>v1.2.0</span>
           </div>
         </div>
       </aside>
@@ -385,6 +414,16 @@ export default function App() {
             <strong>{current.label}</strong>
           </div>
           <div className="topbar-actions">
+            {page === "tokens" && (
+              <button
+                className="icon-button mobile-add"
+                aria-label="添加令牌"
+                disabled={!unlocked}
+                onClick={() => setImportOpen(true)}
+              >
+                <Plus size={23} />
+              </button>
+            )}
             {!native && <span className="preview-badge">界面预览</span>}
             <span className="system-state">
               <span className={`status-dot ${!unlocked ? "muted" : ""}`} />
@@ -430,12 +469,13 @@ export default function App() {
                     导出备份
                   </button>
                   <button
-                    className="button primary"
+                    className="button primary add-token"
+                    aria-label="添加令牌"
                     disabled={!unlocked}
                     onClick={() => setImportOpen(true)}
                   >
                     <Plus size={17} />
-                    添加令牌
+                    <span>添加令牌</span>
                   </button>
                 </>
               )}
@@ -584,6 +624,32 @@ export default function App() {
                       </label>
                     </div>
                   </div>
+                  <div className="group-toolbar">
+                    <label>
+                      <FolderOpen size={17} />
+                      <select
+                        aria-label="分组筛选"
+                        value={groupFilter}
+                        onChange={(e) => setGroupFilter(e.target.value)}
+                      >
+                        <option value="all">全部分组</option>
+                        <option value="ungrouped">未分组</option>
+                        {groups.map((g) => (
+                          <option key={g} value={"group:" + g}>
+                            {g}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      className="icon-button"
+                      aria-label="管理分组"
+                      disabled={!unlocked}
+                      onClick={() => setGroupsOpen(true)}
+                    >
+                      <Settings2 size={19} />
+                    </button>
+                  </div>
                   {visibleTokens.filter(
                     (t) => filter !== "other" || t.kind !== "steam",
                   ).length ? (
@@ -596,6 +662,11 @@ export default function App() {
                               <TokenIcon token={token} />
                               <div className="token-identity">
                                 <h3>{token.name}</h3>
+                                {token.group && (
+                                  <small className="token-group-label">
+                                    {token.group}
+                                  </small>
+                                )}
                                 <span>
                                   {token.kind === "steam"
                                     ? "Steam Guard"
@@ -704,6 +775,7 @@ export default function App() {
                         onClick={() => {
                           setSearch("");
                           setFilter("all");
+                          setGroupFilter("all");
                         }}
                       >
                         清除筛选
@@ -1010,6 +1082,7 @@ export default function App() {
               )}
               {page === "settings" && (
                 <div className="settings-grid">
+                  <BackupPanel onChange={refresh} />
                   <QuickAccessSettings status={status} onChange={refresh} />
                   <section className="settings-panel">
                     <div className="panel-title">
@@ -1109,7 +1182,7 @@ export default function App() {
                     </span>
                     <div>
                       <h2>
-                        SteamGuard <span>1.1.0</span>
+                        SteamGuard <span>1.2.0</span>
                       </h2>
                       <p>
                         参考 Watt Toolkit 本地令牌功能构建。基于 Tauri
@@ -1160,6 +1233,13 @@ export default function App() {
           </button>
         </div>
       )}
+      {groupsOpen && (
+        <TokenGroups
+          groups={groups}
+          onChange={refresh}
+          onClose={() => setGroupsOpen(false)}
+        />
+      )}
       {importOpen && (
         <ImportDialog
           onLogin={() => {
@@ -1195,6 +1275,7 @@ export default function App() {
       {editToken && (
         <EditDialog
           token={editToken}
+          groups={groups}
           onClose={closeEdit}
           onComplete={async () => {
             setEditToken(null);
@@ -1282,6 +1363,15 @@ function VaultGate({
   onReady: () => Promise<void>;
   notify: (text: string, error?: boolean) => void;
 }) {
+  const [backupsOpen, setBackupsOpen] = useState(false);
+  const [hasBackups, setHasBackups] = useState(false);
+  useEffect(() => {
+    if (native && initialized)
+      void api
+        .backupStatus()
+        .then((s) => setHasBackups(s.entries.length > 0))
+        .catch(() => {});
+  }, [initialized]);
   const [password, setPassword] = useState("");
   const [repeat, setRepeat] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1437,6 +1527,26 @@ function VaultGate({
             <ArrowRight size={16} />
           </button>
         </form>
+        {!initialized && (
+          <p className="form-hint migration-hint">
+            从旧版迁移时，请先保留旧版，在此创建保险库后导入加密备份。
+          </p>
+        )}
+        {hasBackups && (
+          <button
+            className="text-button backup-gate-button"
+            onClick={() => setBackupsOpen(true)}
+          >
+            查看本机自动备份
+          </button>
+        )}
+        {backupsOpen && (
+          <BackupBrowser
+            canRestore={false}
+            onClose={() => setBackupsOpen(false)}
+            onChange={onReady}
+          />
+        )}
         <div className="privacy-note">
           <ShieldCheck size={17} />
           <p>
@@ -1516,10 +1626,20 @@ function ImportDialog({
           <div className="import-summary">
             <ShieldCheck size={22} />
             <div>
-              <strong>识别到 {preview.tokens.length} 个令牌</strong>
+              <strong>
+                {preview.tokens.length
+                  ? `识别到 ${preview.tokens.length} 个令牌`
+                  : "合并已有令牌信息"}
+              </strong>
+              {!!preview.groupCount && (
+                <p className="form-hint">
+                  备份包含 {preview.groupCount}{" "}
+                  个分组，已有令牌的缺失分组可一并补回。
+                </p>
+              )}
               <p>
                 {preview.duplicates
-                  ? `${preview.duplicates} 个重复令牌将自动跳过`
+                  ? `${preview.duplicates} 个已有令牌将保留，可补充分组与 HOTP 计数`
                   : "确认后保存到本机加密保险库"}
               </p>
             </div>
@@ -1555,7 +1675,9 @@ function ImportDialog({
             </button>
             <button
               className="button primary"
-              disabled={busy || !preview.tokens.length}
+              disabled={
+                busy || !(preview.canCommit ?? preview.tokens.length > 0)
+              }
               onClick={() => void commit()}
             >
               {busy ? <Spinner /> : <ShieldCheck size={16} />}确认导入
@@ -2494,14 +2616,17 @@ function LoginDialog({
 
 function EditDialog({
   token,
+  groups,
   onClose,
   onComplete,
 }: {
   token: TokenView;
+  groups: string[];
   onClose: () => void;
   onComplete: () => Promise<void>;
 }) {
   const [name, setName] = useState(token.name);
+  const [group, setGroup] = useState(token.group ?? "");
   const [deleting, setDeleting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -2513,7 +2638,9 @@ function EditDialog({
     setBusy(true);
     setError("");
     try {
-      await (remove ? api.remove(token.id) : api.rename(token.id, name.trim()));
+      await (remove
+        ? api.remove(token.id)
+        : api.updateToken(token.id, name.trim(), group || null));
       await onComplete();
     } catch (e) {
       setError(errorText(e));
@@ -2611,6 +2738,22 @@ function EditDialog({
             maxLength={120}
             onChange={(e) => setName(e.target.value)}
           />
+          <label className="field-label" htmlFor="token-group">
+            分组
+          </label>
+          <select
+            id="token-group"
+            value={group}
+            onChange={(e) => setGroup(e.target.value)}
+            disabled={busy}
+          >
+            <option value="">未分组</option>
+            {groups.map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
           <div className="token-metadata">
             <span>
               类型 <strong>{token.kind.toUpperCase()}</strong>

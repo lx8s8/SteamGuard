@@ -5,7 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 android {
-    namespace = "dev.steamguard.quickaccess"
+    namespace = "com.kasen.steamguard.quickaccess"
     compileSdk = 37
     defaultConfig { minSdk = 24 }
     compileOptions {

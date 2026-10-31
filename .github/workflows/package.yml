@@ -14,6 +14,7 @@ on:
       - "tsconfig*.json"
       - "vite.config.ts"
       - "tests/**"
+      - "CHANGELOG.md"
       - "playwright.config.ts"
       - ".github/workflows/package.yml"
 
@@ -285,10 +286,11 @@ jobs:
         shell: bash
         run: |
           tag="$GITHUB_REF_NAME"
+          node scripts/release-notes.mjs > "$RUNNER_TEMP/release-notes.md"
           if gh release view "$tag" --json isDraft > "$RUNNER_TEMP/release.json" 2>/dev/null; then
             node -e "if (!JSON.parse(require('fs').readFileSync(process.argv[1])).isDraft) process.exit(1)" "$RUNNER_TEMP/release.json"
           else
-            gh release create "$tag" --verify-tag --draft --title "SteamGuard $tag" --notes-file docs/RELEASE.md
+            gh release create "$tag" --verify-tag --draft --title "SteamGuard $tag" --notes-file "$RUNNER_TEMP/release-notes.md"
           fi
           gh release upload "$tag" release/* --clobber
           gh release edit "$tag" --draft=false --prerelease=false --latest

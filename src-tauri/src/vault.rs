@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
 use zeroize::Zeroizing;
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VaultData {
     pub tokens: Vec<Token>,
@@ -18,6 +18,175 @@ pub struct VaultData {
     pub sessions: serde_json::Value,
     #[serde(default)]
     pub network: crate::network::NetworkSettings,
+    #[serde(default)]
+    pub groups: Vec<String>,
+    #[serde(default = "default_backup_enabled")]
+    pub auto_backup: bool,
+}
+impl Default for VaultData {
+    fn default() -> Self {
+        Self {
+            tokens: vec![],
+            sessions: serde_json::Value::Null,
+            network: Default::default(),
+            groups: vec![],
+            auto_backup: true,
+        }
+    }
+}
+impl VaultData {
+    pub fn validate(&self) -> Result<(), String> {
+        for token in &self.tokens {
+            token.validate()?;
+        }
+        let names = self.group_names();
+        if names.len() > 100
+            || names
+                .iter()
+                .any(|g| g.trim().is_empty() || g.trim() != g || g.chars().count() > 40)
+        {
+            return Err("分组无效或超过 100 个".into());
+        }
+        if self
+            .groups
+            .iter()
+            .collect::<std::collections::HashSet<_>>()
+            .len()
+            != self.groups.len()
+        {
+            return Err("备份含重复分组".into());
+        }
+        Ok(())
+    }
+    pub fn group_names(&self) -> Vec<String> {
+        let mut groups = self.groups.clone();
+        for token in &self.tokens {
+            if let Some(group) = &token.group {
+                if !groups.contains(group) {
+                    groups.push(group.clone());
+                }
+            }
+        }
+        groups
+    }
+    pub fn manage_group(
+        &mut self,
+        action: &str,
+        name: &str,
+        next: Option<&str>,
+    ) -> Result<(), String> {
+        let name = name.trim();
+        if name.is_empty() || name.chars().count() > 40 {
+            return Err("分组名称需为 1–40 个字符".into());
+        }
+        self.groups = self.group_names();
+        if action == "create" {
+            if self.groups.contains(&name.to_owned()) {
+                return Err("分组已存在".into());
+            }
+            if self.groups.len() >= 100 {
+                return Err("最多创建 100 个分组".into());
+            }
+            self.groups.push(name.into());
+            return Ok(());
+        }
+        if !self.groups.contains(&name.to_owned()) {
+            return Err("分组不存在".into());
+        }
+        let replacement = if action == "rename" {
+            let next = next.unwrap_or("").trim();
+            if next.is_empty() || next.chars().count() > 40 {
+                return Err("分组名称需为 1–40 个字符".into());
+            }
+            if next != name && self.groups.contains(&next.to_owned()) {
+                return Err("分组已存在".into());
+            }
+            Some(next.to_owned())
+        } else if action == "delete" {
+            None
+        } else {
+            return Err("分组操作无效".into());
+        };
+        for token in &mut self.tokens {
+            if token.group.as_deref() == Some(name) {
+                token.group = replacement.clone();
+            }
+        }
+        if let Some(next) = replacement {
+            for group in &mut self.groups {
+                if group == name {
+                    *group = next.clone();
+                }
+            }
+        } else {
+            self.groups.retain(|group| group != name);
+        }
+        Ok(())
+    }
+    pub fn merge_import(&mut self, tokens: Vec<Token>, groups: Vec<String>) -> usize {
+        for group in groups {
+            if !self.groups.contains(&group) {
+                self.groups.push(group);
+            }
+        }
+        let mut count = 0;
+        for mut token in tokens {
+            if let Some(existing) = self
+                .tokens
+                .iter_mut()
+                .find(|e| e.kind == token.kind && e.secret == token.secret)
+            {
+                if existing.group.is_none() {
+                    existing.group = token.group.clone();
+                }
+                if token.kind == "hotp" {
+                    existing.counter = existing.counter.max(token.counter);
+                }
+                token.erase();
+            } else {
+                token.id = uuid::Uuid::new_v4().to_string();
+                self.tokens.push(token);
+                count += 1;
+            }
+        }
+        count
+    }
+    pub fn merge_backup(&mut self, mut incoming: VaultData) -> usize {
+        let mut count = 0;
+        for mut token in incoming.tokens.drain(..) {
+            if let Some(existing) = self.tokens.iter_mut().find(|t| {
+                t.kind == token.kind
+                    && (t.secret == token.secret
+                        || t.kind == "steam"
+                            && crate::models::known_steam_id(t.steam_id.as_deref()).is_some()
+                            && crate::models::known_steam_id(t.steam_id.as_deref())
+                                == crate::models::known_steam_id(token.steam_id.as_deref()))
+            }) {
+                if token.kind == "hotp" {
+                    existing.counter = existing.counter.max(token.counter);
+                }
+                if existing.group.is_none() {
+                    existing.group = token.group.clone();
+                }
+                token.erase();
+            } else {
+                token.id = uuid::Uuid::new_v4().to_string();
+                self.tokens.push(token);
+                count += 1;
+            }
+        }
+        for name in incoming.group_names() {
+            if !self.groups.contains(&name) {
+                self.groups.push(name);
+            }
+        }
+        self.groups = self.group_names();
+        wipe_json(&mut incoming.sessions);
+        count
+    }
+}
+fn default_backup_enabled() -> bool {
+    true
 }
 pub fn wipe_json(v: &mut serde_json::Value) {
     use zeroize::Zeroize;
@@ -122,12 +291,11 @@ fn decode_key(data: &[u8], key: &[u8; 32], expected_salt: &[u8]) -> Result<Vault
             .map_err(|_| "密码错误或备份已损坏")?,
     );
     let data: VaultData = serde_json::from_slice(&plain).map_err(|_| "备份内容无效")?;
-    for token in &data.tokens {
-        token.validate()?;
-    }
+    data.validate()?;
     Ok(data)
 }
 pub fn backup(data: &VaultData, password: &str) -> Result<Vec<u8>, String> {
+    data.validate()?;
     if password.chars().count() < 8 {
         return Err("备份密码至少需要 8 个字符".into());
     }
@@ -143,6 +311,7 @@ pub struct Vault {
     salt: [u8; 16],
     pub last_activity: u64,
     preview_key: Option<Zeroizing<[u8; 32]>>,
+    pub backup_error: Option<String>,
 }
 impl Vault {
     pub fn new(path: PathBuf) -> Self {
@@ -153,6 +322,7 @@ impl Vault {
             salt: [0; 16],
             last_activity: 0,
             preview_key: None,
+            backup_error: None,
         }
     }
     pub fn create(&mut self, password: &str) -> Result<(), String> {
@@ -352,8 +522,9 @@ impl Vault {
         }
         result
     }
-    pub fn save(&self) -> Result<(), String> {
+    pub fn save(&mut self) -> Result<(), String> {
         let data = self.data.as_ref().ok_or("令牌库已锁定")?;
+        data.validate()?;
         let key = self.key.as_ref().ok_or("令牌库已锁定")?;
         let bytes = encrypt(data, key, &self.salt)?;
         let dir = self.path.parent().ok_or("存储目录无效")?;
@@ -372,7 +543,19 @@ impl Vault {
         f.write_all(&bytes)
             .and_then(|_| f.sync_all())
             .map_err(|_| "无法写入令牌库")?;
+        let previous = fs::read(&self.path).ok();
         fs::rename(tmp, &self.path).map_err(|_| "无法保存令牌库")?;
+        if data.auto_backup {
+            self.backup_error = crate::backup::record(
+                &self.path,
+                previous.as_deref(),
+                &bytes,
+                crate::models::now(),
+            )
+            .err();
+        } else {
+            self.backup_error = None;
+        }
         if let Some(key) = &self.preview_key {
             // A preview failure must not lose a newly enrolled authenticator. Its
             // vault hash makes any previous snapshot unusable after this save.
@@ -507,6 +690,122 @@ mod tests {
         v.unlock("fixture password").unwrap();
         assert_eq!(v.ensure().unwrap().tokens.len(), 2);
         v.lock();
+        fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn groups_roundtrip_rename_delete_and_merge_preserves_current_tokens_and_hotp() {
+        let mut d = VaultData::default();
+        d.manage_group("create", "邮箱", None).unwrap();
+        d.manage_group("create", "空分组", None).unwrap();
+        let mut hotp = Token::new("fixture".into(), "hotp".into(), vec![1; 20]);
+        hotp.group = Some("邮箱".into());
+        hotp.counter = 20;
+        d.tokens.push(hotp.clone());
+        assert!(d.manage_group("create", "邮箱", None).is_err());
+        assert!(d.manage_group("rename", "邮箱", Some("空分组")).is_err());
+        d.manage_group("rename", "邮箱", Some("工作")).unwrap();
+        assert_eq!(d.tokens[0].group.as_deref(), Some("工作"));
+        let encoded = backup(&d, "fixture password").unwrap();
+        let mut decoded = decode(&encoded, "fixture password").unwrap();
+        assert_eq!(decoded.groups, vec!["工作", "空分组"]);
+        hotp.counter = 10;
+        hotp.group = Some("恢复组".into());
+        let source = VaultData {
+            tokens: vec![
+                hotp,
+                Token::new("another".into(), "totp".into(), vec![2; 20]),
+            ],
+            groups: vec!["恢复组".into(), "空备份组".into()],
+            sessions: serde_json::json!({"fixture":"do-not-restore-session"}),
+            ..Default::default()
+        };
+        assert_eq!(decoded.merge_backup(source), 1);
+        assert_eq!(decoded.tokens[0].counter, 20);
+        assert!(decoded.sessions.is_null());
+        assert!(decoded.groups.contains(&"空备份组".into()));
+        decoded.manage_group("delete", "工作", None).unwrap();
+        assert!(decoded.tokens[0].group.is_none());
+        assert_eq!(decoded.tokens.len(), 2);
+        let old: VaultData = serde_json::from_str(r#"{"tokens":[],"sessions":null}"#).unwrap();
+        assert!(old.auto_backup && old.groups.is_empty());
+    }
+    #[test]
+    fn backup_failure_keeps_committed_vault_and_is_reported() {
+        let dir = std::env::temp_dir().join(format!(
+            "steamguard-backup-failure-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("backups"), b"block backup directory").unwrap();
+        let mut v = Vault::new(dir.join("vault.sgvault"));
+        v.create("fixture password").unwrap();
+        assert!(v.backup_error.is_some());
+        v.update(|d| {
+            d.tokens
+                .push(Token::new("fixture".into(), "totp".into(), vec![1; 20]));
+            Ok(())
+        })
+        .unwrap();
+        assert!(v.backup_error.is_some());
+        v.lock();
+        v.unlock("fixture password").unwrap();
+        assert_eq!(v.ensure().unwrap().tokens.len(), 1);
+        v.lock();
+        fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn backup_merge_does_not_reintroduce_old_secret_for_existing_steam_account() {
+        let mut current = Token::new("current".into(), "steam".into(), vec![1; 20]);
+        current.steam_id = Some("123".into());
+        let mut old = Token::new("old revoked secret".into(), "steam".into(), vec![2; 20]);
+        old.steam_id = Some("123".into());
+        let mut target = VaultData {
+            tokens: vec![current],
+            ..Default::default()
+        };
+        assert_eq!(
+            target.merge_backup(VaultData {
+                tokens: vec![old],
+                ..Default::default()
+            }),
+            0
+        );
+        assert_eq!(target.tokens.len(), 1);
+        assert_eq!(target.tokens[0].secret, vec![1; 20]);
+    }
+    #[test]
+    fn import_existing_tokens_restores_groups_and_never_saves_an_invalid_merged_vault() {
+        let mut token = Token::new("fixture".into(), "hotp".into(), vec![1; 20]);
+        token.counter = 30;
+        let mut existing = VaultData {
+            tokens: vec![token.clone()],
+            ..Default::default()
+        };
+        token.group = Some("恢复分组".into());
+        token.counter = 10;
+        assert_eq!(
+            existing.merge_import(vec![token], vec!["恢复分组".into(), "空分组".into()]),
+            0
+        );
+        assert_eq!(existing.tokens.len(), 1);
+        assert_eq!(existing.tokens[0].group.as_deref(), Some("恢复分组"));
+        assert_eq!(existing.tokens[0].counter, 30);
+        existing.validate().unwrap();
+        let dir =
+            std::env::temp_dir().join(format!("steamguard-group-limit-{}", uuid::Uuid::new_v4()));
+        let mut vault = Vault::new(dir.join("vault.sgvault"));
+        vault.create("fixture password").unwrap();
+        assert!(vault
+            .update(|d| {
+                d.groups = (0..101).map(|i| format!("group-{i}")).collect();
+                Ok(())
+            })
+            .is_err());
+        assert!(vault.ensure().unwrap().groups.is_empty());
+        vault.lock();
+        vault.unlock("fixture password").unwrap();
+        assert!(vault.ensure().unwrap().groups.is_empty());
+        vault.lock();
         fs::remove_dir_all(dir).unwrap();
     }
 }
