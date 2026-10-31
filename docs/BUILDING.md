@@ -1,6 +1,6 @@
 # 构建与安装
 
-安装各平台依赖以 [Tauri 2 前置依赖文档](https://v2.tauri.app/start/prerequisites/) 为准。项目使用 Node.js 24、Rust stable、Tauri 2；`npm ci` 和 Cargo 锁文件保证应用依赖可复现。
+安装各平台依赖以 [Tauri 2 前置依赖文档](https://v2.tauri.app/start/prerequisites/) 为准。项目使用 Node.js 24、Rust stable（至少 1.91）、Tauri 2；`npm ci` 和 Cargo 锁文件保证应用依赖可复现。
 
 ```sh
 npm ci
@@ -74,7 +74,7 @@ Android 的原生文件保存使用系统文件选择器；不需要将令牌库
 
 ## iOS 与 iPadOS
 
-仅能在 macOS 构建，需要完整 Xcode、CocoaPods、XcodeGen 与 Rust iOS targets。项目最低部署版本为 iOS/iPadOS 15.0，与当前 Xcode 27 的构建要求一致。
+仅能在 macOS 构建，需要完整 Xcode、CocoaPods、XcodeGen 与 Rust iOS targets。Xcode 27 的 Swift 插件链接还需要 `rustup component add llvm-tools`，CI 已配置安装。项目最低部署版本为 iOS/iPadOS 15.0，与当前 Xcode 27 的构建要求一致。
 
 ```sh
 rustup target add aarch64-apple-ios aarch64-apple-ios-sim

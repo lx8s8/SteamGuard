@@ -45,6 +45,7 @@ import {
 } from "lucide-react";
 import QRCode from "qrcode";
 import { api, errorText, native } from "./api";
+import { SyncPanel, useSyncWatcher } from "./SyncPanel";
 import { BackupPanel, BackupBrowser } from "./BackupPanel";
 import { TokenGroups } from "./TokenGroups";
 import { Modal } from "./Modal";
@@ -237,6 +238,20 @@ export default function App() {
   }, [active?.id]);
   const unlocked = !!status?.initialized && !status.locked;
   const previewMode = !!status?.previewActive && !!status.locked;
+  useSyncWatcher(
+    unlocked,
+    JSON.stringify([
+      groups,
+      tokens.map((t) => [
+        t.id,
+        t.name,
+        t.group,
+        t.counter,
+        t.steamId,
+        t.enrollmentPending,
+      ]),
+    ]),
+  );
   useEffect(() => {
     if (!unlocked) {
       setGroupsOpen(false);
@@ -315,6 +330,7 @@ export default function App() {
     }
   };
   const copy = async (token: TokenView) => {
+    if (!token.code || token.hotpReadOnly) return;
     try {
       await navigator.clipboard.writeText(token.code.replaceAll(" ", ""));
       setCopied(token.id);
@@ -400,7 +416,7 @@ export default function App() {
           </div>
           <div className="sidebar-version">
             <span>STEAMGUARD</span>
-            <span>v1.2.0</span>
+            <span>v1.3.0</span>
           </div>
         </div>
       </aside>
@@ -686,13 +702,17 @@ export default function App() {
                               <button
                                 className={`token-code ${token.remaining <= 5 && token.kind !== "hotp" ? "expiring" : ""}`}
                                 onClick={() => void copy(token)}
+                                disabled={token.hotpReadOnly}
                                 aria-label={`复制 ${token.name} 验证码`}
                               >
-                                {token.code || "•••••"}
+                                {token.hotpReadOnly
+                                  ? "仅主设备"
+                                  : token.code || "•••••"}
                               </button>
                               <button
                                 className={`copy-button ${copied === token.id ? "copied" : ""}`}
                                 aria-label="复制验证码"
+                                disabled={token.hotpReadOnly}
                                 onClick={() => void copy(token)}
                               >
                                 {copied === token.id ? (
@@ -750,7 +770,7 @@ export default function App() {
                               ) : token.kind === "hotp" ? (
                                 <button
                                   className="session-link"
-                                  disabled={!unlocked}
+                                  disabled={!unlocked || token.hotpReadOnly}
                                   onClick={() =>
                                     void run(() => api.nextHotp(token.id))
                                   }
@@ -1082,6 +1102,7 @@ export default function App() {
               )}
               {page === "settings" && (
                 <div className="settings-grid">
+                  <SyncPanel tokens={tokens} onChange={refresh} />
                   <BackupPanel onChange={refresh} />
                   <QuickAccessSettings status={status} onChange={refresh} />
                   <section className="settings-panel">
@@ -1182,7 +1203,7 @@ export default function App() {
                     </span>
                     <div>
                       <h2>
-                        SteamGuard <span>1.2.0</span>
+                        SteamGuard <span>1.3.0</span>
                       </h2>
                       <p>
                         参考 Watt Toolkit 本地令牌功能构建。基于 Tauri

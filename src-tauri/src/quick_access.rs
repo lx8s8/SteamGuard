@@ -114,7 +114,12 @@ impl QuickAccess {
                     name: t.name.clone(),
                     issuer: t.issuer.clone(),
                     kind: t.kind.clone(),
-                    code: code?,
+                    code: if t.hotp_read_only {
+                        String::new()
+                    } else {
+                        code?
+                    },
+                    hotp_read_only: t.hotp_read_only,
                     period: t.period,
                     remaining: if t.kind == "hotp" {
                         0
@@ -148,6 +153,8 @@ struct PreviewToken {
     digits: u32,
     period: u64,
     counter: u64,
+    #[serde(default)]
+    hotp_read_only: bool,
 }
 impl PreviewToken {
     fn from(t: &Token) -> Self {
@@ -162,6 +169,7 @@ impl PreviewToken {
             digits: t.digits,
             period: t.period,
             counter: t.counter,
+            hotp_read_only: t.hotp_read_only,
         }
     }
     fn token(&self) -> Token {
@@ -173,6 +181,7 @@ impl PreviewToken {
         t.digits = self.digits;
         t.period = self.period;
         t.counter = self.counter;
+        t.hotp_read_only = self.hotp_read_only;
         t
     }
 }

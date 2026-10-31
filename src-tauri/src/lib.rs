@@ -7,6 +7,7 @@ mod network;
 mod otp;
 mod quick_access;
 mod steam;
+mod sync;
 mod vault;
 
 use models::{Token, TokenView};
@@ -35,12 +36,14 @@ struct AppState {
     steam: steam::SteamService,
     epoch: AtomicU64,
     time_offset: std::sync::atomic::AtomicI64,
+    sync: sync::Controller,
 }
 impl AppState {
     fn vault(&self) -> Result<std::sync::MutexGuard<'_, vault::Vault>, String> {
         let mut v = self.vault.lock().map_err(|_| "令牌库暂不可用")?;
         if v.data.is_some() && models::now().saturating_sub(v.last_activity) > 900 {
             self.epoch.fetch_add(1, Ordering::SeqCst);
+            self.sync.cancel();
             v.lock();
             self.previews.lock().map_err(|_| "导入缓存不可用")?.clear();
             self.steam.clear();
@@ -373,6 +376,7 @@ mod integration_tests {
             steam,
             epoch: AtomicU64::new(1),
             time_offset: std::sync::atomic::AtomicI64::new(0),
+            sync: sync::Controller::default(),
         };
         assert!(s.save_session("fixture", 0).is_err());
         assert!(s.steam.is_logged_in("fixture"));
@@ -424,6 +428,7 @@ mod integration_tests {
                 steam,
                 epoch: AtomicU64::new(0),
                 time_offset: std::sync::atomic::AtomicI64::new(0),
+                sync: sync::Controller::default(),
             };
             assert_eq!(state.save_session(&id, 0).is_ok(), succeeds);
             let mut vault = state.vault.lock().unwrap();
@@ -478,6 +483,7 @@ mod integration_tests {
 }
 #[tauri::command]
 fn vault_lock(s: State<AppState>, q: State<quick_access::QuickAccess>) -> Result<(), String> {
+    s.sync.cancel();
     s.epoch.fetch_add(1, Ordering::SeqCst);
     s.vault()?.lock();
     q.clear();
@@ -496,8 +502,8 @@ fn vault_touch(s: State<AppState>) -> Result<(), String> {
 fn list_tokens(s: State<AppState>) -> Result<Vec<TokenView>, String> {
     let mut v = s.vault()?;
     let now = s.timestamp();
-    v.ensure()?
-        .tokens
+    let d = v.ensure()?;
+    d.tokens
         .iter()
         .map(|t| {
             Ok(TokenView {
@@ -506,7 +512,12 @@ fn list_tokens(s: State<AppState>) -> Result<Vec<TokenView>, String> {
                 name: t.name.clone(),
                 issuer: t.issuer.clone(),
                 kind: t.kind.clone(),
-                code: otp::code(t, now)?,
+                code: if !t.hotp_read_only {
+                    otp::code(t, now)?
+                } else {
+                    String::new()
+                },
+                hotp_read_only: t.hotp_read_only,
                 period: t.period,
                 remaining: if t.kind == "hotp" {
                     0
@@ -727,7 +738,7 @@ fn backup_configure(s: State<AppState>, enabled: bool) -> Result<(), String> {
 fn backup_now(s: State<AppState>) -> Result<(), String> {
     let mut v = s.vault()?;
     v.ensure()?;
-    let bytes = std::fs::read(&v.path).map_err(|_| "无法读取令牌库")?;
+    let bytes = v.portable_encrypted()?;
     backup::record(&v.path, None, &bytes, models::now())?;
     v.backup_error = None;
     Ok(())
@@ -786,7 +797,14 @@ fn token_delete(s: State<AppState>, id: String) -> Result<(), String> {
 }
 #[tauri::command]
 fn token_advance(s: State<AppState>, id: String) -> Result<(), String> {
-    s.vault()?.update(|d| {
+    let mut vault = s.vault()?;
+    let device = vault.device_id.clone();
+    vault.update(|d| {
+        let candidate = d.tokens.iter().find(|t| t.id == id).ok_or("令牌不存在")?;
+        if !sync::hotp_allowed(d, candidate, &device) {
+            return Err("此 HOTP 由另一设备递增，请先在同步设置中切换主设备".into());
+        }
+
         let t = d
             .tokens
             .iter_mut()
@@ -1409,10 +1427,18 @@ pub fn run() {
                 steam,
                 epoch: AtomicU64::new(0),
                 time_offset: std::sync::atomic::AtomicI64::new(0),
+                sync: sync::Controller::default(),
             });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            sync::commands::sync_status,
+            sync::commands::sync_connect,
+            sync::commands::sync_run,
+            sync::commands::sync_pause,
+            sync::commands::sync_disconnect,
+            sync::commands::sync_resolve,
+            sync::commands::sync_claim_hotp,
             vault_status,
             quick_capabilities,
             quick_configure,

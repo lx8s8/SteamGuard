@@ -3550,3 +3550,98 @@ main {
   margin-top: 5px;
   line-height: 1.6;
 }
+
+.sync-panel {
+  min-width: 0;
+}
+.sync-form {
+  display: grid;
+  gap: 10px;
+}
+.sync-form .field-label {
+  margin-bottom: 0;
+}
+.sync-form input,
+.sync-form select {
+  width: 100%;
+  min-width: 0;
+}
+.sync-form .button {
+  justify-self: start;
+  margin-top: 6px;
+}
+.sync-details {
+  display: grid;
+  grid-template-columns: 85px minmax(0, 1fr);
+  gap: 14px 12px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.sync-details dt {
+  color: var(--muted);
+}
+.sync-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.sync-details code {
+  font-family: inherit;
+  user-select: text;
+}
+.sync-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 18px 0;
+}
+.sync-conflicts {
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+  margin-top: 22px;
+}
+.sync-conflicts p {
+  font-size: 13px;
+  line-height: 1.7;
+}
+.sync-conflicts fieldset {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  margin: 16px 0;
+  padding: 14px;
+}
+.sync-conflicts legend {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  padding: 0 5px;
+}
+.sync-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 14px 0;
+  overflow-wrap: anywhere;
+}
+.sync-choice input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin-top: 2px;
+}
+.sync-choice small {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+.token-code:disabled {
+  font-size: 24px;
+  letter-spacing: 1px;
+}
+@media (max-width: 700px) {
+  .sync-details {
+    grid-template-columns: 70px minmax(0, 1fr);
+  }
+}

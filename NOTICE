@@ -15,3 +15,11 @@ Steam and Steam Guard are trademarks of Valve Corporation. This application is
 not affiliated with or endorsed by Valve or BeyondDimension.
 
 Third-party libraries retain their own licenses as declared by their packages.
+
+WebDAV transport: Apache OpenDAL, Apache License 2.0.
+https://github.com/apache/opendal
+Copyright The Apache Software Foundation and contributors.
+
+Collaborative document merge: Automerge, MIT License.
+https://github.com/automerge/automerge
+Copyright Automerge contributors.

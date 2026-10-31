@@ -9,6 +9,7 @@ export interface VaultStatus {
   previewActive?: boolean;
 }
 export interface TokenView {
+  hotpReadOnly?: boolean;
   group?: string | null;
   id: string;
   name: string;
@@ -103,4 +104,30 @@ export interface BackupStatus {
   entries: BackupEntry[];
   error: string | null;
   systemBackup: "ios-system" | "ios-unavailable" | "local";
+}
+
+export interface SyncStatus {
+  configured: boolean;
+  active: boolean;
+  busy: boolean;
+  endpoint: string;
+  username: string;
+  libraryId: string;
+  dirty: boolean;
+  lastSuccess: number;
+  error?: string | null;
+  conflicts: {
+    id: string;
+    name: string;
+    field: string;
+    choices: { id: string; label: string; local: boolean }[];
+  }[];
+}
+export interface SyncConnection {
+  endpoint: string;
+  username: string;
+  password: string;
+  syncPassword: string;
+  mode: "create" | "join";
+  libraryId?: string;
 }
