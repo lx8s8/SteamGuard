@@ -5,6 +5,7 @@ async function nativeFixture(page: Page) {
   await page.addInitScript(() => {
     const tokens = [
       {
+        group: null as string | null,
         id: "steam-test",
         name: "测试 · Steam",
         issuer: "Steam",
@@ -18,6 +19,7 @@ async function nativeFixture(page: Page) {
         hasIdentitySecret: true,
       },
       {
+        group: null as string | null,
         id: "steam-offline",
         name: "测试 · 待登录",
         issuer: "Steam",
@@ -29,6 +31,7 @@ async function nativeFixture(page: Page) {
         accountName: "fixture-offline",
       },
       {
+        group: null as string | null,
         id: "totp-test",
         name: "测试 · 通用 OTP",
         issuer: "Example",
@@ -45,6 +48,22 @@ async function nativeFixture(page: Page) {
     let biometricEnabled =
       quickScenario === "biometric" || quickScenario === "cancel";
     let previewActive = false;
+    const groups: string[] = [];
+    let autoBackup = true;
+    const backupEntries = [
+      {
+        name: "recent-fixture.sgvault",
+        createdAt: 1_793_404_800,
+        size: 2048,
+        daily: false,
+      },
+      {
+        name: "daily-fixture.sgvault",
+        createdAt: 1_793_318_400,
+        size: 1024,
+        daily: true,
+      },
+    ];
     let pendingLogin: {
       status: string;
       guards: { confirmationType: number; associatedMessage: string }[];
@@ -69,6 +88,68 @@ async function nativeFixture(page: Page) {
                 biometricEnabled,
                 previewActive,
               };
+            case "token_groups":
+              return [...groups];
+            case "token_group_manage": {
+              const name = String(args.name);
+              const next = String(args.next ?? "");
+              if (args.action === "create") {
+                if (groups.includes(name)) throw new Error("分组已存在");
+                groups.push(name);
+              }
+              if (args.action === "rename") {
+                const index = groups.indexOf(name);
+                if (index >= 0) groups[index] = next;
+                for (const token of tokens)
+                  if (token.group === name) token.group = next;
+              }
+              if (args.action === "delete") {
+                const index = groups.indexOf(name);
+                if (index >= 0) groups.splice(index, 1);
+                for (const token of tokens)
+                  if (token.group === name) token.group = null;
+              }
+              return;
+            }
+            case "token_update": {
+              const token = tokens.find((t) => t.id === args.id);
+              if (token) {
+                token.name = String(args.name);
+                token.group = args.group ? String(args.group) : null;
+              }
+              return;
+            }
+            case "backup_status":
+              return {
+                enabled: autoBackup,
+                entries: backupEntries,
+                error: null,
+                systemBackup: "ios-system",
+              };
+            case "backup_configure":
+              autoBackup = !!args.enabled;
+              return;
+            case "backup_now":
+              return;
+            case "backup_export":
+              return "/fixture/SteamGuard-backup.sgvault";
+            case "backup_restore": {
+              if (args.password !== "synthetic-vault-password")
+                throw new Error("密码错误或备份已损坏");
+              if (!tokens.some((t) => t.id === "restored-fixture"))
+                tokens.push({
+                  group: null,
+                  id: "restored-fixture",
+                  name: "恢复的令牌",
+                  issuer: "Example",
+                  kind: "totp",
+                  code: "654321",
+                  period: 30,
+                  remaining: 24,
+                  loggedIn: false,
+                });
+              return 1;
+            }
             case "list_tokens":
               return locked ? [] : tokens;
             case "vault_unlock":
@@ -136,6 +217,17 @@ async function nativeFixture(page: Page) {
                 ],
               };
             case "import_preview":
+              if (
+                (window as unknown as { __importGroupOnly?: boolean })
+                  .__importGroupOnly
+              )
+                return {
+                  previewId: "fixture-groups",
+                  tokens: [],
+                  duplicates: 3,
+                  groupCount: 1,
+                  canCommit: true,
+                };
               return {
                 previewId: "fixture-preview",
                 tokens: [
@@ -144,7 +236,13 @@ async function nativeFixture(page: Page) {
                 duplicates: 0,
               };
             case "import_commit":
+              if (args.previewId === "fixture-groups") {
+                groups.push("恢复分组");
+                tokens[2].group = "恢复分组";
+                return 0;
+              }
               tokens.push({
+                group: null as string | null,
                 id: "imported-test",
                 name: "测试 · 导入令牌",
                 issuer: "Example",
@@ -695,3 +793,112 @@ for (const width of [320, 390, 768, 844]) {
     ).toBe(true);
   });
 }
+
+test("custom groups can be created, assigned, renamed and deleted without deleting tokens", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "管理分组", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("新建分组", { exact: true }).fill("邮箱");
+  await dialog.getByRole("button", { name: "创建", exact: true }).click();
+  await expect(dialog.getByText("邮箱", { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: "关闭", exact: true }).click();
+  await page
+    .getByRole("button", { name: "管理 测试 · 通用 OTP", exact: true })
+    .click();
+  await dialog.getByLabel("分组", { exact: true }).selectOption("邮箱");
+  await dialog.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.getByLabel("分组筛选").selectOption("group:邮箱");
+  await expect(page.locator(".token-card")).toHaveCount(1);
+  await expect(
+    page.getByRole("heading", { name: "测试 · 通用 OTP", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "管理分组", exact: true }).click();
+  await dialog
+    .getByRole("button", { name: "重命名分组 邮箱", exact: true })
+    .click();
+  await dialog.getByLabel("重命名「邮箱」").fill("工作");
+  await dialog.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(dialog.getByText("工作", { exact: true })).toBeVisible();
+  await dialog
+    .getByRole("button", { name: "删除分组 工作", exact: true })
+    .click();
+  await dialog
+    .getByRole("button", { name: "确认删除分组", exact: true })
+    .click();
+  await expect(dialog.getByText("工作", { exact: true })).toHaveCount(0);
+  await dialog.getByRole("button", { name: "关闭", exact: true }).click();
+  await page.getByLabel("分组筛选").selectOption("ungrouped");
+  await expect(
+    page.getByRole("heading", { name: "测试 · 通用 OTP", exact: true }),
+  ).toBeVisible();
+});
+
+test("automatic backups can be configured, exported and restored only with a valid backup password", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "设置", exact: true }).first().click();
+  const toggle = page.getByRole("switch", { name: "变更后自动备份" });
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "false");
+  await page.getByRole("button", { name: "立即备份", exact: true }).click();
+  expect(await commandCount(page, "backup_now")).toBe(1);
+  await page
+    .locator(".backup-panel")
+    .getByRole("button", { name: "查看", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog");
+  await dialog
+    .getByRole("button", { name: "导出所选备份", exact: true })
+    .click();
+  expect(await commandCount(page, "backup_export")).toBe(1);
+  expect(await commandCount(page, "backup_restore")).toBe(0);
+  await dialog.getByLabel("备份主密码").fill("wrong-password");
+  await dialog.getByRole("button", { name: "合并恢复", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toHaveText("密码错误或备份已损坏");
+  await dialog.getByLabel("备份主密码").fill("synthetic-vault-password");
+  await dialog.getByRole("button", { name: "合并恢复", exact: true }).click();
+  await expect(dialog.getByRole("status")).toContainText("补回 1 个令牌");
+  await expect(dialog.getByLabel("备份主密码")).toHaveValue("");
+});
+
+test("phone home opens on tokens without statistics or a large add panel", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator(".overview-grid")).toBeHidden();
+  await expect(page.locator(".page-heading")).toBeHidden();
+  const card = page.locator(".token-card").first();
+  await expect(card).toBeInViewport();
+  const bounds = await card.boundingBox();
+  expect(bounds!.y).toBeLessThan(330);
+  await expect(
+    page.getByRole("button", { name: "添加令牌", exact: true }),
+  ).toBeVisible();
+  await page.screenshot({ path: "artifacts/mobile-token-home-v1.2.0.png" });
+});
+
+test("an encrypted import can merge groups even when every token already exists", async ({
+  page,
+}) => {
+  await page.evaluate(() => Object.assign(window, { __importGroupOnly: true }));
+  await page.getByRole("button", { name: "添加令牌", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "粘贴密钥 / 链接" }).click();
+  await dialog
+    .getByLabel("OTP 链接或令牌 JSON")
+    .fill("synthetic-encrypted-backup-fixture");
+  await dialog.getByRole("button", { name: "预览令牌", exact: true }).click();
+  await expect(
+    dialog.getByText("合并已有令牌信息", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    dialog.getByRole("button", { name: "确认导入", exact: true }),
+  ).toBeEnabled();
+  await dialog.getByRole("button", { name: "确认导入", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.getByLabel("分组筛选").selectOption("group:恢复分组");
+  await expect(page.locator(".token-card")).toHaveCount(1);
+});

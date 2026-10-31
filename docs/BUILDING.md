@@ -42,7 +42,7 @@ npm ci
 npm run build:win
 ```
 
-NSIS 安装器位于 `src-tauri/target/release/bundle/nsis/`，MSI 位于 `src-tauri/target/release/bundle/msi/`。Windows x64 的 CI 编译、NSIS/MSI 打包和产物上传均已通过。正式 CI 安装包使用 kasen 自签名代码证书；未在 Windows 真机上执行安装或账号联调。
+NSIS 安装器位于 `src-tauri/target/release/bundle/nsis/`，MSI 位于 `src-tauri/target/release/bundle/msi/`。Windows x64 的 CI 编译、NSIS/MSI 打包和产物上传均已通过。正式 CI 安装包使用自签名代码证书；未在 Windows 真机上执行安装或账号联调。
 
 ## Android
 
@@ -64,7 +64,7 @@ npm run build:android -- --debug --target aarch64 x86_64 --ci
 node scripts/mobile.mjs android build --apk --aab --target aarch64 x86_64 --ci
 ```
 
-正式 CI 同时生成 `app-universal-release.apk` 和 `app-universal-release.aab`，包含 ARM64/x86_64，并使用 kasen 的持久发布密钥签名。APK 可直接安装；AAB 供分发平台使用。APK 和 AAB 的证书指纹必须与 `certificates/fingerprints.json` 一致。
+正式 CI 同时生成 `app-universal-release.apk` 和 `app-universal-release.aab`，包含 ARM64/x86_64，并使用持久发布签名。APK 可直接安装；AAB 供分发平台使用。APK 和 AAB 的证书指纹必须与 `certificates/fingerprints.json` 一致。
 
 本机签名构建时，从仓库外的私有文件提供 `STEAMGUARD_SIGNING` 给 `node scripts/prepare-signing.mjs android`，再运行发布构建。不要将密钥内容直接放进终端命令。没有 `keystore.properties` 的开发构建仍输出未签名发布包，不能作为正式 Release 附件。
 
@@ -88,7 +88,7 @@ ARM64 模拟器 `.app` 的实际输出路径为 `src-tauri/gen/apple/build/arm64
 
 ```sh
 xcrun simctl install booted src-tauri/gen/apple/build/arm64-sim/SteamGuard.app
-xcrun simctl launch booted dev.local.steamguard
+xcrun simctl launch booted com.kasen.steamguard
 ```
 
 无需 Apple 发布证书的真机归档：

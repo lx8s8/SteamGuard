@@ -67,3 +67,15 @@ macOS、Windows、iOS 及前端测试的成功任务见 [Actions 运行记录](h
 | Password fallback and encrypted backup | Yes | Yes | Yes |
 
 Both quick-access settings are off by default and device-local. Preview allows code viewing/copying only. LiveContainer must support the app's Keychain and biometric API access; ordinary password unlock remains available.
+
+## Groups and backups (1.2.0)
+
+| Feature | Availability |
+| --- | --- |
+| Custom groups, rename/delete, token assignment and filtering | All platforms; preview can filter existing groups |
+| Automatic encrypted snapshots, bounded retention, export and merge restore | All platforms |
+| Encrypted snapshot export from locked screen | All platforms; metadata and encrypted files only |
+| iOS system backup eligibility | Application Support included, device-only quick access excluded; system settings control upload |
+| iCloud Drive / CloudKit realtime sync | Not implemented |
+
+Bundle/application ID: com.kasen.steamguard. Older applications use a different private data directory. See INSTALLATION.md for migration and BACKUP.md for storage, retention and restore behavior.

@@ -1,4 +1,4 @@
-package dev.local.steamguard
+package com.kasen.steamguard
 
 import android.os.Bundle
 import android.webkit.WebView

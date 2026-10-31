@@ -9,6 +9,7 @@ export interface VaultStatus {
   previewActive?: boolean;
 }
 export interface TokenView {
+  group?: string | null;
   id: string;
   name: string;
   issuer: string;
@@ -29,6 +30,8 @@ export interface ImportPreview {
   previewId: string;
   tokens: { name: string; issuer: string; kind: TokenKind }[];
   duplicates: number;
+  groupCount?: number;
+  canCommit?: boolean;
 }
 export interface LoginResult {
   status: "guard" | "pending" | "authenticated";
@@ -87,4 +90,17 @@ export interface QuickCapabilities {
   supported: boolean;
   biometricAvailable: boolean;
   label: string;
+}
+
+export interface BackupEntry {
+  name: string;
+  createdAt: number;
+  size: number;
+  daily: boolean;
+}
+export interface BackupStatus {
+  enabled: boolean;
+  entries: BackupEntry[];
+  error: string | null;
+  systemBackup: "ios-system" | "ios-unavailable" | "local";
 }

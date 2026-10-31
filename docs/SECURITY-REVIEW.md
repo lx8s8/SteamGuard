@@ -38,3 +38,15 @@
 参考 [Android 生物认证与 CryptoObject](https://developer.android.com/identity/sign-in/biometric-auth)、[Apple biometryCurrentSet](https://developer.apple.com/documentation/security/secaccesscontrolcreateflags/biometrycurrentset)。不能保证越狱/root 设备或所有 LiveContainer 版本的系统安全服务行为。桌面快捷访问未开放。
 
 发布前本机检查：33 项 Rust 原生测试、21 项界面/布局测试及 3 项发布测试通过；Clippy 与格式检查通过。Android ARM64 调试 APK 和 iOS ARM64 模拟器应用构建成功，iOS 已启动检查页面。生物认证成功/取消的界面回归使用合成桥接；真实手机生物特征和 LiveContainer 内认证仍需对应设备验证。
+
+## v1.2.0
+
+自动快照直接保存主密码加密后的保险库内容，不保存主密码或设备快捷访问凭据。快照失败不回滚已保存的令牌，错误在设置中展示；轮换仅清理严格匹配命名规则的普通文件，读取拒绝路径穿越、符号链接和超大文件。保留最近 10 个变更快照和最多 30 个每日检查点，关闭自动生成不会删除历史备份。
+
+历史恢复要求已解锁当前保险库，并用备份的主密码解密。恢复补回缺失令牌和分组，保留当前 HOTP 较大计数及当前 SteamID 对应令牌，不覆盖当前 Steam 会话。锁定界面只提供加密快照的导出，不向前端返回令牌密钥。分组数据保存在加密保险库并参与事务回滚。
+
+iOS 的 Application Support 数据允许系统备份，device-only 子目录使用 NSURLIsExcludedFromBackupKey 排除；快捷访问密钥仍保存在设备绑定安全存储中。应用不访问 Apple 账号，也不宣称能够开启或检测 iCloud 上传。Android 保留禁用系统云备份的设置。新标识 com.kasen.steamguard 与旧应用相互隔离，通过显式加密导出和导入迁移，不尝试跨沙箱读取旧数据。
+
+本机验证包括加密快照轮换、备份失败保留已保存令牌、HOTP 不回退、保留当前 Steam 令牌、重复令牌分组合并及分组上限事务回滚。Android 新标识 APK、iOS 新标识模拟器构建已通过；iOS 模拟器检查了保险库与 device-only 的显式备份属性。该检查不等同于 iCloud 上传或 LiveContainer 系统备份实测。
+
+1.2.0 本机最终检查：38 项 Rust 测试、25 项界面/手机布局测试、4 项发布测试通过；Clippy、Rust 格式与 Actionlint 检查通过。

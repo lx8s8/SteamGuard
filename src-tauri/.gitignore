@@ -14,3 +14,4 @@
 *.jks
 *.p12
 *.mobileprovision
+/gen/android/app/src/main/java/**/generated/

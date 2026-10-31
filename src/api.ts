@@ -1,6 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type {
   VaultStatus,
+  BackupStatus,
   QuickCapabilities,
   TokenView,
   ImportPreview,
@@ -51,6 +52,22 @@ export const api = {
     password?: string;
   }) => call<ImportPreview>("import_preview", args),
   commit: (previewId: string) => call<void>("import_commit", { previewId }),
+  groups: () => call<string[]>("token_groups"),
+  manageGroup: (
+    action: "create" | "rename" | "delete",
+    name: string,
+    next?: string,
+  ) => call<void>("token_group_manage", { action, name, next }),
+  updateToken: (id: string, name: string, group: string | null) =>
+    call<void>("token_update", { id, name, group }),
+  backupStatus: () => call<BackupStatus>("backup_status"),
+  backupConfigure: (enabled: boolean) =>
+    call<void>("backup_configure", { enabled }),
+  backupNow: () => call<void>("backup_now"),
+  backupExport: (name: string) =>
+    call<string | null>("backup_export", { name }),
+  backupRestore: (name: string, password: string) =>
+    call<number>("backup_restore", { name, password }),
   rename: (id: string, name: string) =>
     call<void>("token_rename", { id, name }),
   remove: (id: string) => call<void>("token_delete", { id }),

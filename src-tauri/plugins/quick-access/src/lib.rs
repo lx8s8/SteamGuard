@@ -34,6 +34,23 @@ pub struct SecureAccess<R: Runtime> {
     _runtime: std::marker::PhantomData<fn() -> R>,
 }
 impl<R: Runtime> SecureAccess<R> {
+    pub fn configure_backup(&self, directory: &str) -> Result<(), String> {
+        #[cfg(target_os = "ios")]
+        {
+            #[derive(Serialize)]
+            struct BackupPolicy<'a> {
+                directory: &'a str,
+            }
+            self.handle
+                .run_mobile_plugin::<()>("configureBackup", BackupPolicy { directory })
+                .map_err(|_| "无法配置系统备份".into())
+        }
+        #[cfg(not(target_os = "ios"))]
+        {
+            let _ = directory;
+            Ok(())
+        }
+    }
     pub fn availability(&self) -> Result<Availability, String> {
         #[cfg(mobile)]
         {
@@ -108,8 +125,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("quick-access")
         .setup(|app, _api| {
             #[cfg(target_os = "android")]
-            let handle =
-                _api.register_android_plugin("dev.steamguard.quickaccess", "QuickAccessPlugin")?;
+            let handle = _api
+                .register_android_plugin("com.kasen.steamguard.quickaccess", "QuickAccessPlugin")?;
             #[cfg(target_os = "ios")]
             let handle = _api.register_ios_plugin(init_plugin_quick_access)?;
             app.manage(SecureAccess::<R> {
