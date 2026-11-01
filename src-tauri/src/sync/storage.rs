@@ -6,9 +6,40 @@ use opendal::{services::Webdav, ErrorKind, HttpTransporter, OperationContext, Op
 use opendal::{Buffer, HttpBody, HttpTransport};
 use opendal_http_transport_reqwest::ReqwestTransport;
 
-struct StrictTransport(ReqwestTransport);
+#[derive(Debug)]
+struct HttpFailure {
+    operation: &'static str,
+    status: u16,
+}
+impl std::fmt::Display for HttpFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} (HTTP {})", self.operation, self.status)
+    }
+}
+impl std::error::Error for HttpFailure {}
+fn http_failure(operation: &'static str, status: u16, kind: ErrorKind) -> opendal::Error {
+    opendal::Error::new(kind, "WebDAV request rejected")
+        .set_source(HttpFailure { operation, status })
+}
+fn jianguoyun_compatibility(endpoint: &str) -> bool {
+    url::Url::parse(endpoint)
+        .ok()
+        .is_some_and(|url| url.host_str() == Some("dav.jianguoyun.com"))
+}
+struct StrictTransport {
+    inner: ReqwestTransport,
+    missing_parent_conflict: bool,
+}
 impl HttpTransport for StrictTransport {
     async fn fetch(&self, req: http::Request<Buffer>) -> opendal::Result<http::Response<HttpBody>> {
+        let operation = match req.method().as_str() {
+            "PROPFIND" => "读取目录信息",
+            "MKCOL" => "创建同步目录",
+            "PUT" => "上传同步文件",
+            "GET" => "下载同步文件",
+            "DELETE" => "清理同步旧版本",
+            _ => "访问同步网盘",
+        };
         let limit = if req.method() == http::Method::GET {
             MAX_DOCUMENT * 2
         } else {
@@ -20,25 +51,21 @@ impl HttpTransport for StrictTransport {
                 "redirects are disabled",
             ));
         }
-        let response = self.0.fetch(req).await?;
+        let response = self.inner.fetch(req).await?;
         let status = response.status().as_u16();
+        // Jianguoyun reports a missing parent collection as 409 for PROPFIND.
+        // OpenDAL's recursive MKCOL walks parents only for NotFound errors.
+        if self.missing_parent_conflict && status == 409 && operation == "读取目录信息" {
+            return Err(http_failure(operation, status, ErrorKind::NotFound));
+        }
         if status == 401 || status == 403 {
-            return Err(opendal::Error::new(
-                ErrorKind::PermissionDenied,
-                "WebDAV authentication or permission denied",
-            ));
+            return Err(http_failure(operation, status, ErrorKind::PermissionDenied));
         }
         if status == 429 {
-            return Err(opendal::Error::new(
-                ErrorKind::RateLimited,
-                "WebDAV request limit",
-            ));
+            return Err(http_failure(operation, status, ErrorKind::RateLimited));
         }
-        if (300..400).contains(&status) {
-            return Err(opendal::Error::new(
-                ErrorKind::Unexpected,
-                "WebDAV redirects are disabled",
-            ));
+        if (300..400).contains(&status) || (status >= 400 && ![404, 405].contains(&status)) {
+            return Err(http_failure(operation, status, ErrorKind::Unexpected));
         }
         if response
             .headers()
@@ -68,6 +95,29 @@ impl HttpTransport for StrictTransport {
 }
 
 fn error(e: opendal::Error) -> String {
+    let mut cause: Option<&(dyn std::error::Error + 'static)> = Some(&e);
+    while let Some(current) = cause {
+        if let Some(f) = current.downcast_ref::<HttpFailure>() {
+            let reason = match f.status {
+                401 | 403 => "网盘拒绝访问，请检查账号、应用密码和目录权限",
+                429 => "网盘请求过于频繁，请稍后重试",
+                300..=399 => "网盘地址发生重定向，请填写最终 HTTPS WebDAV 地址",
+                400 => "网盘不接受此目录或请求格式，请检查 WebDAV 地址和服务兼容性",
+                409 => "上级目录不存在或无法创建，请检查目录权限",
+                423 => "网盘文件暂时被占用，请稍后重试",
+                507 => "网盘存储空间不足，请清理空间后重试",
+                500..=599 => "网盘服务暂时不可用，请稍后重试",
+                _ => "网盘拒绝了此操作，请检查目录权限或服务限制",
+            };
+            return format!("{}失败（HTTP {}）：{}", f.operation, f.status, reason);
+        }
+        if let Some(network) = current.downcast_ref::<reqwest_sync::Error>() {
+            if network.is_timeout() {
+                return "连接同步网盘超时，请检查网络或代理后重试".into();
+            }
+        }
+        cause = current.source();
+    }
     match e.kind() {
         ErrorKind::PermissionDenied => "网盘拒绝访问，请检查账号、应用密码和目录权限",
         ErrorKind::NotFound => "未找到同步库，请核对地址和同步库编号",
@@ -105,6 +155,22 @@ pub fn client(
     username: &str,
     password: &str,
     network: &NetworkSettings,
+) -> Result<Operator, String> {
+    let endpoint = validate_endpoint(endpoint)?;
+    client_with_compatibility(
+        &endpoint,
+        username,
+        password,
+        network,
+        jianguoyun_compatibility(&endpoint),
+    )
+}
+fn client_with_compatibility(
+    endpoint: &str,
+    username: &str,
+    password: &str,
+    network: &NetworkSettings,
+    missing_parent_conflict: bool,
 ) -> Result<Operator, String> {
     let endpoint = validate_endpoint(endpoint)?;
     // Use the same WebPKI trust roots as the Steam client on every platform.
@@ -153,9 +219,10 @@ pub fn client(
     )
     .map_err(error)?;
     Ok(op.with_context(
-        OperationContext::new().with_http_transport(HttpTransporter::new(StrictTransport(
-            ReqwestTransport::new(client),
-        ))),
+        OperationContext::new().with_http_transport(HttpTransporter::new(StrictTransport {
+            inner: ReqwestTransport::new(client),
+            missing_parent_conflict,
+        })),
     ))
 }
 fn root(library: &str) -> Result<String, String> {
@@ -309,6 +376,7 @@ pub(crate) mod tests {
         pub files: Arc<Mutex<BTreeMap<String, Vec<u8>>>>,
         pub replace_on_get: Arc<AtomicBool>,
         pub fail_after_put: Arc<AtomicBool>,
+        pub provider_rules: Arc<AtomicBool>,
         stop: Arc<AtomicBool>,
         thread: Option<std::thread::JoinHandle<()>>,
     }
@@ -327,6 +395,8 @@ pub(crate) mod tests {
             let replace = replace_on_get.clone();
             let fail_after_put = Arc::new(AtomicBool::new(false));
             let fail = fail_after_put.clone();
+            let provider_rules = Arc::new(AtomicBool::new(false));
+            let rules = provider_rules.clone();
             let mut fail_path = String::new();
             let thread = std::thread::spawn(move || {
                 for socket in listener.incoming() {
@@ -452,7 +522,27 @@ pub(crate) mod tests {
                             },
                             "PROPFIND" => {
                                 if !files.contains_key(path) {
-                                    (404, vec![], String::new())
+                                    let relative = path
+                                        .strip_prefix("/dav/")
+                                        .unwrap_or("")
+                                        .trim_end_matches('/');
+                                    let first = relative.split('/').next().unwrap_or("");
+                                    let missing_sandbox =
+                                        !files.contains_key(&format!("/dav/{first}/"));
+                                    let status = if rules.load(Ordering::SeqCst)
+                                        && relative.contains('/')
+                                        && missing_sandbox
+                                    {
+                                        409
+                                    } else {
+                                        404
+                                    };
+                                    (
+                                        status,
+                                        b"synthetic-private-account must never enter diagnostics"
+                                            .to_vec(),
+                                        String::new(),
+                                    )
                                 } else {
                                     let depth =
                                         headers.get("depth").map(String::as_str).unwrap_or("0");
@@ -493,6 +583,7 @@ pub(crate) mod tests {
                 thread: Some(thread),
                 replace_on_get,
                 fail_after_put,
+                provider_rules,
             }
         }
         pub fn op(&self, password: &str) -> Operator {
@@ -561,7 +652,7 @@ pub(crate) mod tests {
         let newest = publish(&op, state, state.checkpoint("a").unwrap())
             .await
             .unwrap();
-        compact(&op, &library, &[first.clone()], &newest)
+        compact(&op, &library, std::slice::from_ref(&first), &newest)
             .await
             .unwrap();
         let remaining = snapshots(&op, state).await.unwrap();
@@ -605,5 +696,224 @@ pub(crate) mod tests {
         ] {
             assert!(validate_endpoint(endpoint).is_err());
         }
+    }
+    #[test]
+    fn jianguoyun_compatibility_only_matches_the_official_host() {
+        for endpoint in [
+            "https://dav.jianguoyun.com/dav/",
+            "https://dav.jianguoyun.com/dav/custom/",
+        ] {
+            assert!(jianguoyun_compatibility(endpoint));
+        }
+        for endpoint in [
+            "https://dav.jianguoyun.com.evil.example/dav/",
+            "https://example.com/dav/",
+        ] {
+            assert!(!jianguoyun_compatibility(endpoint));
+        }
+    }
+    #[tokio::test]
+    async fn provider_missing_parent_conflict_is_walked_without_changing_existing_paths() {
+        let dav = Dav::new();
+        dav.provider_rules.store(true, Ordering::SeqCst);
+        let network = NetworkSettings {
+            mode: ProxyMode::Direct,
+            proxy_url: String::new(),
+        };
+        let (h, key) = super::super::create_header(
+            &uuid::Uuid::new_v4().to_string(),
+            "synthetic-sync-password",
+        )
+        .unwrap();
+        let generic =
+            client_with_compatibility(&dav.endpoint, "fixture", "synthetic", &network, false)
+                .unwrap();
+        let failure = create(&generic, &h).await.unwrap_err();
+        assert!(failure.contains("HTTP 409"));
+        assert!(!failure.contains("synthetic-private-account"));
+        let op = client_with_compatibility(&dav.endpoint, "fixture", "synthetic", &network, true)
+            .unwrap();
+        create(&op, &h).await.unwrap();
+        let state = State::new(
+            dav.endpoint.clone(),
+            "fixture".into(),
+            "synthetic".into(),
+            &h,
+            &key,
+            "device".into(),
+        );
+        let path = publish(&op, &state, state.checkpoint("actor").unwrap())
+            .await
+            .unwrap();
+        let files = snapshots(&op, &state).await.unwrap();
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].0, path);
+        assert!(dav
+            .files
+            .lock()
+            .unwrap()
+            .keys()
+            .any(|p| p.starts_with("/dav/steamguard-sync-v1/")));
+        assert!(!dav
+            .files
+            .lock()
+            .unwrap()
+            .keys()
+            .any(|p| p.starts_with("/dav/SteamGuard/")));
+        let missing = format!(
+            "{}missing/header.json",
+            root(&uuid::Uuid::new_v4().to_string()).unwrap()
+        );
+        assert!(optional_read(&op, &missing, 16384).await.unwrap().is_none());
+    }
+    #[tokio::test]
+    #[ignore = "Explicit user-authorized WebDAV probe; credentials via hidden stdin, synthetic tokens only"]
+    async fn live_jianguoyun_encrypted_sync_probe() {
+        use zeroize::{Zeroize, Zeroizing};
+        #[derive(serde::Deserialize)]
+        struct Credentials {
+            username: String,
+            password: String,
+        }
+        impl Drop for Credentials {
+            fn drop(&mut self) {
+                self.username.zeroize();
+                self.password.zeroize();
+            }
+        }
+        let input = Zeroizing::new(
+            rpassword::prompt_password("WebDAV credentials JSON (hidden): ").expect("hidden input"),
+        );
+        let credentials: Credentials =
+            serde_json::from_str(&input).expect("credential input must be JSON");
+        let endpoint = "https://dav.jianguoyun.com/dav/";
+        let network = NetworkSettings {
+            mode: ProxyMode::Direct,
+            proxy_url: String::new(),
+        };
+        let library = uuid::Uuid::new_v4().to_string();
+        let (h, key) =
+            super::super::create_header(&library, &uuid::Uuid::new_v4().to_string()).unwrap();
+        let legacy = client_with_compatibility(
+            endpoint,
+            &credentials.username,
+            &credentials.password,
+            &network,
+            false,
+        )
+        .unwrap();
+        let absent = format!(
+            "sgcheck{}/{}/states/",
+            &uuid::Uuid::new_v4().simple().to_string()[..8],
+            uuid::Uuid::new_v4()
+        );
+        let baseline = legacy.stat(&absent).await.unwrap_err();
+        assert!(error(baseline).contains("HTTP 409"));
+        eprintln!("Missing-parent HTTP 409 from real provider: reproduced");
+        let op = client(
+            endpoint,
+            &credentials.username,
+            &credentials.password,
+            &network,
+        )
+        .unwrap();
+        assert!(op
+            .stat(&absent)
+            .await
+            .is_err_and(|e| e.kind() == ErrorKind::NotFound));
+        eprintln!("Missing-parent compatibility: passed");
+        let mut paths = vec![];
+        let result: Result<(), String> = async {
+            create(&op, &h).await?;
+            eprintln!("Original storage layout and encrypted header: passed");
+            let mut a = crate::vault::VaultData {
+                sync: Some(State::new(
+                    endpoint.into(),
+                    credentials.username.clone(),
+                    credentials.password.clone(),
+                    &h,
+                    &key,
+                    "synthetic-a".into(),
+                )),
+                ..Default::default()
+            };
+            a.tokens.push(crate::models::Token::new(
+                "Synthetic sync probe".into(),
+                "totp".into(),
+                b"synthetic-not-a-user-token".to_vec(),
+            ));
+            a.groups.push("Synthetic".into());
+            super::super::record_local(&mut a, "actor-a")?;
+            let state = a.sync.as_ref().unwrap();
+            paths.push(publish(&op, state, state.checkpoint("actor-a")?).await?);
+            let files = snapshots(&op, state).await?;
+            let mut b = crate::vault::VaultData {
+                sync: Some(State::new(
+                    endpoint.into(),
+                    credentials.username.clone(),
+                    credentials.password.clone(),
+                    &h,
+                    &key,
+                    "synthetic-b".into(),
+                )),
+                ..Default::default()
+            };
+            for (_, bytes) in files {
+                b.sync.as_mut().unwrap().merge_bytes(&bytes, "actor-b")?;
+            }
+            super::super::apply(&mut b, "actor-b")?;
+            if b.tokens.len() != 1
+                || b.tokens[0].secret != a.tokens[0].secret
+                || b.groups != a.groups
+            {
+                return Err("synthetic roundtrip mismatch".into());
+            }
+            b.tokens[0].name = "Synthetic merged edit".into();
+            super::super::record_local(&mut b, "actor-b")?;
+            let state = b.sync.as_ref().unwrap();
+            paths.push(publish(&op, state, state.checkpoint("actor-b")?).await?);
+            compact(&op, &library, &paths[..1], &paths[1]).await?;
+            let remaining = snapshots(&op, state).await?;
+            if remaining.len() != 1 {
+                return Err("synthetic compaction mismatch".into());
+            }
+            a.sync
+                .as_mut()
+                .unwrap()
+                .merge_bytes(&remaining[0].1, "actor-a")?;
+            super::super::apply(&mut a, "actor-a")?;
+            if a.tokens[0].name != "Synthetic merged edit" {
+                return Err("synthetic merge mismatch".into());
+            }
+            for token in &mut a.tokens {
+                token.erase();
+            }
+            for token in &mut b.tokens {
+                token.erase();
+            }
+            eprintln!("Encrypted upload/readback, second device, merge and compaction: passed");
+            Ok(())
+        }
+        .await;
+        for p in &paths {
+            op.delete(p)
+                .await
+                .map_err(error)
+                .expect("remove synthetic checkpoint");
+        }
+        for p in [
+            format!("{}header.json", root(&library).unwrap()),
+            format!("{}states/", root(&library).unwrap()),
+            root(&library).unwrap(),
+        ] {
+            if op.stat(&p).await.is_ok() {
+                op.delete(&p)
+                    .await
+                    .map_err(error)
+                    .expect("remove synthetic library");
+            }
+        }
+        eprintln!("Synthetic library cleanup: passed");
+        assert!(result.is_ok(), "{}", result.err().unwrap_or_default());
     }
 }
