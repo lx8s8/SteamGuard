@@ -33,7 +33,7 @@ Apple 说明：[应用目录与默认备份规则](https://developer.apple.com/l
 
 ## 数据目录
 
-保险库为 `vault.sgvault`，快照位于旁边的 `backups/`，设备配置位于 `device-only/`。应用标识为 `com.kasen.steamguard`。这些都是应用私有数据；导出文件时由系统文件选择器选择目标位置。
+保险库为 `vault.sgvault`，快照位于旁边的 `backups/`，设备配置位于 `device-only/`。这些都是应用私有数据；导出文件时由系统文件选择器选择目标位置。
 
 ## 与多端同步配合
 

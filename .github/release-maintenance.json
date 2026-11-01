@@ -1,0 +1,11 @@
+{
+  "repository": "lx8s8/SteamGuard",
+  "operation": "release-cleanup-2026-11-01",
+  "retain": ["v1.2.0", "v1.3.0"],
+  "withdraw": ["v1.0.0", "v1.0.1", "v1.1.0"],
+  "removeAssets": [
+    "kasen-android-signing.pem",
+    "kasen-windows-signing.cer",
+    "fingerprints.json"
+  ]
+}

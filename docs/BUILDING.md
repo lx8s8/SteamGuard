@@ -11,7 +11,7 @@ npx playwright install chromium
 npm run test:ui
 ```
 
-真实账户导出只放在仓库外。`.gitignore` 排除 `.mpo`、`.maFile`、`.sgvault`、证书、环境变量与构建产物。运行私有导入测试使用 `WATT_TEST_MPO`，不要把真实备份变成测试夹具。
+真实账户导出只放在仓库外。`.gitignore` 排除 `.mpo`、`.maFile`、`.sgvault`、签名私有文件、环境变量与构建产物。运行私有导入测试使用 `WATT_TEST_MPO`，不要把真实备份变成测试夹具。
 
 ## macOS
 
@@ -64,7 +64,7 @@ npm run build:android -- --debug --target aarch64 x86_64 --ci
 node scripts/mobile.mjs android build --apk --aab --target aarch64 x86_64 --ci
 ```
 
-正式 CI 同时生成 `app-universal-release.apk` 和 `app-universal-release.aab`，包含 ARM64/x86_64，并使用持久发布签名。APK 可直接安装；AAB 供分发平台使用。APK 和 AAB 的证书指纹必须与 `certificates/fingerprints.json` 一致。
+正式 CI 同时生成 `app-universal-release.apk` 和 `app-universal-release.aab`，包含 ARM64/x86_64，并使用持久发布签名。APK 可直接安装；AAB 供分发平台使用。CI 会核对构建产物的签名身份，校验失败时停止发布。
 
 本机签名构建时，从仓库外的私有文件提供 `STEAMGUARD_SIGNING` 给 `node scripts/prepare-signing.mjs android`，再运行发布构建。不要将密钥内容直接放进终端命令。没有 `keystore.properties` 的开发构建仍输出未签名发布包，不能作为正式 Release 附件。
 
@@ -88,7 +88,8 @@ ARM64 模拟器 `.app` 的实际输出路径为 `src-tauri/gen/apple/build/arm64
 
 ```sh
 xcrun simctl install booted src-tauri/gen/apple/build/arm64-sim/SteamGuard.app
-xcrun simctl launch booted com.kasen.steamguard
+steamguard_app_id=$(node -p "require('./src-tauri/tauri.conf.json').identifier")
+xcrun simctl launch booted "$steamguard_app_id"
 ```
 
 无需 Apple 发布证书的真机归档：
@@ -143,4 +144,4 @@ Actions 单独上传 **`iOS-arm64-device-IPA-unsigned`**。在 iPhone 上先解�
 
 所有构建产物作为 Actions artifacts 保留 14 天。仅正式版本标签使用配置的签名身份；主分支、Pull Request 和手动开发构建不加载签名 Secret。macOS/iOS 使用 `ditto` 保留可执行权限，不加载本机真实令牌备份或 Steam 密码。
 
-推送与应用版本一致的 `v*` 标签后，所有测试及原生构建成功才会触发集中发布任务，收集四平台安装器、公开证书与 SHA-256 校验和；先完成草稿上传，再将 GitHub Release 发布为正式版。只有发布任务具有 `contents: write` 权限，其他任务维持只读权限。不会自动上传到应用商店。
+推送与应用版本一致的 `v*` 标签后，所有测试及原生构建成功才会触发集中发布任务，收集四平台安装器、开源许可证与 SHA-256 校验和；先完成草稿上传，再将 GitHub Release 发布为正式版。只有发布任务具有 `contents: write` 权限，其他任务维持只读权限。不会自动上传到应用商店。

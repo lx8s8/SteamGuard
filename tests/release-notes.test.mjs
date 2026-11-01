@@ -10,3 +10,16 @@ test("release notes contain only the selected version", () => {
   assert.throws(() => releaseNotes(changelog, "9.0.0"));
   assert.throws(() => releaseNotes("## 1.2.0\n\n", "1.2.0"));
 });
+
+test("public release notes exclude internal certificate and publisher details", () => {
+  for (const detail of [
+    "kasen",
+    "fingerprints.json",
+    "certificate.pem",
+    "certificate.cer",
+    "发布者",
+  ])
+    assert.throws(() =>
+      releaseNotes(`# Updates\n\n## 1.3.0\n\n${detail}\n`, "1.3.0"),
+    );
+});

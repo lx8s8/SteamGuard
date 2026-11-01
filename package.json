@@ -20,7 +20,7 @@
     "test:ui": "playwright test",
     "package:ios:ipa": "node scripts/package-ios-ipa.mjs",
     "build:ios:ipa": "npm run build:ios -- --no-sign --archive-only --ci && npm run package:ios:ipa",
-    "test:release": "node --test tests/release.test.mjs tests/release-notes.test.mjs"
+    "test:release": "node --test tests/release.test.mjs tests/release-notes.test.mjs tests/release-maintenance.test.mjs"
   },
   "dependencies": {
     "react": "^19.1.0",
