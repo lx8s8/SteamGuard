@@ -1,0 +1,45 @@
+name: Maintain release downloads
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/release-maintenance.json"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-maintenance
+  cancel-in-progress: false
+
+jobs:
+  maintain:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Check release collection and maintenance rules
+        run: node --test tests/release.test.mjs tests/release-notes.test.mjs tests/release-maintenance.test.mjs
+      - name: Preview the reviewed maintenance plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/maintain-releases.mjs
+      - name: Apply release download cleanup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/maintain-releases.mjs --apply
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: Release-maintenance-report
+          path: artifacts/release-maintenance-*.json
+          if-no-files-found: ignore
+          retention-days: 14

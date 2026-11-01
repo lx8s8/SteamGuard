@@ -40,7 +40,7 @@
 | --- | --- | --- | --- |
 | macOS | 桌面侧栏、自适应窗口，Tauri 原生工程 | 本机或 GitHub macOS runner；`.app`/`.dmg` | ARM64 本机发布与原生界面验证完成；ARM64/Intel 两项 CI 构建及上传通过 |
 | Windows | 桌面侧栏、自适应窗口，同一 Rust/React 代码 | GitHub Windows runner 或本机 Windows；NSIS/MSI | x64 CI 编译、NSIS/MSI 打包与上传通过；未执行真机安装 |
-| Android | 手机底部导航、安全区域、原生文件保存 | Android SDK/NDK；kasen 签名发布 APK/AAB | ARM64 调试 APK 与未签名发布 APK/AAB 本机编译通过，调试 APK 签名已校验 |
+| Android | 手机底部导航、安全区域、原生文件保存 | Android SDK/NDK；正式 APK/AAB | ARM64 调试 APK 与未签名发布 APK/AAB 本机编译通过，调试 APK 签名已校验 |
 | iOS/iPadOS 15+ | 手机/平板响应式布局，Xcode 工程 | macOS/Xcode；模拟器 `.app` 与未签名真机归档 | 本机模拟器安装启动、未签名真机归档通过；两项 CI 构建及上传均通过 |
 | LiveContainer IPA | 真机 ARM64 应用，标准 `Payload/*.app` 目录 | `npm run package:ios:ipa`；Actions 单独上传 IPA | IPA 结构、真机平台、可执行权限和未加密状态已检查；未进行 LiveContainer 实机启动验证 |
 
@@ -78,7 +78,7 @@ Both quick-access settings are off by default and device-local. Preview allows c
 | iOS system backup eligibility | Application Support included, device-only quick access excluded; system settings control upload |
 | iCloud Drive / CloudKit realtime sync | Not implemented |
 
-Bundle/application ID: com.kasen.steamguard. Older applications use a different private data directory. See INSTALLATION.md for migration and BACKUP.md for storage, retention and restore behavior.
+Versions before 1.2.0 use a different private data directory and are no longer distributed. See INSTALLATION.md for migration and BACKUP.md for storage, retention and restore behavior.
 
 ## Encrypted WebDAV sync (1.3.0)
 

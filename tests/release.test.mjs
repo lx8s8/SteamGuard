@@ -53,13 +53,17 @@ function collect(root, tag = "v1.0.0") {
     encoding: "utf8",
   });
 }
-test("collects only installers and public verification files; checksums match", () => {
+test("collects only installers, license and checksums", () => {
   const root = fixture();
   try {
     assert.equal(collect(root).status, 0);
     const names = readdirSync(path.join(root, "output"));
-    assert.equal(names.length, 12);
-    assert(!names.some((n) => /pfx|credentials|debug|simulator/.test(n)));
+    assert.equal(names.length, 9);
+    assert(
+      !names.some((n) =>
+        /pem|cer|fingerprints|pfx|credentials|debug|simulator/.test(n),
+      ),
+    );
     for (const line of readFileSync(
       path.join(root, "output", "SHA256SUMS"),
       "utf8",
@@ -101,6 +105,39 @@ test("mismatched version tag prevents publication", () => {
   const root = fixture();
   try {
     assert.notEqual(collect(root, "v0.1.1").status, 0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("repeated collection excludes the checksum file from its own manifest", () => {
+  const root = fixture();
+  try {
+    assert.equal(collect(root).status, 0);
+    const before = readFileSync(
+      path.join(root, "output", "SHA256SUMS"),
+      "utf8",
+    );
+    assert.equal(collect(root).status, 0);
+    assert.equal(
+      readFileSync(path.join(root, "output", "SHA256SUMS"), "utf8"),
+      before,
+    );
+    assert.equal(before.trim().split("\n").length, 8);
+    assert(!before.includes("  SHA256SUMS"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+test("stale certificate files in the output directory block publication", () => {
+  const root = fixture();
+  try {
+    assert.equal(collect(root).status, 0);
+    writeFileSync(
+      path.join(root, "output", "unexpected-certificate.pem"),
+      "public fixture",
+    );
+    assert.notEqual(collect(root).status, 0);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -42,32 +42,31 @@ const specs = [
     `SteamGuard_${version}_ios-arm64-LiveContainer.ipa`,
   ],
 ];
-for (const [label, predicate, rename] of specs) {
+const installers = specs.map(([label, predicate, rename]) => {
   const found = files.filter(predicate);
   if (found.length !== 1)
     throw new Error(`Expected exactly one ${label}, found ${found.length}`);
   const name = rename || path.basename(found[0]);
   if (!name.includes(version))
     throw new Error(`Unexpected version for ${label}`);
-  copyFileSync(found[0], path.join(output, name));
-}
-for (const name of [
-  "kasen-android-signing.pem",
-  "kasen-windows-signing.cer",
-  "fingerprints.json",
-]) {
-  copyFileSync(path.join("certificates", name), path.join(output, name));
-}
-copyFileSync("LICENSE", path.join(output, "LICENSE.txt"));
-const sums = readdirSync(output)
-  .sort()
-  .map(
-    (name) =>
-      `${createHash("sha256")
-        .update(readFileSync(path.join(output, name)))
-        .digest("hex")}  ${name}`,
+  return { source: found[0], name };
+});
+const names = [...installers.map((file) => file.name), "LICENSE.txt"];
+const allowed = new Set([...names, "SHA256SUMS"]);
+if (readdirSync(output).some((name) => !allowed.has(name)))
+  throw new Error(
+    "Release directory contains unexpected files; use a clean directory",
   );
+for (const file of installers)
+  copyFileSync(file.source, path.join(output, file.name));
+copyFileSync("LICENSE", path.join(output, "LICENSE.txt"));
+const sums = names.sort().map(
+  (name) =>
+    `${createHash("sha256")
+      .update(readFileSync(path.join(output, name)))
+      .digest("hex")}  ${name}`,
+);
 writeFileSync(path.join(output, "SHA256SUMS"), `${sums.join("\n")}\n`);
 console.log(
-  `Prepared ${specs.length} installers and public verification files for v${version}`,
+  `Prepared ${specs.length} installers, license and checksums for v${version}`,
 );
