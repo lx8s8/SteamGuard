@@ -123,11 +123,14 @@ export interface SyncStatus {
     choices: { id: string; label: string; local: boolean }[];
   }[];
 }
-export interface SyncConnection {
+export interface SyncCredentials {
   endpoint: string;
   username: string;
   password: string;
+}
+export interface SyncConnection extends SyncCredentials {
   syncPassword: string;
   mode: "create" | "join";
   libraryId?: string;
+  confirmNewLibrary?: boolean;
 }

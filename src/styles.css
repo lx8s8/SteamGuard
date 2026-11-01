@@ -3636,6 +3636,27 @@ main {
   color: var(--muted);
   font-size: 12px;
 }
+.sync-library-list {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0 14px;
+  max-height: 320px;
+  overflow-y: auto;
+  min-width: 0;
+}
+.sync-library-list p {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.sync-library span {
+  min-width: 0;
+}
+.sync-library code {
+  display: block;
+  font-size: 13px;
+  user-select: text;
+  overflow-wrap: anywhere;
+}
 .token-code:disabled {
   font-size: 24px;
   letter-spacing: 1px;

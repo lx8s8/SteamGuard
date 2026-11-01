@@ -966,3 +966,18 @@
     color: var(--muted);
   }
 }
+
+/* Keep native controls compact inside the full-height touch target. */
+@media (max-width: 700px), (pointer: coarse) {
+  .app-shell .sync-choice {
+    min-height: 44px;
+  }
+  .app-shell .sync-choice input {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    min-height: 20px;
+    flex-basis: 20px;
+    margin-top: 3px;
+  }
+}

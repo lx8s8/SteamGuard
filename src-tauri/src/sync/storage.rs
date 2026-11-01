@@ -229,6 +229,41 @@ fn root(library: &str) -> Result<String, String> {
     let id = uuid::Uuid::parse_str(library).map_err(|_| "同步库编号无效")?;
     Ok(format!("steamguard-sync-v1/{id}/"))
 }
+/// Discover only application-owned directories. No keys or token contents are read.
+pub async fn libraries(op: &Operator) -> Result<Vec<String>, String> {
+    const DIRECTORY: &str = "steamguard-sync-v1/";
+    let mut list = match op.lister(DIRECTORY).await {
+        Ok(list) => list,
+        Err(e) if e.kind() == ErrorKind::NotFound => return Ok(vec![]),
+        Err(e) => return Err(error(e)),
+    };
+    let mut ids = std::collections::BTreeSet::new();
+    let mut count = 0;
+    while let Some(entry) = list.next().await {
+        let entry = entry.map_err(error)?;
+        count += 1;
+        if count > 512 {
+            return Err("网盘中的同步目录过多，请手动输入同步库编号".into());
+        }
+        let Some(relative) = entry.path().strip_prefix(DIRECTORY) else {
+            return Err("网盘返回了目录外路径".into());
+        };
+        if !entry.metadata().is_dir() {
+            continue;
+        }
+        let name = relative.trim_end_matches('/');
+        if name.is_empty() || name.contains('/') {
+            continue;
+        }
+        if let Ok(id) = uuid::Uuid::parse_str(name) {
+            // Use the same canonical paths as existing libraries.
+            if id.to_string() == name {
+                ids.insert(name.to_string());
+            }
+        }
+    }
+    Ok(ids.into_iter().collect())
+}
 pub async fn create(op: &Operator, header: &Header) -> Result<(), String> {
     let root = root(&header.library)?;
     op.create_dir(&format!("{root}states/"))
@@ -676,6 +711,51 @@ pub(crate) mod tests {
         }
     }
     #[tokio::test]
+    async fn discovery_is_read_only_lists_existing_libraries_and_handles_empty_accounts() {
+        let dav = Dav::new();
+        dav.provider_rules.store(true, Ordering::SeqCst);
+        let op = client_with_compatibility(
+            &dav.endpoint,
+            "fixture",
+            "synthetic",
+            &NetworkSettings {
+                mode: ProxyMode::Direct,
+                proxy_url: String::new(),
+            },
+            true,
+        )
+        .unwrap();
+        let before = dav.files.lock().unwrap().clone();
+        assert!(libraries(&op).await.unwrap().is_empty());
+        assert_eq!(*dav.files.lock().unwrap(), before);
+        let ids = [
+            uuid::Uuid::new_v4().to_string(),
+            uuid::Uuid::new_v4().to_string(),
+        ];
+        for id in &ids {
+            let (header, _) = super::super::create_header(id, "synthetic-sync-password").unwrap();
+            create(&op, &header).await.unwrap();
+        }
+        {
+            let mut files = dav.files.lock().unwrap();
+            files.insert("/dav/private-unrelated-file".into(), b"private".to_vec());
+            files.insert("/dav/steamguard-sync-v1/not-a-library/".into(), vec![]);
+            files.insert(
+                format!("/dav/steamguard-sync-v1/{}", uuid::Uuid::new_v4()),
+                vec![],
+            );
+        }
+        let before = dav.files.lock().unwrap().clone();
+        let mut expected = ids.to_vec();
+        expected.sort();
+        assert_eq!(libraries(&op).await.unwrap(), expected);
+        assert_eq!(*dav.files.lock().unwrap(), before);
+        assert!(libraries(&dav.op("wrong"))
+            .await
+            .unwrap_err()
+            .contains("拒绝访问"));
+    }
+    #[tokio::test]
     async fn redirects_and_non_https_credentials_in_urls_are_rejected() {
         let dav = Dav::new();
         let op = client(
@@ -826,6 +906,10 @@ pub(crate) mod tests {
         let result: Result<(), String> = async {
             create(&op, &h).await?;
             eprintln!("Original storage layout and encrypted header: passed");
+            if !libraries(&op).await?.contains(&library) {
+                return Err("synthetic library was not discovered".into());
+            }
+            eprintln!("Existing-library discovery on real provider: passed");
             let mut a = crate::vault::VaultData {
                 sync: Some(State::new(
                     endpoint.into(),
