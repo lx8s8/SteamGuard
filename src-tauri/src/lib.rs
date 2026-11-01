@@ -1434,6 +1434,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             sync::commands::sync_status,
             sync::commands::sync_connect,
+            sync::commands::sync_discover,
+            sync::commands::sync_switch,
             sync::commands::sync_run,
             sync::commands::sync_pause,
             sync::commands::sync_disconnect,

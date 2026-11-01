@@ -43,6 +43,16 @@ async function nativeFixture(page: Page) {
       },
     ];
     const syncScenario = new URLSearchParams(location.search).get("sync");
+    const cloudScenario = new URLSearchParams(location.search).get("cloud");
+    const cloudLibraries =
+      cloudScenario === "empty"
+        ? []
+        : [
+            "2971a71b-042c-4f28-b8ae-3c02b713f0f0",
+            ...(cloudScenario === "multiple"
+              ? ["3a4076c2-5265-4aa1-9d6a-d0ec087f9aaf"]
+              : []),
+          ];
     const syncState = {
       configured: !!syncScenario,
       active: true,
@@ -114,19 +124,41 @@ async function nativeFixture(page: Page) {
           switch (command) {
             case "sync_status":
               return { ...syncState };
-            case "sync_connect":
-              if (args.password === "wrong-app-password")
+            case "sync_discover": {
+              const connection = args.connection as
+                | Record<string, unknown>
+                | undefined;
+              if (connection?.password === "wrong-app-password")
+                throw new Error("网盘拒绝访问，请检查账号、应用密码和目录权限");
+              return [...cloudLibraries];
+            }
+            case "sync_connect": {
+              const connection = args.connection as Record<string, unknown>;
+              if (connection.password === "wrong-app-password")
                 throw new Error("网盘拒绝访问，请检查账号、应用密码和目录权限");
               if (
-                args.mode === "join" &&
-                args.syncPassword !== "synthetic-sync-password"
+                connection.mode === "join" &&
+                connection.syncPassword !== "synthetic-sync-password"
               )
                 throw new Error("同步密码错误，或云端文件已损坏");
+              if (
+                connection.mode === "create" &&
+                cloudLibraries.length &&
+                !connection.confirmNewLibrary
+              )
+                throw new Error("网盘已有同步库，请选择加入");
               Object.assign(syncState, {
                 configured: true,
-                endpoint: String(args.endpoint),
-                username: String(args.username),
+                endpoint: String(connection.endpoint),
+                username: String(connection.username),
+                libraryId: connection.libraryId || syncState.libraryId,
               });
+              return { ...syncState };
+            }
+            case "sync_switch":
+              if (args.syncPassword !== "synthetic-sync-password")
+                throw new Error("同步密码错误，或云端文件已损坏");
+              syncState.libraryId = String(args.libraryId);
               return { ...syncState };
             case "sync_run":
               return { ...syncState };
@@ -968,11 +1000,13 @@ test("an encrypted import can merge groups even when every token already exists"
   await expect(page.locator(".token-card")).toHaveCount(1);
 });
 
-test("WebDAV creation reports auth failure and clears password fields after connection", async ({
+test("WebDAV discovery reports auth failure and first-library creation clears credentials", async ({
   page,
 }) => {
+  await page.goto("/?cloud=empty");
   await page.getByRole("button", { name: "设置", exact: true }).click();
   const panel = page.locator(".sync-panel");
+  await expect(panel.getByLabel("连接方式")).toHaveValue("join");
   await panel
     .getByLabel("网盘账号", { exact: true })
     .fill("synthetic@example.test");
@@ -980,16 +1014,22 @@ test("WebDAV creation reports auth failure and clears password fields after conn
     .getByLabel("网盘应用密码", { exact: true })
     .fill("wrong-app-password");
   await panel
-    .getByLabel("独立同步密码", { exact: true })
-    .fill("synthetic-sync-password");
-  await panel.getByRole("button", { name: "创建并同步", exact: true }).click();
+    .getByRole("button", { name: "查找已有同步库", exact: true })
+    .click();
   await expect(panel.getByRole("alert")).toContainText("网盘拒绝访问");
-  await expect(panel.getByLabel("独立同步密码", { exact: true })).toHaveValue(
-    "synthetic-sync-password",
-  );
   await panel
     .getByLabel("网盘应用密码", { exact: true })
     .fill("synthetic-app-password");
+  await panel
+    .getByRole("button", { name: "查找已有同步库", exact: true })
+    .click();
+  await expect(panel.getByRole("region", { name: "网盘同步库" })).toContainText(
+    "尚未找到同步库",
+  );
+  await panel.getByLabel("连接方式").selectOption("create");
+  await panel
+    .getByLabel("独立同步密码", { exact: true })
+    .fill("synthetic-sync-password");
   await panel.getByRole("button", { name: "创建并同步", exact: true }).click();
   await expect(panel.getByText("同步库编号", { exact: true })).toBeVisible();
   await expect(panel.getByLabel("网盘应用密码", { exact: true })).toHaveCount(
@@ -1008,6 +1048,107 @@ test("WebDAV creation reports auth failure and clears password fields after conn
   );
 });
 
+test("existing cloud libraries must be selected and independent creation needs explicit confirmation", async ({
+  page,
+}) => {
+  await page.goto("/?cloud=multiple");
+  await page.getByRole("button", { name: "设置", exact: true }).click();
+  const panel = page.locator(".sync-panel");
+  await panel
+    .getByLabel("网盘账号", { exact: true })
+    .fill("synthetic@example.test");
+  await panel
+    .getByLabel("网盘应用密码", { exact: true })
+    .fill("synthetic-app-password");
+  await panel
+    .getByRole("button", { name: "查找已有同步库", exact: true })
+    .click();
+  const libraries = panel.getByRole("region", { name: "网盘同步库" });
+  await expect(libraries.getByRole("radio")).toHaveCount(2);
+  await expect(
+    panel.getByRole("button", { name: "加入并同步", exact: true }),
+  ).toBeDisabled();
+  await libraries.getByRole("radio").nth(1).check();
+  await panel.getByLabel("连接方式").selectOption("create");
+  await expect(
+    panel.getByRole("button", { name: "创建并同步", exact: true }),
+  ).toBeDisabled();
+  await panel.getByLabel("我需要另外创建一个独立库").check();
+  await expect(
+    panel.getByRole("button", { name: "创建并同步", exact: true }),
+  ).toBeEnabled();
+  await panel.getByLabel("连接方式").selectOption("join");
+  await panel
+    .getByLabel("独立同步密码", { exact: true })
+    .fill("synthetic-sync-password");
+  await panel.getByRole("button", { name: "加入并同步", exact: true }).click();
+  await expect(panel.locator(".sync-details")).toContainText(
+    "3a4076c2-5265-4aa1-9d6a-d0ec087f9aaf",
+  );
+  const request = await page.evaluate(
+    () =>
+      (window as any).__testCommands.find(
+        (c: any) => c.command === "sync_connect",
+      ).args.connection,
+  );
+  expect(request.mode).toBe("join");
+  expect(request.libraryId).toBe("3a4076c2-5265-4aa1-9d6a-d0ec087f9aaf");
+});
+
+test("connected devices can select a different library and retry wrong passwords without disconnecting", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.goto("/?sync=connected&cloud=multiple");
+  await page.getByRole("button", { name: "设置", exact: true }).click();
+  await page
+    .getByRole("button", { name: "选择其他同步库合并", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", { name: "选择同步库并合并" });
+  await expect(dialog.getByRole("radio")).toHaveCount(1);
+  await expect(dialog).toContainText("原云端库会保留");
+  await expect(
+    dialog.getByRole("button", { name: "合并并切换到所选库", exact: true }),
+  ).toBeDisabled();
+  await dialog.getByRole("radio").check();
+  await dialog
+    .getByLabel("独立同步密码", { exact: true })
+    .fill("incorrect-password");
+  await dialog
+    .getByRole("button", { name: "合并并切换到所选库", exact: true })
+    .click();
+  await expect(dialog.getByRole("alert")).toContainText("同步密码错误");
+  expect(await commandCount(page, "sync_disconnect")).toBe(0);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await dialog.evaluate((element) => {
+    element.scrollTop = 0;
+  });
+  const bounds = await dialog.boundingBox();
+  expect(bounds!.x).toBeGreaterThanOrEqual(0);
+  expect(bounds!.y).toBeGreaterThanOrEqual(0);
+  expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(741);
+  await page.screenshot({
+    path: "artifacts/mobile-sync-library-chooser-1.3.2.png",
+  });
+  await dialog
+    .getByLabel("独立同步密码", { exact: true })
+    .fill("synthetic-sync-password");
+  await dialog
+    .getByRole("button", { name: "合并并切换到所选库", exact: true })
+    .click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator(".sync-details")).toContainText(
+    "3a4076c2-5265-4aa1-9d6a-d0ec087f9aaf",
+  );
+  await expect(
+    page.getByRole("button", { name: "立即同步", exact: true }),
+  ).toBeEnabled();
+});
+
 test("joining a library passes its identifier and independent encryption password", async ({
   page,
 }) => {
@@ -1024,6 +1165,7 @@ test("joining a library passes its identifier and independent encryption passwor
   await panel
     .getByLabel("网盘应用密码", { exact: true })
     .fill("synthetic-app-password");
+  await panel.getByLabel("手动输入同步库编号").check();
   await panel
     .getByLabel("同步库编号", { exact: true })
     .fill("2971a71b-042c-4f28-b8ae-3c02b713f0f0");

@@ -2,6 +2,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import type {
   SyncStatus,
   SyncConnection,
+  SyncCredentials,
   VaultStatus,
   BackupStatus,
   QuickCapabilities,
@@ -29,7 +30,11 @@ export const call = <T>(
 export const api = {
   syncStatus: () => call<SyncStatus>("sync_status"),
   syncConnect: (args: SyncConnection) =>
-    call<SyncStatus>("sync_connect", { ...args }),
+    call<SyncStatus>("sync_connect", { connection: args }),
+  syncDiscover: (connection?: SyncCredentials) =>
+    call<string[]>("sync_discover", { connection }),
+  syncSwitch: (libraryId: string, syncPassword: string) =>
+    call<SyncStatus>("sync_switch", { libraryId, syncPassword }),
   syncRun: (automatic = false) => call<SyncStatus>("sync_run", { automatic }),
   syncPause: (active: boolean) => call<SyncStatus>("sync_pause", { active }),
   syncDisconnect: () => call<SyncStatus>("sync_disconnect"),

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Cloud, Copy, RefreshCw } from "lucide-react";
 import { api, errorText, native } from "./api";
 import { Modal } from "./Modal";
+import { SyncSetup } from "./SyncSetup";
 import type { SyncStatus, TokenView } from "./types";
 const CONFIG = "steamguard:sync-config";
 const UPDATED = "steamguard:sync-updated";
@@ -49,13 +50,7 @@ export function SyncPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [mode, setMode] = useState<"create" | "join">("create");
-  const [preset, setPreset] = useState("jianguoyun");
-  const [endpoint, setEndpoint] = useState("https://dav.jianguoyun.com/dav/");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [syncPassword, setSyncPassword] = useState("");
-  const [libraryId, setLibraryId] = useState("");
+  const [choosingLibrary, setChoosingLibrary] = useState(false);
   const [confirm, setConfirm] = useState<"disconnect" | "hotp" | null>(null);
   const [hotp, setHotp] = useState("");
   const [acknowledged, setAcknowledged] = useState(false);
@@ -163,7 +158,7 @@ export function SyncPanel({
             </dd>
           </dl>
           <p className="access-note">
-            在其他设备选择“加入已有同步库”，填写相同的网盘信息、编号和同步密码。Steam
+            在其他设备选择“加入已有同步库”，选择相同编号的库并填写它的同步密码。Steam
             登录会话仅保留在本机。
           </p>
           <div className="sync-actions">
@@ -183,6 +178,16 @@ export function SyncPanel({
               断开同步
             </button>
           </div>
+          <button
+            className="button secondary"
+            disabled={working}
+            onClick={() => {
+              setError("");
+              setChoosingLibrary(true);
+            }}
+          >
+            选择其他同步库合并
+          </button>
           {status.conflicts.length > 0 && (
             <div className="sync-conflicts" role="region" aria-label="同步冲突">
               <h3>有 {status.conflicts.length} 项冲突待确认</h3>
@@ -246,143 +251,14 @@ export function SyncPanel({
           )}
         </>
       ) : (
-        <form
-          className="sync-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void run(async () => {
-              const s = await api.syncConnect({
-                endpoint,
-                username,
-                password,
-                syncPassword,
-                mode,
-                libraryId: mode === "join" ? libraryId.trim() : undefined,
-              });
-              setPassword("");
-              setSyncPassword("");
-              return s;
-            }, true);
+        <SyncSetup
+          tokenCount={tokens.length}
+          onConnected={async (next) => {
+            setStatus(next);
+            await onChange();
+            changed();
           }}
-        >
-          <p className="access-note">
-            支持坚果云及兼容标准 WebDAV 的网盘。需要网盘应用密码；SteamGuard
-            不提供云存储。首次连接会将本机令牌合并到同步库。
-          </p>
-          <label className="field-label" htmlFor="sync-mode">
-            连接方式
-          </label>
-          <select
-            id="sync-mode"
-            disabled={working}
-            value={mode}
-            onChange={(e) => setMode(e.target.value as "create" | "join")}
-          >
-            <option value="create">创建新的同步库</option>
-            <option value="join">加入已有同步库</option>
-          </select>
-          <label className="field-label" htmlFor="sync-preset">
-            网盘服务
-          </label>
-          <select
-            id="sync-preset"
-            disabled={working}
-            value={preset}
-            onChange={(e) => {
-              setPreset(e.target.value);
-              setEndpoint(
-                e.target.value === "jianguoyun"
-                  ? "https://dav.jianguoyun.com/dav/"
-                  : "",
-              );
-            }}
-          >
-            <option value="jianguoyun">坚果云</option>
-            <option value="custom">其他 WebDAV</option>
-          </select>
-          <label className="field-label" htmlFor="sync-endpoint">
-            WebDAV 地址
-          </label>
-          <input
-            id="sync-endpoint"
-            type="url"
-            autoCapitalize="none"
-            spellCheck={false}
-            required
-            disabled={working}
-            placeholder="https://…/dav/"
-            value={endpoint}
-            onChange={(e) => setEndpoint(e.target.value)}
-          />
-          <label className="field-label" htmlFor="sync-user">
-            网盘账号
-          </label>
-          <input
-            id="sync-user"
-            autoComplete="username"
-            autoCapitalize="none"
-            spellCheck={false}
-            required
-            maxLength={1024}
-            disabled={working}
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
-          <label className="field-label" htmlFor="sync-dav-password">
-            网盘应用密码
-          </label>
-          <input
-            id="sync-dav-password"
-            type="password"
-            autoComplete="off"
-            required
-            disabled={working}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          {mode === "join" && (
-            <>
-              <label className="field-label" htmlFor="sync-library">
-                同步库编号
-              </label>
-              <input
-                id="sync-library"
-                autoCapitalize="none"
-                spellCheck={false}
-                required
-                disabled={working}
-                placeholder="另一台设备显示的编号"
-                value={libraryId}
-                onChange={(e) => setLibraryId(e.target.value)}
-              />
-            </>
-          )}
-          <label className="field-label" htmlFor="sync-password">
-            独立同步密码
-          </label>
-          <input
-            id="sync-password"
-            type="password"
-            autoComplete={mode === "create" ? "new-password" : "off"}
-            minLength={mode === "create" ? 12 : undefined}
-            maxLength={4096}
-            required
-            disabled={working}
-            value={syncPassword}
-            onChange={(e) => setSyncPassword(e.target.value)}
-          />
-          <p className="form-hint">
-            创建时至少 12
-            个字符。用于加密云端令牌，与网盘应用密码区分；其他设备需要相同密码。请妥善保管，无法找回。
-          </p>
-          <button className="button primary" disabled={working || !status}>
-            {working
-              ? "正在连接…"
-              : mode === "create"
-                ? "创建并同步"
-                : "加入并同步"}
-          </button>
-        </form>
+        />
       )}
       {!confirm && (error || status?.error) && (
         <p className="form-error" role="alert">
@@ -393,6 +269,32 @@ export function SyncPanel({
         <p className="backup-message" role="status">
           {message}
         </p>
+      )}
+      {choosingLibrary && status?.configured && (
+        <Modal
+          title="选择同步库并合并"
+          onClose={() => {
+            if (!busy) setChoosingLibrary(false);
+          }}
+        >
+          <SyncSetup
+            current={status}
+            tokenCount={tokens.length}
+            onBusyChange={setBusy}
+            onCancel={() => setChoosingLibrary(false)}
+            onConnected={async (next) => {
+              setStatus(next);
+              setChoosingLibrary(false);
+              await onChange();
+              changed();
+              setMessage(
+                next.error
+                  ? "已在本机合并并切换同步库，云端上传尚未完成，请点击立即同步重试。"
+                  : "已合并并切换同步库。请让其他设备也选择这个编号。",
+              );
+            }}
+          />
+        </Modal>
       )}
       {confirm && (
         <Modal

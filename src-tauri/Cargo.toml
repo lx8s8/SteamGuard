@@ -1,6 +1,6 @@
 [package]
 name = "steamguard"
-version = "1.3.1"
+version = "1.3.2"
 description = "Local authenticator and Steam mobile confirmations"
 authors = ["kasen"]
 license = "GPL-3.0-only"
