@@ -51,7 +51,30 @@ const installers = specs.map(([label, predicate, rename]) => {
     throw new Error(`Unexpected version for ${label}`);
   return { source: found[0], name };
 });
-const names = [...installers.map((file) => file.name), "LICENSE.txt"];
+const updaterSpecs = [
+  ["darwin-aarch64", "_aarch64.app.tar.gz"],
+  ["darwin-x86_64", "_x64.app.tar.gz"],
+  ["windows-x86_64", "-setup.exe"],
+  ["windows-x86_64-nsis", "-setup.exe"],
+  ["windows-x86_64-msi", ".msi"],
+];
+const platforms = {};
+for (const [target, suffix] of updaterSpecs) {
+  const found = files.filter(p => p.endsWith(suffix));
+  if (found.length !== 1) throw new Error(`Expected one updater for ${target}`);
+  const name = path.basename(found[0]);
+  if (!name.includes(version)) throw new Error(`Unexpected updater version for ${target}`);
+  const signature = readFileSync(`${found[0]}.sig`, 'utf8').trim();
+  if (!signature || signature.length > 8192 || !/^[A-Za-z0-9+/=]+$/.test(signature)) throw new Error(`Invalid updater signature for ${target}`);
+  const decoded = Buffer.from(signature,'base64').toString('utf8');
+  if (!decoded.startsWith('untrusted comment:') || !decoded.includes('trusted comment:')) throw new Error(`Invalid updater signature for ${target}`);
+  platforms[target] = {signature, url:`https://github.com/lx8s8/SteamGuard/releases/download/v${version}/${name}`};
+  if (!installers.some(file => file.name === name)) installers.push({source:found[0], name});
+}
+const notes = readFileSync('CHANGELOG.md','utf8').split(/^## /m).slice(1).find(part => part.split(/\r?\n/,1)[0].trim() === version);
+if (!notes) throw new Error('Missing release notes');
+const manifest = { version, notes:notes.slice(notes.indexOf('\n')+1).trim(), platforms };
+const names = [...installers.map((file) => file.name), "LICENSE.txt", "latest.json"];
 const allowed = new Set([...names, "SHA256SUMS"]);
 if (readdirSync(output).some((name) => !allowed.has(name)))
   throw new Error(
@@ -60,6 +83,7 @@ if (readdirSync(output).some((name) => !allowed.has(name)))
 for (const file of installers)
   copyFileSync(file.source, path.join(output, file.name));
 copyFileSync("LICENSE", path.join(output, "LICENSE.txt"));
+writeFileSync(path.join(output, "latest.json"), JSON.stringify(manifest,null,2)+"\n");
 const sums = names.sort().map(
   (name) =>
     `${createHash("sha256")
@@ -68,5 +92,5 @@ const sums = names.sort().map(
 );
 writeFileSync(path.join(output, "SHA256SUMS"), `${sums.join("\n")}\n`);
 console.log(
-  `Prepared ${specs.length} installers, license and checksums for v${version}`,
+  `Prepared ${specs.length} installers, updater archives, metadata, license and checksums for v${version}`,
 );

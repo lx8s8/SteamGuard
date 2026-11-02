@@ -1,104 +1,86 @@
-# 功能范围与验证矩阵
+# 功能范围与验证
 
-本项目提取本地令牌与 Steam 手机认证相关能力，不包含原项目的网络加速、游戏管理、挂机、成就、原项目云账号同步等模块。
+以下为当前源码范围，尚未发布的改动见 [Unreleased 更新记录](../CHANGELOG.md)。已发布安装包以对应版本说明为准。
 
-## 本地令牌
+本项目提供本地验证器与 Steam 手机认证相关能力，不包含 WattToolkit 的网络加速、游戏管理、挂机、成就及云账号系统。
 
-| 能力 | 实现范围 | 验证 |
-| --- | --- | --- |
-| 原始 WattToolkit `.mpo` 导入 | 兼容提供文件所用的 MessagePack、LZ4、内置 AES；支持二级密码 | 提供的真实文件私有测试通过，2 条 Steam 记录；加密保存/恢复通过 |
-| 原格式 `.mpo` 导出 | 生成原始映射与平台 union，保留 Steam 附加字段；可加二级密码 | 合成 Steam/HOTP 往返与私有真实文件再导出/导入均通过 |
-| 其他格式 | `.maFile`、JSON、OTP URI、Google 迁移 URI、WinAuth 未加密 XML | 有代表性解析与无效输入测试 |
-| TOTP/HOTP | SHA1、SHA256、SHA512；自定义位数、周期和计数器 | RFC 4226 / RFC 6238 向量通过 |
-| Steam 动态码 | Steam 字符表和 30 秒周期 | 使用相同 HMAC 计算路径；原始密钥成功解析 |
-| 本机保存与 `.sgvault` | Argon2id + AES-256-GCM；随机盐和 nonce；主密码解锁 | 加密往返、错误密码、篡改拒绝测试通过 |
-| 管理 | 搜索、复制、重命名、删除、备份、HOTP 递增、OTP 二维码与单令牌导出 | 界面测试覆盖导入预览、筛选、Guard/QR、审批核对、绑定及布局等流程 |
-| 锁定 | 手动锁定、空闲锁定及前端后台锁定 | 清理界面数据与原生会话；不依赖页面刷新保护密钥 |
+## 验证器
 
-界面导入入口限制为 10 MiB、每批 1,000 个令牌；底层解析器另有 16 MiB 解压与 10,000 条记录的保护上限。任一记录失败会拒绝本次导入，不将残缺结果当作成功。
+| 能力 | 实现范围 |
+| --- | --- |
+| 动态码 | Steam Guard、TOTP、HOTP；SHA1 / SHA256 / SHA512，自定义位数、周期及计数 |
+| 添加与编辑 | 手动输入、二维码、图片、文本与备份；编辑名称、发行方、分组、图标及通用 OTP 参数 |
+| 列表管理 | 搜索、类型 / 分组筛选、置顶、自定义排序、拖动或按钮调整、批量分组 / 置顶 / 删除 |
+| 复制 | 点击时从原生层取得当前验证码；HOTP 副设备不能生成或推进验证码 |
+| 回收站 | 本机加密保存删除令牌，支持撤销、还原和永久删除；不恢复已移除的 Steam 登录会话 |
+| 主密码 | 校验原密码后原子重新加密；修改后需重新启用设备快捷访问，旧快照密码不变 |
+| 导入去重 | 按类型与密钥匹配；补充缺失 Steam 字段，身份字段冲突时拒绝；HOTP 计数不回退 |
+| 锁定 | 手动、空闲和手机后台超时锁定；恢复前台时重新校验状态 |
+| 主题与语言 | 浅色 / 深色 / 系统主题、文字大小；16 种内置语言、系统 / 手动选择、阿拉伯语 RTL |
+
+具体文件格式及限制见[导入说明](import-format.md)。Google 迁移格式 0 / 1 / 2 共用同一解析路径，多页二维码必须收齐后才能确认。
+
+## 备份与同步
+
+| 能力 | 实现范围 |
+| --- | --- |
+| 保险库与备份 | Argon2id + AES-256-GCM；自动保留最近变更和每日快照 |
+| 外部自动备份 | 桌面可配置目录；Android / iOS 通过系统目录选择器授权目标；外部目录接收加密快照副本 |
+| 恢复预览 | 解密校验后显示新增、设置差异、相同及冲突项；按所选令牌恢复，HOTP 计数不回退 |
+| 加密第三方导入 | Aegis 密码槽备份、2FAS 密码加密备份；错误密码或损坏文件整批拒绝，KDF 参数受资源上限约束 |
+| Google 兼容导出 | 分页迁移二维码，标准 30 秒 TOTP 和兼容 HOTP；不携带分组、头像或 Steam 私有字段 |
+| WebDAV | 用户自己的 HTTPS 网盘，坚果云预设；独立同步密码、端到端加密，无应用托管存储 |
+| 合并 | Automerge 历史、离线合并、同字段冲突确认、HOTP 主设备；明确选择已有同步库 |
+| 同步设置 | 库别名、无密码加入二维码、原位更换网盘凭据；不通过断开重建丢弃待上传变更 |
+| 系统备份 | iOS 应用加密数据允许系统备份收录；设备认证数据不可作为可迁移解锁方式 |
+
+回收站、备份与同步用途不同。云端删除可以传播到其他设备，外部快照不会自动恢复为活动令牌。保留规则及平台限制见[备份说明](BACKUP.md)和[同步说明](SYNC.md)。
 
 ## Steam
 
-| 能力 | 已提供实现 | 已完成验证 |
+| 能力 | 实现范围 | 验证边界 |
 | --- | --- | --- |
-| 密码登录 | RSA 加密、MobileApp 会话、Guard/邮箱验证、轮询、账号身份匹配 | 本机授权账号真实密码与本地令牌登录通过，MobileApp 会话用途校验通过 |
-| 网络连接 | 系统代理、直连、手动 HTTP/HTTPS/SOCKS；分步骤诊断；时间请求修复 HTTP 411 | 请求体及敏感 URL 隐藏回归通过，本机系统代理下认证/时间/社区检测及真实账号登录通过；Android JNI 已通过真机构建交叉编译 |
-| 二维码登录 | 创建登录二维码、轮询手机审批结果 | 本地协议及 URL 约束测试；需用户账号联调 |
-| 登录二维码审批 | 查询粘贴的 Steam 二维码详情、明确批准/拒绝 | HMAC-SHA256 和可信主机测试；未批准真实登录 |
-| 会话保存 | 加密保存 access/refresh token、刷新、退出 | 本地账号绑定及 token 用途校验测试 |
-| 交易确认 | 拉取确认列表、校验已读取记录、逐笔接受/拒绝 | HMAC-SHA1 签名向量通过；真实确认列表只读获取通过，未接受或拒绝交易 |
-| 市场 | 获取挂单、规范化显示信息、Steam 官方页面链接；原生层提供公开搜索 | 未使用真实账号验证挂单；不提供自动购买、自动出售或批量交易 |
-| 新绑定 | 请求新令牌、先保存恢复信息、短信激活 | 协议实现；未修改真实账号 |
-| 短信转移 | 发短信挑战、验证并保存替换令牌 | 协议实现；未转移真实令牌 |
-| 恢复码解绑 | 用户显式输入恢复码后调用解绑接口 | 协议实现；未解绑真实令牌 |
+| 密码登录 | RSA、MobileApp 会话、Guard / 邮箱验证、手机批准轮询、身份核对 | 曾通过授权账号真实登录；当前回归使用合成响应 |
+| 网络 | 系统代理、直连、手动 HTTP / HTTPS / SOCKS，分步骤诊断 | 请求构造和敏感信息隐藏有回归测试；各网络环境仍需实机验证 |
+| 二维码登录 | 创建二维码、轮询审批结果 | 协议与可信 URL 校验；不代替真实账号联调 |
+| 登录审批 | 扫描、图片或粘贴二维码，查询详情后明确批准 / 拒绝 | 扫描只填入请求，不自动批准；未执行真实登录审批 |
+| 会话 | 加密保存 access / refresh token，刷新与退出 | 账号绑定和用途校验有测试 |
+| 交易确认 | 读取列表、核对记录、逐笔批准 / 拒绝 | 签名向量及列表读取已验证；未执行真实交易 |
+| 社区市场 | 查询个人挂单及打开官方页面 | 不自动购买、出售或批量交易 |
+| 绑定与转移 | 新令牌、保存恢复信息、短信激活 / 转移、显式恢复码解绑 | 协议实现；不在回归测试中修改真实账号 |
 
-账号操作仍受 Steam 手机绑定、地区、风控、交易冷却与接口变化影响。原项目市场管理 ViewModel 为空，本项目补上了挂单查询与官方页面入口，不将未实现的交易功能描述为已完成。
+Steam 接口、风控、地区与冷却规则可能影响账号操作。
 
-## 平台
+## 平台与快捷访问
 
-| 平台 | 布局与工程 | 构建方式 | 已验证结果 |
+| 能力 | macOS / Windows | Android | iOS / iPadOS |
 | --- | --- | --- | --- |
-| macOS | 桌面侧栏、自适应窗口，Tauri 原生工程 | 本机或 GitHub macOS runner；`.app`/`.dmg` | ARM64 本机发布与原生界面验证完成；ARM64/Intel 两项 CI 构建及上传通过 |
-| Windows | 桌面侧栏、自适应窗口，同一 Rust/React 代码 | GitHub Windows runner 或本机 Windows；NSIS/MSI | x64 CI 编译、NSIS/MSI 打包与上传通过；未执行真机安装 |
-| Android | 手机底部导航、安全区域、原生文件保存 | Android SDK/NDK；正式 APK/AAB | ARM64 调试 APK 与未签名发布 APK/AAB 本机编译通过，调试 APK 签名已校验 |
-| iOS/iPadOS 15+ | 手机/平板响应式布局，Xcode 工程 | macOS/Xcode；模拟器 `.app` 与未签名真机归档 | 本机模拟器安装启动、未签名真机归档通过；两项 CI 构建及上传均通过 |
-| LiveContainer IPA | 真机 ARM64 应用，标准 `Payload/*.app` 目录 | `npm run package:ios:ipa`；Actions 单独上传 IPA | IPA 结构、真机平台、可执行权限和未加密状态已检查；未进行 LiveContainer 实机启动验证 |
+| 布局 | 桌面侧栏、窄窗口适配 | 手机底部导航、安全区域 | 手机 / 平板适配、安全区域 |
+| 验证器、备份和 WebDAV | 支持 | 支持 | 支持 |
+| 免密码只读预览 | 使用主密码 | 可选，设备 Keystore | 可选，设备 Keychain |
+| 生物认证完整解锁 | 使用主密码 | Class 3 设备认证 | Touch ID / Face ID |
+| 托盘快捷列表 | 菜单栏 / 任务栏，点击复制 | 不适用 | 不适用 |
+| 全局快捷键与开机启动 | 可配置；↑↓ 选择、Enter 复制、Esc 关闭快捷列表 | 不适用 | 不适用 |
+| 应用更新入口 | 检查版本，支持签名更新的安装包可下载安装 | 打开正式发布下载页 | 打开正式发布下载页 |
 
-macOS、Windows、iOS 及前端测试的成功任务见 [Actions 运行记录](https://github.com/lx8s8/SteamGuard/actions/workflows/package.yml)。Android 已完成本机调试和发布出包，工作流已采用准确的 SDK 包标识 `platforms;android-37.0`，远端结果以修正后的运行记录为准。iOS 模拟器包与未签名归档均不是可直接分发的真机安装包。
+快捷访问默认关闭，设置仅影响本机。LiveContainer 的相机、Keychain、生物认证、文件授权与系统备份行为由宿主和 iOS 决定。
 
-默认 Rust 测试为 55 项通过、6 项选择性跳过；另行执行的真实 `.mpo` 私有往返测试和只读 Steam RSA 探测通过。Playwright 的 30 项测试使用明确的合成桥接响应验证界面逻辑，不能替代真实 Steam 账号联调或各系统 WebView 的真机测试。
+各平台已有构建工程和既往版本构建记录。新增功能的本地测试不等于 Android / Windows / iOS 的实机验收；本轮尚未生成新安装包。构建流程见 [BUILDING.md](BUILDING.md)，历史 CI 见 [Actions](https://github.com/lx8s8/SteamGuard/actions/workflows/package.yml)。
+
+## 验证方法
+
+- Rust 测试覆盖 RFC 4226 / 6238、加密往返、错误密码与篡改拒绝、导入限制、Google 多页完整性、备份差异与同步合并。
+- Aegis / 2FAS 使用独立生成的合成加密夹具，检查密码、损坏、资源限制与字段保留。
+- Playwright 使用合成原生桥接验证交互、手机布局、后台锁定和语言切换，不连接真实 Steam 账号。
+- 国际化检查覆盖全部键与插值一致性，另验证系统语言、语言持久化、RTL、日期 / 数字和验证码原样显示。
+- 私有文件探测默认跳过；真实账户、二维码内容和导出文件不成为仓库依赖。
+
+测试命令见 [README](../README.md#开发)。此处不维护容易失效的固定测试数量。
 
 ## 暂不支持
 
-- WattToolkit 新版 MemoryPack 导出、v1 压缩 `.dat`、启用本机保护且不在原机器解密的备份。
-- WinAuth 加密 XML、Battle.net 在线恢复与绑定、微软/谷歌在线账号登录。
-- 与原项目账号的云同步、WattToolkit 网络服务及全部非令牌插件。
-- 自动下单、自动出售、批量自动确认、Steam 客户端游戏登录或游戏会话模拟。
-- Apple Developer ID 公证、常规 iOS 分发及公共 CA 信任的 Windows 代码签名；Android 已使用固定发布密钥。
-
-## Mobile quick access (1.1.0)
-
-| Feature | Android | iOS | macOS / Windows |
-| --- | --- | --- | --- |
-| Phone layout, no page pinch zoom | Yes | Yes | Responsive narrow layout |
-| Optional read-only OTP preview | Keystore protected cache key | Device-only Keychain cache key | Password required |
-| Biometric full-vault unlock | Class 3 fingerprint / supported face | Touch ID / Face ID | Password required |
-| Password fallback and encrypted backup | Yes | Yes | Yes |
-
-Both quick-access settings are off by default and device-local. Preview allows code viewing/copying only. LiveContainer must support the app's Keychain and biometric API access; ordinary password unlock remains available.
-
-## Groups and backups (1.2.0)
-
-| Feature | Availability |
-| --- | --- |
-| Custom groups, rename/delete, token assignment and filtering | All platforms; preview can filter existing groups |
-| Automatic encrypted snapshots, bounded retention, export and merge restore | All platforms |
-| Encrypted snapshot export from locked screen | All platforms; metadata and encrypted files only |
-| iOS system backup eligibility | Application Support included, device-only quick access excluded; system settings control upload |
-| iCloud Drive / CloudKit realtime sync | Not implemented |
-
-Versions before 1.2.0 use a different private data directory and are no longer distributed. See INSTALLATION.md for migration and BACKUP.md for storage, retention and restore behavior.
-
-## Encrypted WebDAV sync (1.3.0)
-
-| Feature | Availability |
-| --- | --- |
-| User-owned HTTPS WebDAV, Jianguoyun preset | All platforms; no app-hosted storage |
-| Encrypted token/group sync, independent sync password | Argon2id + AES-256-GCM; Steam sessions excluded |
-| Offline merge and explicit same-field conflicts | Automerge causal history; immutable checkpoint uploads |
-| HOTP primary device and transfer | Secondary devices hide codes and cannot advance |
-| Automatic foreground sync, pause/manual sync/disconnect | Full unlock required; preview never starts sync |
-| Backup/restore of sync credentials | Excluded from portable and automatic snapshots; reconnect after restore |
-
-See [SYNC.md](SYNC.md) for setup, limits and validation scope. WebDAV tests use a local protocol server and synthetic data. Version 1.3.1 also passed an authorized Jianguoyun service probe with synthetic tokens, encrypted roundtrips, merge and compaction; other providers and LiveContainer networking remain environment-specific verification.
-
-## 界面与桌面快捷访问
-
-- 通用验证器模式：没有 Steam 令牌时隐藏交易确认、社区市场与 Steam 网络设置。
-- 内置离线服务图标，可为每个令牌选择图标或上传头像；头像随本应用加密备份和同步保留。
-- macOS 菜单栏与 Windows 任务栏常驻，点击弹出令牌列表，点击令牌复制当前验证码。锁定时仅显示解锁入口，令牌管理在主窗口完成。
-- 设置中可关闭“关闭窗口后常驻托盘”；退出菜单会结束应用。桌面连续 15 分钟无操作自动锁定，点击复制计为操作。
-
-## Google 迁移兼容性（1.5.1）
-
-已验证迁移格式 0/1/2。版本 2 的无批次编号三页导出可乱序收集，共 22 条合成令牌的解析、单次提交及加密重开通过。相机扫码和多图导入共用相同的原生解析路径。无批次编号的二维码必须来自同一次导出，不能保证识别不同导出间页号互补的混扫。
+- WattToolkit 新版 MemoryPack 导出、v1 压缩 `.dat`、无法在原机器解除本机保护的备份。
+- WinAuth 加密 XML、Battle.net 在线恢复与绑定、微软 / 谷歌在线账号登录。
+- WattToolkit 账号云同步及非令牌插件。
+- iCloud Drive / CloudKit 实时同步；可使用系统备份、授权的外部文件目录或 WebDAV。
+- 自动下单、自动出售、批量自动确认及 Steam 客户端游戏会话模拟。
