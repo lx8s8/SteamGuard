@@ -1,3 +1,4 @@
+import { t as translate } from "./i18n";
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 
@@ -66,7 +67,7 @@ export function Modal({
           <div>
             <h2 id={id}>{title}</h2>
           </div>
-          <button className="icon-button" onClick={onClose} aria-label="关闭">
+          <button className="icon-button" onClick={onClose} aria-label={translate("关闭")}>
             <X size={20} />
           </button>
         </div>

@@ -1,3 +1,4 @@
+import { t as translate } from "./i18n";
 import { useRef, useState } from "react";
 import { ImagePlus, Search } from "lucide-react";
 import {
@@ -166,7 +167,7 @@ export function TokenAvatar({
   if (icon?.startsWith("data:image/png;base64,"))
     return (
       <span className="token-avatar custom">
-        <img src={icon} alt="自定义头像" />
+        <img src={icon} alt={translate("自定义头像")} />
       </span>
     );
   if (brand)
@@ -197,26 +198,26 @@ export function TokenAvatar({
 }
 async function imageAvatar(file: File) {
   if (file.size > 10 * 1024 * 1024)
-    throw new Error("请选择不超过 10 MB 的图片");
-  if (file.type === "image/svg+xml") throw new Error("请选择 PNG、JPEG 或照片");
+    throw new Error(translate("请选择不超过 10 MB 的图片"));
+  if (file.type === "image/svg+xml") throw new Error(translate("请选择 PNG、JPEG 或照片"));
   const url = URL.createObjectURL(file);
   const image = new Image();
   try {
     await new Promise<void>((resolve, reject) => {
       image.onload = () => resolve();
       image.onerror = () =>
-        reject(new Error("无法打开图片，请使用 PNG 或 JPEG"));
+        reject(new Error(translate("无法打开图片，请使用 PNG 或 JPEG")));
       image.src = url;
     });
     if (
       !image.naturalWidth ||
       image.naturalWidth * image.naturalHeight > 40_000_000
     )
-      throw new Error("图片过大，请裁剪后重试");
+      throw new Error(translate("图片过大，请裁剪后重试"));
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = 96;
     const context = canvas.getContext("2d");
-    if (!context) throw new Error("无法处理图片");
+    if (!context) throw new Error(translate("无法处理图片"));
     const side = Math.min(image.naturalWidth, image.naturalHeight);
     context.drawImage(
       image,
@@ -256,23 +257,19 @@ export function IconPicker({
   return (
     <div className="icon-picker">
       <div className="icon-picker-actions">
-        <button className="button secondary" onClick={() => onSelect(null)}>
-          自动图标
-        </button>
+        <button className="button secondary" onClick={() => onSelect(null)}>{translate("自动图标")}</button>
         <button
           className="button secondary"
           disabled={busy}
           onClick={() => picker.current?.click()}
         >
-          <ImagePlus size={17} />
-          自定义头像
-        </button>
+          <ImagePlus size={17} />{translate("自定义头像")}</button>
         <input
           type="file"
           ref={picker}
           accept="image/*"
           className="visually-hidden"
-          aria-label="上传头像"
+          aria-label={translate("上传头像")}
           onChange={async (event) => {
             const file = event.target.files?.[0];
             event.target.value = "";
@@ -292,13 +289,13 @@ export function IconPicker({
       <label className="icon-search">
         <Search size={17} />
         <input
-          aria-label="搜索图标"
-          placeholder="搜索服务"
+          aria-label={translate("搜索图标")}
+          placeholder={translate("搜索服务")}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
       </label>
-      <div className="icon-options" role="group" aria-label="服务图标">
+      <div className="icon-options" role="group" aria-label={translate("服务图标")}>
         {brands
           .filter((brand) =>
             `${brand.name} ${brand.aliases}`
@@ -309,7 +306,7 @@ export function IconPicker({
             <button
               key={brand.id}
               className={selected === `brand:${brand.id}` ? "selected" : ""}
-              aria-label={`选择 ${brand.name} 图标`}
+              aria-label={translate("选择 {{name}} 图标", { name: brand.name })}
               onClick={() => onSelect(`brand:${brand.id}`)}
             >
               <TokenAvatar token={token} icon={`brand:${brand.id}`} />
@@ -323,9 +320,7 @@ export function IconPicker({
         </p>
       )}
       <div className="modal-actions">
-        <button className="button secondary" onClick={onBack}>
-          返回
-        </button>
+        <button className="button secondary" onClick={onBack}>{translate("返回")}</button>
       </div>
     </div>
   );

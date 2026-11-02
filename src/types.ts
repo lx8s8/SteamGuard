@@ -9,6 +9,7 @@ export interface VaultStatus {
   previewActive?: boolean;
 }
 export interface TokenView {
+  pinned?: boolean;
   hotpReadOnly?: boolean;
   group?: string | null;
   id: string;
@@ -115,9 +116,13 @@ export interface BackupStatus {
   entries: BackupEntry[];
   error: string | null;
   systemBackup: "ios-system" | "ios-unavailable" | "local";
+  directory?: string;
+  externalSupported?: boolean;
 }
+export interface ExternalBackupStatus { supported: boolean; configured: boolean; label: string; error?: string | null }
 
 export interface SyncStatus {
+  alias?: string;
   configured: boolean;
   active: boolean;
   busy: boolean;
@@ -147,6 +152,7 @@ export interface SyncConnection extends SyncCredentials {
 }
 
 export type DesktopSnapshot = {
+  revision: string;
   initialized: boolean;
   locked: boolean;
   preview: boolean;
@@ -164,3 +170,26 @@ export type DesktopSnapshot = {
     | "hotpReadOnly"
   >[];
 };
+
+export interface TokenParameters {
+  issuer?: string;
+  algorithm?: string;
+  digits?: number;
+  period?: number;
+  counter?: number;
+  pinned?: boolean;
+}
+export interface ManualTokenInput extends TokenParameters {
+  name: string;
+  secret: string;
+  kind: "totp" | "hotp";
+  group?: string;
+}
+export interface TokenCode { id: string; code: string; remaining: number; period: number }
+export interface TrashEntry { id: string; name: string; issuer: string; kind: TokenKind; deletedAt: number }
+export interface BackupPreview {
+  previewId: string;
+  tokens: { id: string; name: string; issuer: string; kind: TokenKind; status: "new" | "update" | "unchanged" | "conflict"; detail?: string }[];
+  newCount: number; updateCount: number; unchangedCount: number; conflictCount: number;
+}
+export interface SyncConnectionInfo { endpoint: string; username: string; libraryId: string; alias?: string; connectionQr: string }

@@ -1,11 +1,13 @@
+import { t as translate, awaitNativeLocalization } from "./i18n";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type {
   DesktopSnapshot,
+  BackupPreview, ManualTokenInput, TokenParameters, TokenCode, TrashEntry, SyncConnectionInfo,
   SyncStatus,
   SyncConnection,
   SyncCredentials,
   VaultStatus,
-  BackupStatus,
+  BackupStatus, ExternalBackupStatus,
   QuickCapabilities,
   TokenView,
   ImportPreview,
@@ -25,9 +27,13 @@ export const call = <T>(
 ): Promise<T> => {
   if (!native)
     return Promise.reject(
-      new Error("请通过 Tauri 应用使用此功能。浏览器仅用于界面预览。"),
+      new Error(translate("请通过 Tauri 应用使用此功能。浏览器仅用于界面预览。")),
     );
-  return invoke<T>(command, args);
+  const ready = ["quick_configure", "quick_biometric_unlock"].includes(command) ? awaitNativeLocalization() : Promise.resolve();
+  return ready.then(() => invoke<T>(command, args)).then(result => {
+    if (["token_create", "token_update", "token_rename", "token_delete", "token_batch", "token_reorder", "token_group_manage", "token_advance", "import_commit", "backup_restore_selected", "trash_restore"].includes(command)) window.dispatchEvent(new Event("steamguard:local-change"));
+    return result;
+  });
 };
 export const api = {
   desktopSettings: () =>
@@ -37,9 +43,13 @@ export const api = {
       resident,
     }),
   desktopSnapshot: () => call<DesktopSnapshot>("desktop_snapshot"),
+  desktopCodes: () => call<{ revision: string; codes: TokenCode[] }>("desktop_codes"),
   desktopCopy: (id: string) => call<void>("desktop_copy", { id }),
   desktopOpen: () => call<void>("desktop_open_main"),
   desktopHide: () => call<void>("desktop_hide"),
+  syncSetAlias: (alias: string) => call<SyncStatus>("sync_set_alias", { alias }),
+  syncUpdateCredentials: (connection: SyncCredentials) => call<SyncStatus>("sync_update_credentials", { connection }),
+  syncConnectionInfo: () => call<SyncConnectionInfo>("sync_connection_info"),
   syncStatus: () => call<SyncStatus>("sync_status"),
   syncConnect: (args: SyncConnection) =>
     call<SyncStatus>("sync_connect", { connection: args }),
@@ -72,6 +82,16 @@ export const api = {
   unlock: (password: string) => call<void>("vault_unlock", { password }),
   touch: () => call<void>("vault_touch"),
   lock: () => call<void>("vault_lock"),
+  background: (hidden: boolean) => call<void>("vault_background", { hidden }),
+  tokenCodes: () => call<{ revision: string; codes: TokenCode[] }>("token_codes"),
+  currentCode: (id: string) => call<Omit<TokenCode, "id">>("token_current_code", { id }),
+  createToken: (input: ManualTokenInput) => call<string>("token_create", { input }),
+  tokenBatch: (action: "group" | "pin" | "delete", ids: string[], options?: { group?: string; pinned?: boolean }) => call<number>("token_batch", { action, ids, ...options }),
+  reorderTokens: (ids: string[]) => call<void>("token_reorder", { ids }),
+  trash: () => call<TrashEntry[]>("trash_list"),
+  trashRestore: (ids: string[]) => call<number>("trash_restore", { ids }),
+  trashDelete: (ids: string[]) => call<number>("trash_delete", { ids }),
+  changePassword: (currentPassword: string, newPassword: string) => call<void>("vault_change_password", { currentPassword, newPassword }),
   tokens: () =>
     native ? call<TokenView[]>("list_tokens") : Promise.resolve([]),
   preview: (args: {
@@ -97,8 +117,15 @@ export const api = {
     name: string,
     group: string | null,
     icon?: { value: string | null },
-  ) => call<void>("token_update", { id, name, group, icon }),
+    parameters?: TokenParameters,
+  ) => call<void>("token_update", { id, name, group, icon, parameters }),
+  backupPreview: (name: string, password: string) => call<BackupPreview>("backup_preview", { name, password }),
+  backupRestoreSelected: (previewId: string, ids: string[]) => call<number>("backup_restore_selected", { previewId, ids }),
+  backupDirectory: (path?: string) => call<void>("backup_directory_configure", { path }),
   backupStatus: () => call<BackupStatus>("backup_status"),
+  backupExternalStatus: () => call<ExternalBackupStatus>("backup_external_status"),
+  backupExternalChoose: () => call<ExternalBackupStatus>("backup_external_choose"),
+  backupExternalClear: () => call<ExternalBackupStatus>("backup_external_clear"),
   backupConfigure: (enabled: boolean) =>
     call<void>("backup_configure", { enabled }),
   backupNow: () => call<void>("backup_now"),
@@ -159,5 +186,4 @@ export const api = {
   networkDiagnostics: () => call<NetworkReport>("steam_network_diagnostics"),
   nextHotp: (id: string) => call<void>("token_advance", { id }),
 };
-export const errorText = (error: unknown) =>
-  error instanceof Error ? error.message : String(error);
+export { translateError as errorText } from "./i18n";

@@ -1,3 +1,4 @@
+import { t as translate } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Camera, ImagePlus, RotateCcw, ScanLine, X } from "lucide-react";
@@ -67,9 +68,9 @@ export function QrImportPanel({
   const add = async (codes: string[], epoch: number) => {
     const next = [...new Set([...payloads, ...codes])];
     if (!codes.length)
-      throw new Error("未找到验证器二维码，请靠近二维码或裁剪图片后重试");
+      throw new Error(translate("未找到验证器二维码，请靠近二维码或裁剪图片后重试"));
     if (next.length === payloads.length) {
-      setMessage("这张二维码已经收集，请切换到下一张。");
+      setMessage(translate("这张二维码已经收集，请切换到下一张。"));
       return;
     }
     const result = await api.qrPreview(next);
@@ -84,13 +85,13 @@ export function QrImportPanel({
     setPayloads(next);
     setProgress(result);
     setMessage(
-      result.duplicateCodes ? "已忽略重复的二维码。" : "二维码已在本机识别。",
+      result.duplicateCodes ? translate("已忽略重复的二维码。") : translate("二维码已在本机识别。"),
     );
   };
   const images = async (files: File[]) => {
     if (!files.length) return;
     if (files.length > 128) {
-      setError("一次最多选择 128 张图片");
+      setError(translate("一次最多选择 128 张图片"));
       return;
     }
     const epoch = generation.current;
@@ -105,7 +106,7 @@ export function QrImportPanel({
         const found = await readQrImage(file);
         if (!found.length)
           throw new Error(
-            "有图片未找到验证器二维码，请重新选择清晰的二维码图片",
+            translate("有图片未找到验证器二维码，请重新选择清晰的二维码图片"),
           );
         codes.push(...found);
       }
@@ -136,7 +137,7 @@ export function QrImportPanel({
       const cancelled = new Promise<never>((_, reject) =>
         controller.signal.addEventListener(
           "abort",
-          () => reject(new Error("扫描已停止")),
+          () => reject(new Error(translate("扫描已停止"))),
           { once: true },
         ),
       );
@@ -149,7 +150,7 @@ export function QrImportPanel({
         if (permission !== "granted") {
           permissionDenied = true;
           throw new Error(
-            "相机权限未开启，请在系统设置中允许相机访问，或选择二维码图片",
+            translate("相机权限未开启，请在系统设置中允许相机访问，或选择二维码图片"),
           );
         }
         if (controller.signal.aborted) return;
@@ -169,7 +170,7 @@ export function QrImportPanel({
         codes = [result.content];
       } else {
         if (!navigator.mediaDevices?.getUserMedia)
-          throw new Error("当前环境无法打开相机，请选择二维码图片导入");
+          throw new Error(translate("当前环境无法打开相机，请选择二维码图片导入"));
         setCamera("desktop");
         const pendingMedia = navigator.mediaDevices.getUserMedia({
           audio: false,
@@ -200,7 +201,7 @@ export function QrImportPanel({
         const canvas = document.createElement("canvas");
         const context = canvas.getContext("2d", { willReadFrequently: true });
         if (!context)
-          throw new Error("当前环境无法读取相机画面，请使用图片导入");
+          throw new Error(translate("当前环境无法读取相机画面，请使用图片导入"));
         codes = [];
         while (!controller.signal.aborted && !codes.length) {
           const frame = video.current;
@@ -242,18 +243,18 @@ export function QrImportPanel({
             importing || permissionDenied
               ? errorText(e)
               : name === "NotAllowedError"
-                ? "相机权限被拒绝，请在系统设置中允许相机访问，或选择二维码图片"
+                ? translate("相机权限被拒绝，请在系统设置中允许相机访问，或选择二维码图片")
                 : name === "NotFoundError" || name === "NotReadableError"
-                  ? "相机不可用或正被占用，请关闭其他相机应用，或选择二维码图片"
+                  ? translate("相机不可用或正被占用，请关闭其他相机应用，或选择二维码图片")
                   : nativeCamera
-                    ? "相机未能完成扫描，请检查相机权限后重试，或选择二维码图片"
+                    ? translate("相机未能完成扫描，请检查相机权限后重试，或选择二维码图片")
                     : errorText(e),
           );
         else
           setMessage(
             timedOut
-              ? "扫描超时，已关闭相机。可以重试或选择二维码图片。"
-              : "相机已关闭，已收集的二维码仍保留。",
+              ? translate("扫描超时，已关闭相机。可以重试或选择二维码图片。")
+              : translate("相机已关闭，已收集的二维码仍保留。"),
           );
       }
     } finally {
@@ -266,19 +267,15 @@ export function QrImportPanel({
     }
   };
   return (
-    <section className="qr-import" aria-label="扫码导入令牌">
-      <p className="dialog-intro">
-        Google Authenticator：转移账号 →
-        导出账号。按顺序或乱序扫描这次导出的所有二维码，收齐后统一导入。也支持其他验证器的标准
-        OTP 设置码。
-      </p>
+    <section className="qr-import" aria-label={translate("扫码导入令牌")}>
+      <p className="dialog-intro">{translate("Google Authenticator：转移账号 → 导出账号。按顺序或乱序扫描这次导出的所有二维码，收齐后统一导入。也支持其他验证器的标准 OTP 设置码。")}</p>
       <input
         ref={picker}
         type="file"
         accept="image/*"
         multiple
         className="visually-hidden"
-        aria-label="选择二维码图片"
+        aria-label={translate("选择二维码图片")}
         onChange={(e) => {
           const files = Array.from(e.target.files ?? []);
           e.target.value = "";
@@ -292,26 +289,20 @@ export function QrImportPanel({
           onClick={() => void scan()}
         >
           <Camera size={18} />
-          {payloads.length ? "继续扫码" : "打开相机扫码"}
+          {payloads.length ? translate("继续扫码") : translate("打开相机扫码")}
         </button>
         <button
           className="button secondary"
           disabled={busy}
           onClick={() => picker.current?.click()}
         >
-          <ImagePlus size={18} />
-          选择二维码图片
-        </button>
+          <ImagePlus size={18} />{translate("选择二维码图片")}</button>
       </div>
-      <p className="form-hint">
-        可一次选择多张图片，也能读取一张图片中的多个码。Google 多张二维码请使用同一次导出的全部图片。
-      </p>
+      <p className="form-hint">{translate("可一次选择多张图片，也能读取一张图片中的多个码。Google 多张二维码请使用同一次导出的全部图片。")}</p>
       {camera === "desktop" && (
         <div className="qr-camera-preview">
-          <video ref={video} autoPlay playsInline muted aria-label="相机预览" />
-          <button className="button secondary" onClick={stop}>
-            停止扫描
-          </button>
+          <video ref={video} autoPlay playsInline muted aria-label={translate("相机预览")} />
+          <button className="button secondary" onClick={stop}>{translate("停止扫描")}</button>
         </div>
       )}
       {camera === "native" &&
@@ -319,23 +310,21 @@ export function QrImportPanel({
           <div
             className="qr-camera-overlay"
             role="dialog"
-            aria-label="相机扫码"
+            aria-label={translate("相机扫码")}
           >
             <div>
-              <h2>扫描验证器二维码</h2>
+              <h2>{translate("扫描验证器二维码")}</h2>
               <p>
                 {progress?.source === "google"
-                  ? `已收集 ${progress.received}/${progress.expected} 张，请切换到下一张`
-                  : "将二维码放入取景框"}
+                  ? translate("已收集 {{received}}/{{expected}} 张，请切换到下一张", { received: progress.received, expected: progress.expected })
+                  : translate("将二维码放入取景框")}
               </p>
             </div>
             <div className="qr-camera-frame">
               <ScanLine size={36} />
             </div>
             <button className="button secondary" onClick={stop}>
-              <X size={20} />
-              停止扫描
-            </button>
+              <X size={20} />{translate("停止扫描")}</button>
           </div>,
           document.body,
         )}
@@ -343,20 +332,17 @@ export function QrImportPanel({
         <div className="qr-import-progress" role="status">
           <strong>
             {progress.source === "google"
-              ? `Google 导出：已收集 ${progress.received}/${progress.expected} 张`
-              : `已收集 ${progress.received} 张 OTP 二维码`}
+              ? translate("Google 导出：已收集 {{received}}/{{expected}} 张", { received: progress.received, expected: progress.expected })
+              : translate("已收集 {{received}} 张 OTP 二维码", { received: progress.received })}
           </strong>
-          <p>
-            识别到 {progress.tokenCount} 个令牌
-            {progress.complete
-              ? "，可以预览并确认导入。"
-              : `，还缺第 ${progress.missing.join("、")} 张，请继续扫描。`}
-          </p>
+          <p>{translate("识别到 {{tokenCount}} 个令牌{{value2}}", { tokenCount: progress.tokenCount, value2: progress.complete
+              ? translate("，可以预览并确认导入。")
+              : translate("，还缺第 {{value1}} 张，请继续扫描。", { value1: progress.missing.join("、") }) })}</p>
           {progress.source === "google" && (
             <progress
               value={progress.received}
               max={progress.expected}
-              aria-label="Google 二维码收集进度"
+              aria-label={translate("Google 二维码收集进度")}
             />
           )}
         </div>
@@ -387,9 +373,7 @@ export function QrImportPanel({
             setMessage("");
           }}
         >
-          <RotateCcw size={16} />
-          清空本次收集
-        </button>
+          <RotateCcw size={16} />{translate("清空本次收集")}</button>
         <button
           className="button primary"
           disabled={busy || !progress?.complete || !progress.preview}
@@ -399,9 +383,7 @@ export function QrImportPanel({
               onPreview(progress.preview);
             }
           }}
-        >
-          预览令牌
-        </button>
+        >{translate("预览令牌")}</button>
       </div>
     </section>
   );

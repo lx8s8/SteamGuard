@@ -1,0 +1,3490 @@
+{
+  "头像格式无效": [
+    {
+      "file": "src-tauri/src/avatar.rs",
+      "line": 9
+    }
+  ],
+  "头像文件过大": [
+    {
+      "file": "src-tauri/src/avatar.rs",
+      "line": 11
+    },
+    {
+      "file": "src-tauri/src/avatar.rs",
+      "line": 15
+    },
+    {
+      "file": "src-tauri/src/avatar.rs",
+      "line": 53
+    }
+  ],
+  "头像编码无效": [
+    {
+      "file": "src-tauri/src/avatar.rs",
+      "line": 13
+    }
+  ],
+  "头像图片无效，请重新选择": [
+    {
+      "file": "src-tauri/src/avatar.rs",
+      "line": 25
+    }
+  ],
+  "图标编号无效": [
+    {
+      "file": "src-tauri/src/avatar.rs",
+      "line": 37
+    }
+  ],
+  "无法保存头像": [
+    {
+      "file": "src-tauri/src/avatar.rs",
+      "line": 51
+    }
+  ],
+  "备份目录无效": [
+    {
+      "file": "src-tauri/src/backup.rs",
+      "line": 23
+    },
+    {
+      "file": "src-tauri/src/backup.rs",
+      "line": 38
+    }
+  ],
+  "备份目录设置无效": [
+    {
+      "file": "src-tauri/src/backup.rs",
+      "line": 30
+    }
+  ],
+  "备份目录必须是绝对路径": [
+    {
+      "file": "src-tauri/src/backup.rs",
+      "line": 33
+    }
+  ],
+  "无法读取备份目录设置": [
+    {
+      "file": "src-tauri/src/backup.rs",
+      "line": 40
+    }
+  ],
+  "移动端外部目录需要系统文件授权，请先使用导出备份": [
+    {
+      "file": "src-tauri/src/backup.rs",
+      "line": 46
+    }
+  ],
+  "请选择存在的绝对目录路径": [
+    {
+      "file": "src-tauri/src/backup.rs",
+      "line": 52
+    }
+  ],
+  "无法清理目录写入检查": [
+    {
+      "file": "src-tauri/src/backup.rs",
+      "line": 56
+    }
+  ],
+  "无法编码备份目录": [
+    {
+      "file": "src-tauri/src/backup.rs",
+      "line": 59
+    }
+  ],
+  "无法重置备份目录": [
+    {
+      "file": "src-tauri/src/backup.rs",
+      "line": 65
+    }
+  ],
+  "无法读取自动备份目录": [
+    {
+      "file": "src-tauri/src/backup.rs",
+      "line": 78
+    }
+  ],
+  "无法读取自动备份": [
+    {
+      "file": "src-tauri/src/backup.rs",
+      "line": 79
+    }
+  ],
+  "无法读取备份类型": [
+    {
+      "file": "src-tauri/src/backup.rs",
+      "line": 84
+    }
+  ],
+  "无法读取备份信息": [
+    {
+      "file": "src-tauri/src/backup.rs",
+      "line": 87
+    }
+  ],
+  "备份编号无效": [
+    {
+      "file": "src-tauri/src/backup.rs",
+      "line": 135
+    }
+  ],
+  "备份不存在": [
+    {
+      "file": "src-tauri/src/backup.rs",
+      "line": 138
+    }
+  ],
+  "备份文件无效或过大": [
+    {
+      "file": "src-tauri/src/backup.rs",
+      "line": 140
+    }
+  ],
+  "无法读取备份": [
+    {
+      "file": "src-tauri/src/backup.rs",
+      "line": 142
+    }
+  ],
+  "备份已保存，但旧快照清理失败": [
+    {
+      "file": "src-tauri/src/backup.rs",
+      "line": 169
+    }
+  ],
+  "无法比较令牌": [
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 34
+    },
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 46
+    }
+  ],
+  "一次最多恢复 1000 个令牌": [
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 74
+    }
+  ],
+  "保险库状态已变化，请重新检查备份": [
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 80
+    }
+  ],
+  "名称": [
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 102
+    }
+  ],
+  "发行方": [
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 105
+    }
+  ],
+  "算法": [
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 108
+    }
+  ],
+  "位数": [
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 111
+    }
+  ],
+  "周期": [
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 114
+    }
+  ],
+  "分组": [
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 117
+    },
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 498
+    }
+  ],
+  "头像": [
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 120
+    },
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 508
+    }
+  ],
+  "置顶状态": [
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 123
+    },
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 505
+    }
+  ],
+  "HOTP 计数": [
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 126
+    }
+  ],
+  "Steam 身份资料": [
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 133
+    }
+  ],
+  "将还原：{{value1}}": [
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 135
+    }
+  ],
+  "相同 SteamID 的密钥不同，拒绝恢复旧密钥": [
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 155
+    },
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 225
+    }
+  ],
+  "备份预览缓存不可用": [
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 170
+    },
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 193
+    }
+  ],
+  "请选择有效且不重复的备份令牌": [
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 186
+    }
+  ],
+  "备份预览已过期，请重新检查": [
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 195
+    },
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 197
+    }
+  ],
+  "备份选择无效": [
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 203
+    }
+  ],
+  "令牌库已变化，请重新预览备份后再还原": [
+    {
+      "file": "src-tauri/src/backup_commands.rs",
+      "line": 210
+    }
+  ],
+  "外部备份文件超过大小限制": [
+    {
+      "file": "src-tauri/src/backup_external.rs",
+      "line": 63
+    }
+  ],
+  "外部备份格式无效": [
+    {
+      "file": "src-tauri/src/backup_external.rs",
+      "line": 65
+    }
+  ],
+  "外部备份只接受加密快照": [
+    {
+      "file": "src-tauri/src/backup_external.rs",
+      "line": 72
+    }
+  ],
+  "菜单文字无效": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 34
+    }
+  ],
+  "此设置仅适用于桌面端": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 167
+    }
+  ],
+  "令牌已删除": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 186
+    }
+  ],
+  "此 HOTP 由另一设备生成": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 188
+    }
+  ],
+  "令牌不可用，请先解锁": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 196
+    }
+  ],
+  "此令牌需在主设备查看": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 198
+    }
+  ],
+  "已锁定，请先解锁": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 204
+    }
+  ],
+  "无法复制验证码": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 208
+    }
+  ],
+  "此功能仅适用于桌面端": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 215
+    }
+  ],
+  "无法关闭窗口": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 231
+    }
+  ],
+  "快捷复制": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 299
+    }
+  ],
+  "令牌": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 303
+    },
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 496
+    }
+  ],
+  "菜单不可用": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 317
+    }
+  ],
+  "无法更新菜单": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 319
+    },
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 321
+    }
+  ],
+  "快捷键无效或已被其他应用占用": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 328
+    },
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 348
+    }
+  ],
+  "桌面设置不可用": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 343
+    }
+  ],
+  "无法读取开机启动设置": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 350
+    }
+  ],
+  "无法修改开机启动设置": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 356
+    }
+  ],
+  "无法保存桌面设置": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 358
+    },
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 360
+    }
+  ],
+  "打开应用": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 387
+    }
+  ],
+  "锁定": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 388
+    }
+  ],
+  "退出": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 389
+    }
+  ],
+  "主窗口不可用": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 436
+    }
+  ],
+  "无法打开应用": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 441
+    }
+  ],
+  "快捷窗口不可用": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 448
+    }
+  ],
+  "无法关闭快捷窗口": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 450
+    }
+  ],
+  "屏幕不可用": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 454
+    },
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 465
+    }
+  ],
+  "无法打开快捷窗口": [
+    {
+      "file": "src-tauri/src/desktop.rs",
+      "line": 499
+    }
+  ],
+  "这是加密备份，请输入导出时设置的密码": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 42
+    }
+  ],
+  "加密备份的参数不完整": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 47
+    }
+  ],
+  "加密备份的数字参数无效": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 52
+    }
+  ],
+  "加密备份的十六进制参数长度无效": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 56
+    }
+  ],
+  "加密备份包含无效的十六进制参数": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 72
+    }
+  ],
+  "加密备份超过大小限制": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 79
+    }
+  ],
+  "加密备份包含无效的 Base64 参数": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 90
+    }
+  ],
+  "加密备份的密钥、随机数或密文长度无效": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 95
+    }
+  ],
+  "加密备份的密钥长度无效": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 98
+    }
+  ],
+  "备份解密失败：密码错误或文件已损坏": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 101
+    },
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 174
+    }
+  ],
+  "不支持的 Aegis 备份版本": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 115
+    },
+    {
+      "file": "src-tauri/src/import/foreign.rs",
+      "line": 56
+    }
+  ],
+  "Aegis 备份缺少加密头": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 118
+    }
+  ],
+  "Aegis 备份的密码槽无效": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 123
+    }
+  ],
+  "Aegis 密钥派生参数超过限制": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 132
+    },
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 133
+    },
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 134
+    },
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 145
+    },
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 146
+    }
+  ],
+  "Aegis 密钥派生参数超过限制，请使用默认加密参数重新导出": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 143
+    }
+  ],
+  "Aegis 密钥派生参数无效": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 148
+    }
+  ],
+  "Aegis 备份没有可用的密码槽，请在原应用添加密码后重新导出": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 154
+    }
+  ],
+  "Aegis 密钥派生失败": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 160
+    }
+  ],
+  "Aegis 主密钥长度无效": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 166
+    }
+  ],
+  "Aegis 解密内容不是有效 JSON": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 169
+    }
+  ],
+  "2FAS 加密备份参数格式无效": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 181
+    }
+  ],
+  "2FAS 加密备份盐值长度无效": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 187
+    }
+  ],
+  "不支持的 2FAS 备份版本": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 199
+    },
+    {
+      "file": "src-tauri/src/import/foreign.rs",
+      "line": 118
+    }
+  ],
+  "2FAS 备份校验失败：密码错误或文件已损坏": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 204
+    }
+  ],
+  "2FAS 解密内容不是有效 JSON": [
+    {
+      "file": "src-tauri/src/import/encrypted.rs",
+      "line": 208
+    }
+  ],
+  "备份中的 OTP 数字参数无效": [
+    {
+      "file": "src-tauri/src/import/foreign.rs",
+      "line": 8
+    }
+  ],
+  "备份包含暂不支持的 OTP 类型，请改用标准 OTP 二维码或链接导出": [
+    {
+      "file": "src-tauri/src/import/foreign.rs",
+      "line": 14
+    }
+  ],
+  "备份中的令牌缺少密钥": [
+    {
+      "file": "src-tauri/src/import/foreign.rs",
+      "line": 17
+    }
+  ],
+  "备份中的 OTP 位数无效": [
+    {
+      "file": "src-tauri/src/import/foreign.rs",
+      "line": 19
+    }
+  ],
+  "这是加密的 Aegis 备份，请先在 Aegis 导出未加密 JSON 文件": [
+    {
+      "file": "src-tauri/src/import/foreign.rs",
+      "line": 61
+    }
+  ],
+  "不支持的 Aegis 内容版本": [
+    {
+      "file": "src-tauri/src/import/foreign.rs",
+      "line": 63
+    }
+  ],
+  "Aegis 备份缺少 entries": [
+    {
+      "file": "src-tauri/src/import/foreign.rs",
+      "line": 68
+    }
+  ],
+  "Aegis 令牌缺少 info": [
+    {
+      "file": "src-tauri/src/import/foreign.rs",
+      "line": 83
+    }
+  ],
+  "Aegis 令牌缺少类型": [
+    {
+      "file": "src-tauri/src/import/foreign.rs",
+      "line": 87
+    }
+  ],
+  "这是加密的 2FAS 备份，请先在 2FAS 导出未加密文件": [
+    {
+      "file": "src-tauri/src/import/foreign.rs",
+      "line": 115
+    }
+  ],
+  "2FAS 备份缺少 services": [
+    {
+      "file": "src-tauri/src/import/foreign.rs",
+      "line": 123
+    }
+  ],
+  "2FAS 令牌缺少 otp 参数": [
+    {
+      "file": "src-tauri/src/import/foreign.rs",
+      "line": 140
+    }
+  ],
+  "2FAS 令牌缺少密钥": [
+    {
+      "file": "src-tauri/src/import/foreign.rs",
+      "line": 142
+    }
+  ],
+  "备份为空或超过 1000 个令牌限制": [
+    {
+      "file": "src-tauri/src/import/foreign.rs",
+      "line": 166
+    }
+  ],
+  "Google 迁移二维码格式无效": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 70
+    }
+  ],
+  "不支持的 Google 迁移二维码地址": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 79
+    }
+  ],
+  "Google 迁移二维码必须包含一个 data 参数": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 86
+    }
+  ],
+  "Google 迁移 Base64 无效": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 98
+    }
+  ],
+  "Google 迁移数据损坏或被截断": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 101
+    }
+  ],
+  "暂不支持 Google 迁移格式版本 {{value1}}，请更新应用": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 106
+    }
+  ],
+  "Google 迁移二维码的批次数量或序号无效": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 119
+    }
+  ],
+  "Google 迁移二维码没有令牌或令牌过多": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 122
+    }
+  ],
+  "Google 迁移包含未知 OTP 类型": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 130
+    }
+  ],
+  "Google 迁移 HOTP 计数不能为负数": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 132
+    }
+  ],
+  "Google 迁移包含不支持的算法": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 149
+    }
+  ],
+  "Google 迁移位数无效": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 158
+    }
+  ],
+  "二维码内容为空或超过导入限制": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 190
+    }
+  ],
+  "请完成当前导入，再扫描另一种验证器二维码": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 211
+    }
+  ],
+  "二维码来自不同的 Google 导出批次，请继续扫描同一次导出的二维码，或清空后重新开始": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 221
+    }
+  ],
+  "同一批次序号出现不同内容，请清空后重新扫描完整批次": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 226
+    }
+  ],
+  "请先收齐当前 Google 批次，再导入普通 OTP 二维码": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 234
+    }
+  ],
+  "二维码不是支持的验证器格式，请使用 Google 导出码或 otpauth 设置码": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 247
+    }
+  ],
+  "一次最多导入 128 张二维码和 1000 个令牌": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 268
+    }
+  ],
+  "请选择 1–1000 个令牌": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 278
+    }
+  ],
+  "此格式仅支持 30 秒 TOTP 和 HOTP，其他令牌请使用加密备份": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 285
+    }
+  ],
+  "不支持的令牌算法": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 295
+    }
+  ],
+  "迁移二维码仅支持 6 位或 8 位验证码": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 300
+    }
+  ],
+  "HOTP 计数超出迁移格式范围": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 303
+    }
+  ],
+  "令牌名称或密钥过长，请使用加密备份迁移": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 307
+    }
+  ],
+  "迁移二维码数量过多，请减少选择的令牌": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 317
+    }
+  ],
+  "无法生成迁移地址": [
+    {
+      "file": "src-tauri/src/import/qr.rs",
+      "line": 335
+    }
+  ],
+  "导入文件为空或超过 16 MiB 限制": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 31
+    }
+  ],
+  "文件中没有有效令牌，或令牌数量超过限制": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 54
+    }
+  ],
+  "令牌密钥为空或长度无效": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 67
+    }
+  ],
+  "令牌周期或位数无效": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 70
+    },
+    {
+      "file": "src-tauri/src/models.rs",
+      "line": 79
+    }
+  ],
+  "不支持的令牌哈希算法": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 73
+    }
+  ],
+  "导出文件嵌套或解压大小超过限制": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 107
+    }
+  ],
+  "无法读取 WattToolkit MessagePack 导出格式": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 111
+    }
+  ],
+  "导出文件包含无效的尾部数据": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 113
+    }
+  ],
+  "LZ4 解压长度无效": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 121
+    }
+  ],
+  "导出文件 LZ4 数据损坏": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 123
+    },
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 149
+    }
+  ],
+  "导出文件 LZ4 长度不匹配": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 125
+    },
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 151
+    }
+  ],
+  "LZ4 分段长度无效": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 138
+    }
+  ],
+  "导出文件解压后超过 16 MiB 限制": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 145
+    }
+  ],
+  "LZ4 分段无效": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 147
+    }
+  ],
+  "LZ4 分段数量不匹配": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 156
+    }
+  ],
+  "加密数据头不完整": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 166
+    }
+  ],
+  "导出文件解密失败：密码错误、数据损坏或不兼容的加密密钥": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 183
+    }
+  ],
+  "此文件绑定了原电脑的本地加密。请在原 WattToolkit 中关闭「本机加密」后重新导出": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 190
+    }
+  ],
+  "不支持的 WattToolkit 加密模式": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 194
+    }
+  ],
+  "此导出需要二级密码，请输入导出密码": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 200
+    }
+  ],
+  "不支持的二级密码加密版本": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 202
+    }
+  ],
+  "不支持的 WattToolkit 内置加密密钥版本": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 211
+    }
+  ],
+  "WattToolkit 导出内容不是令牌列表": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 219
+    }
+  ],
+  "令牌数量超过限制": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 221
+    }
+  ],
+  "此文件绑定原电脑，请关闭原软件的本机加密后重新导出": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 226
+    }
+  ],
+  "导出记录缺少名称": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 230
+    }
+  ],
+  "令牌名称不是有效 UTF-8": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 232
+    }
+  ],
+  "导出记录缺少令牌数据": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 235
+    }
+  ],
+  "令牌类型数据无效": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 240
+    }
+  ],
+  "令牌平台无效": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 241
+    }
+  ],
+  "导出包含暂不支持的令牌平台": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 248
+    }
+  ],
+  "令牌密钥缺失": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 252
+    }
+  ],
+  "未知的令牌哈希算法": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 270
+    }
+  ],
+  "Steam 令牌附加数据损坏": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 276
+    }
+  ],
+  "无法编码令牌导出文件": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 296
+    }
+  ],
+  "内置加密参数无效": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 303
+    }
+  ],
+  "导出密码派生失败": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 312
+    }
+  ],
+  "没有可导出的令牌或数量超过限制": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 329
+    }
+  ],
+  "系统时间无效": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 333
+    }
+  ],
+  "无法导出未知的令牌类型": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 347
+    }
+  ],
+  "无法导出未知哈希算法": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 353
+    }
+  ],
+  "导出数据超过 16 MiB 限制": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 419
+    }
+  ],
+  "WinAuth 密钥十六进制无效": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 431
+    },
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 438
+    },
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 441
+    }
+  ],
+  "WinAuth XML 格式错误（不允许 DTD）": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 449
+    }
+  ],
+  "暂不支持加密的 WinAuth XML，请先在 WinAuth 中导出未加密 XML 或 otpauth 文本": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 455
+    }
+  ],
+  "XML 中没有 WinAuthAuthenticator 记录": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 468
+    }
+  ],
+  "WinAuth 记录缺少类型": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 478
+    }
+  ],
+  "WinAuth 记录包含不支持的验证器类型": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 495
+    }
+  ],
+  "WinAuth 记录缺少 secretdata": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 503
+    }
+  ],
+  "WinAuth 位数无效": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 512
+    }
+  ],
+  "WinAuth 周期无效": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 526
+    }
+  ],
+  "WinAuth HOTP 计数无效": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 533
+    }
+  ],
+  "WinAuth 附加数据不是 UTF-8": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 542
+    }
+  ],
+  "WinAuth Steam JSON 无效": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 551
+    }
+  ],
+  "JSON 文件格式错误": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 593
+    }
+  ],
+  "不支持的加密备份类型": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 597
+    }
+  ],
+  "Steam shared_secret 不是有效 Base64": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 632
+    }
+  ],
+  "JSON 缺少 shared_secret、secret 或 otpauth uri": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 642
+    }
+  ],
+  "JSON 令牌类型无效": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 648
+    }
+  ],
+  "JSON 令牌数字参数无效": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 653
+    }
+  ],
+  "JSON 令牌位数无效": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 658
+    }
+  ],
+  "令牌密钥不是有效 Base32": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 696
+    }
+  ],
+  "Google 导出尚未收齐：已收到 {{value1}}/{{value2}} 张，还缺第 {{value3}} 张。请扫描完整批次后再导入": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 710
+    }
+  ],
+  "OTP URI 格式错误": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 726
+    }
+  ],
+  "仅支持 otpauth://totp 和 otpauth://hotp": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 728
+    }
+  ],
+  "OTP URI 缺少 secret": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 749
+    }
+  ],
+  "OTP 位数无效": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 764
+    }
+  ],
+  "OTP 周期无效": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 769
+    }
+  ],
+  "HOTP counter 无效": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 774
+    }
+  ],
+  "HOTP URI 缺少 counter": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 777
+    }
+  ],
+  "URI 转义无效": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 790
+    },
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 794
+    }
+  ],
+  "URI 标签不是有效 UTF-8": [
+    {
+      "file": "src-tauri/src/import.rs",
+      "line": 800
+    }
+  ],
+  "令牌库暂不可用": [
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 56
+    },
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 152
+    }
+  ],
+  "导入缓存不可用": [
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 61
+    }
+  ],
+  "令牌不存在": [
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 73
+    },
+    {
+      "file": "src-tauri/src/migration.rs",
+      "line": 25
+    },
+    {
+      "file": "src-tauri/src/token_commands.rs",
+      "line": 219
+    }
+  ],
+  "令牌库已锁定，登录已取消": [
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 83
+    },
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 90
+    }
+  ],
+  "令牌已删除，登录已取消": [
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 102
+    }
+  ],
+  "此令牌尚未关联 SteamID，请重新登录并使用“当前令牌验证”后再关联账号": [
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 108
+    }
+  ],
+  "无法保存登录状态": [
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 116
+    }
+  ],
+  "主题无效": [
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 146
+    }
+  ],
+  "无法设置主题": [
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 147
+    }
+  ],
+  "保险库已解锁": [
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 192
+    },
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 332
+    }
+  ],
+  "未知的解锁选项": [
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 259
+    },
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 76
+    }
+  ],
+  "请先解锁保险库": [
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 265
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 566
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 612
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 624
+    }
+  ],
+  "请先在手机系统设置中启用指纹或 Face ID": [
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 277
+    }
+  ],
+  "请确认主密码": [
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 291
+    }
+  ],
+  "保险库已锁定，请重新启用": [
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 299
+    }
+  ],
+  "尚未启用设备认证": [
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 322
+    }
+  ],
+  "解锁已取消，请重试": [
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 329
+    }
+  ],
+  "尚未启用免密码预览": [
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 349
+    }
+  ],
+  "访问状态已改变，请重试": [
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 356
+    }
+  ],
+  "保险库已解锁，请刷新页面": [
+    {
+      "file": "src-tauri/src/lib.rs",
+      "line": 367
+    }
+  ],
+  "请选择有效的令牌": [
+    {
+      "file": "src-tauri/src/migration.rs",
+      "line": 14
+    }
+  ],
+  "分组名称需为 1–40 个字符": [
+    {
+      "file": "src-tauri/src/models.rs",
+      "line": 65
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 98
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 117
+    }
+  ],
+  "令牌密钥为空或过长": [
+    {
+      "file": "src-tauri/src/models.rs",
+      "line": 73
+    }
+  ],
+  "不支持的令牌类型": [
+    {
+      "file": "src-tauri/src/models.rs",
+      "line": 76
+    }
+  ],
+  "不支持的 HMAC 算法": [
+    {
+      "file": "src-tauri/src/models.rs",
+      "line": 82
+    }
+  ],
+  "请输入完整的代理地址，例如 http://127.0.0.1:7890": [
+    {
+      "file": "src-tauri/src/network.rs",
+      "line": 26
+    }
+  ],
+  "代理仅支持 HTTP、HTTPS、SOCKS5 或 SOCKS5H": [
+    {
+      "file": "src-tauri/src/network.rs",
+      "line": 28
+    }
+  ],
+  "代理地址只应包含协议、主机和端口，不支持用户名、密码或路径": [
+    {
+      "file": "src-tauri/src/network.rs",
+      "line": 36
+    }
+  ],
+  "代理地址无效": [
+    {
+      "file": "src-tauri/src/network.rs",
+      "line": 40
+    }
+  ],
+  "代理配置缺失": [
+    {
+      "file": "src-tauri/src/network.rs",
+      "line": 53
+    }
+  ],
+  "无法创建 Steam 网络客户端": [
+    {
+      "file": "src-tauri/src/network.rs",
+      "line": 67
+    }
+  ],
+  "设备认证正在进行，请稍候": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 60
+    }
+  ],
+  "快捷设置不可用": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 67
+    },
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 71
+    }
+  ],
+  "无法保存快捷设置": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 80
+    }
+  ],
+  "预览不可用": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 94
+    },
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 102
+    },
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 141
+    }
+  ],
+  "请先进入令牌预览": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 103
+    },
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 142
+    }
+  ],
+  "令牌库已更新，请解锁后刷新预览": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 106
+    },
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 145
+    }
+  ],
+  "无法读取令牌库": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 262
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 548
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 590
+    }
+  ],
+  "设备密钥无效": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 266
+    },
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 269
+    },
+    {
+      "file": "src-tauri/plugins/quick-access/ios/Sources/QuickAccessPlugin.swift",
+      "line": 52
+    }
+  ],
+  "无法生成预览": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 284
+    }
+  ],
+  "预览密钥无效": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 288
+    },
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 318
+    }
+  ],
+  "无法加密预览": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 296
+    }
+  ],
+  "无法保存预览": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 302
+    }
+  ],
+  "预览尚未就绪，请使用主密码解锁后重试": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 306
+    }
+  ],
+  "预览过大": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 308
+    }
+  ],
+  "预览格式无效": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 310
+    },
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 311
+    },
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 315
+    }
+  ],
+  "预览版本无效": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 313
+    }
+  ],
+  "预览密钥已失效，请用主密码解锁": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 326
+    }
+  ],
+  "预览内容无效": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 328
+    }
+  ],
+  "令牌库已更新，请使用主密码解锁以刷新预览": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 330
+    }
+  ],
+  "存储目录无效": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 342
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 462
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 769
+    }
+  ],
+  "无法创建存储目录": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 342
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 770
+    }
+  ],
+  "无法保存本机设置": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 351
+    }
+  ],
+  "本机设置写入失败": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 354
+    }
+  ],
+  "无法替换本机设置": [
+    {
+      "file": "src-tauri/src/quick_access.rs",
+      "line": 355
+    }
+  ],
+  "{{operation}}失败：{{value2}}（EResult {{result}}）": [
+    {
+      "file": "src-tauri/src/steam.rs",
+      "line": 148
+    }
+  ],
+  "同步状态不可用": [
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 27
+    },
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 936
+    }
+  ],
+  "同步已取消，请解锁后重试": [
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 53
+    },
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 320
+    }
+  ],
+  "无法合并同步历史": [
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 60
+    },
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 846
+    }
+  ],
+  "同步文档过大": [
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 64
+    },
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 827
+    },
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 841
+    }
+  ],
+  "同步已断开": [
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 108
+    },
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 110
+    },
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 121
+    },
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 133
+    },
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 221
+    },
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 421
+    }
+  ],
+  "同步已取消": [
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 158
+    },
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 214
+    },
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 314
+    },
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 438
+    },
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 447
+    }
+  ],
+  "请填写网盘账号和应用密码": [
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 183
+    }
+  ],
+  "尚未连接同步库": [
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 202
+    },
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 242
+    },
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 259
+    },
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 292
+    },
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 354
+    },
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 516
+    },
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 539
+    },
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 853
+    },
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 866
+    },
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 909
+    }
+  ],
+  "本机名称最多 80 个字符": [
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 239
+    }
+  ],
+  "请填写独立同步密码": [
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 342
+    }
+  ],
+  "请选择创建或加入同步库": [
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 345
+    }
+  ],
+  "已连接此同步库，请使用立即同步": [
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 359
+    }
+  ],
+  "请先处理当前同步库的冲突，再合并其他库": [
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 362
+    }
+  ],
+  "请先断开当前同步库，或选择其他同步库合并": [
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 365
+    }
+  ],
+  "网盘已有同步库，请选择加入；确需独立使用时请确认创建另一个库": [
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 388
+    }
+  ],
+  "请输入有效的同步库编号": [
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 396
+    }
+  ],
+  "保险库状态已变化，请重试": [
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 419
+    }
+  ],
+  "当前同步库有新的冲突，请处理后重试": [
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 422
+    }
+  ],
+  "同步未配置": [
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 428
+    }
+  ],
+  "请等待当前同步完成": [
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 565
+    },
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 586
+    }
+  ],
+  "请确认旧设备已停止使用此 HOTP 令牌": [
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 583
+    }
+  ],
+  "读取目录信息": [
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 36
+    },
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 58
+    }
+  ],
+  "创建同步目录": [
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 37
+    }
+  ],
+  "上传同步文件": [
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 38
+    }
+  ],
+  "下载同步文件": [
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 39
+    }
+  ],
+  "清理同步旧版本": [
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 40
+    }
+  ],
+  "访问同步网盘": [
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 41
+    }
+  ],
+  "网盘拒绝访问，请检查账号、应用密码和目录权限": [
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 102
+    },
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 122
+    }
+  ],
+  "网盘请求过于频繁，请稍后重试": [
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 103
+    },
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 124
+    }
+  ],
+  "网盘地址发生重定向，请填写最终 HTTPS WebDAV 地址": [
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 104
+    }
+  ],
+  "网盘不接受此目录或请求格式，请检查 WebDAV 地址和服务兼容性": [
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 105
+    }
+  ],
+  "上级目录不存在或无法创建，请检查目录权限": [
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 106
+    }
+  ],
+  "网盘文件暂时被占用，请稍后重试": [
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 107
+    }
+  ],
+  "网盘存储空间不足，请清理空间后重试": [
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 108
+    }
+  ],
+  "网盘服务暂时不可用，请稍后重试": [
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 109
+    }
+  ],
+  "网盘拒绝了此操作，请检查目录权限或服务限制": [
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 110
+    }
+  ],
+  "{{value1}}失败（HTTP {{value2}}）：{{value3}}": [
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 112
+    }
+  ],
+  "连接同步网盘超时，请检查网络或代理后重试": [
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 116
+    }
+  ],
+  "未找到同步库，请核对地址和同步库编号": [
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 123
+    }
+  ],
+  "同步目录已存在": [
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 125
+    }
+  ],
+  "连接同步网盘失败，请检查网络、HTTPS 证书和目录地址": [
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 126
+    }
+  ],
+  "请输入完整的 HTTPS WebDAV 地址": [
+    {
+      "file": "src-tauri/src/sync/storage.rs",
+      "line": 131
+    }
+  ],
+  "同步密钥无效": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 82
+    },
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 114
+    }
+  ],
+  "同步数据加密失败": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 90
+    }
+  ],
+  "同步文件随机数无效": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 105
+    }
+  ],
+  "同步文件版本或大小无效": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 107
+    }
+  ],
+  "同步文件格式无效": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 111
+    }
+  ],
+  "同步密码错误，或云端文件已损坏": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 122
+    }
+  ],
+  "同步库参数无效": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 126
+    },
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 128
+    }
+  ],
+  "无法派生同步密钥": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 133
+    }
+  ],
+  "同步密码至少 12 个字符，请与网盘应用密码区分并妥善保管": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 141
+    }
+  ],
+  "同步库信息过大": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 171
+    },
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 793
+    }
+  ],
+  "同步库格式无效": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 173
+    }
+  ],
+  "不支持的同步库版本或编号": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 179
+    }
+  ],
+  "同步库校验失败": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 184
+    },
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 807
+    }
+  ],
+  "无法编码同步数据": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 279
+    }
+  ],
+  "无法读取同步版本": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 282
+    }
+  ],
+  "同步字段类型无效": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 286
+    }
+  ],
+  "无法记录同步变更": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 303
+    }
+  ],
+  "本机同步记录无效": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 312
+    }
+  ],
+  "本机同步历史已损坏": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 317
+    }
+  ],
+  "无法读取头像": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 355
+    }
+  ],
+  "此 HOTP 的主设备为其他设备，请先切换主设备": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 388
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 283
+    }
+  ],
+  "保留令牌": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 431
+    }
+  ],
+  "删除令牌": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 433
+    }
+  ],
+  "未关联": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 443
+    }
+  ],
+  "无效令牌版本": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 453
+    }
+  ],
+  "图标 · {{value1}}": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 456
+    }
+  ],
+  "自定义头像": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 458
+    }
+  ],
+  "自动图标": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 459
+    }
+  ],
+  "计数版本": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 461
+    }
+  ],
+  "置顶": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 464
+    }
+  ],
+  "取消置顶": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 466
+    }
+  ],
+  "排列顺序": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 469
+    },
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 506
+    }
+  ],
+  "HOTP 主设备版本": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 470
+    }
+  ],
+  "未分组 / 删除分组": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 474
+    }
+  ],
+  "同步字段无效": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 485
+    },
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 512
+    }
+  ],
+  "分组状态": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 501
+    }
+  ],
+  "显示名称": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 504
+    }
+  ],
+  "所属分组": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 507
+    }
+  ],
+  "令牌数据": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 509
+    }
+  ],
+  "保留或删除": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 510
+    }
+  ],
+  "HOTP 主设备": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 511
+    }
+  ],
+  "同步库记录过多": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 540
+    }
+  ],
+  "同步库含不支持的字段": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 554
+    }
+  ],
+  "同步记录过大": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 558
+    }
+  ],
+  "同步分组格式无效": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 590
+    }
+  ],
+  "同步分组校验失败": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 597
+    }
+  ],
+  "同步令牌缺少状态": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 639
+    }
+  ],
+  "同步令牌状态无效": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 652
+    }
+  ],
+  "同步令牌数据不完整": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 655
+    }
+  ],
+  "同步令牌数据无效": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 657
+    }
+  ],
+  "同步令牌名称缺失": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 660
+    }
+  ],
+  "同步名称无效": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 661
+    }
+  ],
+  "同步分组缺失": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 663
+    }
+  ],
+  "同步分组无效": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 664
+    }
+  ],
+  "同步置顶状态无效": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 666
+    }
+  ],
+  "同步顺序无效": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 670
+    }
+  ],
+  "同步头像格式无效": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 674
+    }
+  ],
+  "同步计数无效": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 679
+    }
+  ],
+  "同步令牌身份校验失败": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 687
+    }
+  ],
+  "本机令牌尚未记录到同步历史，请重试": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 723
+    }
+  ],
+  "同步中出现同一 Steam 账号的不同令牌，请在原设备删除已失效令牌后重试": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 739
+    }
+  ],
+  "同步库信息无效": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 795
+    }
+  ],
+  "同步库参数已变化，请重新连接": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 802
+    }
+  ],
+  "无法编码加密同步文件": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 830
+    }
+  ],
+  "云端同步文件过大": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 834
+    }
+  ],
+  "云端文件不是有效同步文件": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 837
+    }
+  ],
+  "云端同步历史已损坏": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 843
+    }
+  ],
+  "冲突已变化，请刷新": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 869
+    }
+  ],
+  "所选版本已变化": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 874
+    }
+  ],
+  "HOTP 令牌不存在": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 908
+    }
+  ],
+  "正在同步，请稍候": [
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 933
+    }
+  ],
+  "此令牌类型不支持修改高级参数": [
+    {
+      "file": "src-tauri/src/token_commands.rs",
+      "line": 55
+    }
+  ],
+  "发行方最多 120 个字符": [
+    {
+      "file": "src-tauri/src/token_commands.rs",
+      "line": 59
+    }
+  ],
+  "只有 HOTP 令牌可修改计数": [
+    {
+      "file": "src-tauri/src/token_commands.rs",
+      "line": 74
+    }
+  ],
+  "此 HOTP 由另一设备递增，请先切换主设备": [
+    {
+      "file": "src-tauri/src/token_commands.rs",
+      "line": 77
+    },
+    {
+      "file": "src-tauri/src/token_commands.rs",
+      "line": 221
+    }
+  ],
+  "HOTP 计数不能倒退": [
+    {
+      "file": "src-tauri/src/token_commands.rs",
+      "line": 80
+    }
+  ],
+  "名称需为 1–120 个字符": [
+    {
+      "file": "src-tauri/src/token_commands.rs",
+      "line": 93
+    }
+  ],
+  "手动新增仅支持 TOTP 或 HOTP": [
+    {
+      "file": "src-tauri/src/token_commands.rs",
+      "line": 96
+    }
+  ],
+  "分组不存在": [
+    {
+      "file": "src-tauri/src/token_commands.rs",
+      "line": 103
+    },
+    {
+      "file": "src-tauri/src/token_commands.rs",
+      "line": 289
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 112
+    }
+  ],
+  "密钥必须是有效 Base32 字符串": [
+    {
+      "file": "src-tauri/src/token_commands.rs",
+      "line": 116
+    }
+  ],
+  "相同密钥的令牌已存在": [
+    {
+      "file": "src-tauri/src/token_commands.rs",
+      "line": 134
+    }
+  ],
+  "请选择有效且不重复的令牌": [
+    {
+      "file": "src-tauri/src/token_commands.rs",
+      "line": 231
+    }
+  ],
+  "部分令牌已不存在，请刷新后重试": [
+    {
+      "file": "src-tauri/src/token_commands.rs",
+      "line": 240
+    }
+  ],
+  "请指定置顶状态": [
+    {
+      "file": "src-tauri/src/token_commands.rs",
+      "line": 281
+    }
+  ],
+  "批量操作无效": [
+    {
+      "file": "src-tauri/src/token_commands.rs",
+      "line": 296
+    }
+  ],
+  "令牌已存在，请先处理重复项": [
+    {
+      "file": "src-tauri/src/token_commands.rs",
+      "line": 343
+    }
+  ],
+  "更新版本信息无效": [
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 30
+    },
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 31
+    },
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 61
+    }
+  ],
+  "正在安装更新": [
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 43
+    },
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 82
+    }
+  ],
+  "更新状态不可用": [
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 45
+    },
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 72
+    },
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 88
+    }
+  ],
+  "无法检查更新": [
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 49
+    }
+  ],
+  "无法连接更新服务器，请稍后重试": [
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 50
+    }
+  ],
+  "无法检查更新，请稍后重试": [
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 51
+    }
+  ],
+  "更新信息过大": [
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 52
+    },
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 56
+    }
+  ],
+  "无法读取更新信息": [
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 55
+    }
+  ],
+  "更新信息无效": [
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 59
+    }
+  ],
+  "无法初始化更新": [
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 67
+    }
+  ],
+  "无法读取更新清单，请稍后重试": [
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 68
+    }
+  ],
+  "更新清单与正式版本不一致": [
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 70
+    }
+  ],
+  "请先检查更新": [
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 88
+    }
+  ],
+  "更新检查已过期，请重新检查": [
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 89
+    }
+  ],
+  "下载更新或签名校验失败，请重新检查更新": [
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 91
+    }
+  ],
+  "安装更新失败，请从发布页面下载安装包": [
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 93
+    }
+  ],
+  "请从发布页面下载移动端更新": [
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 97
+    }
+  ],
+  "无法打开下载页面": [
+    {
+      "file": "src-tauri/src/updates.rs",
+      "line": 101
+    }
+  ],
+  "回收站已满，请永久删除不再需要的令牌": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 58
+    }
+  ],
+  "分组无效或超过 100 个": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 66
+    }
+  ],
+  "备份含重复分组": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 75
+    }
+  ],
+  "分组已存在": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 103
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 120
+    }
+  ],
+  "最多创建 100 个分组": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 106
+    }
+  ],
+  "分组操作无效": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 126
+    }
+  ],
+  "同一 Steam 账号存在不同密钥，请确认已失效令牌后再导入": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 167
+    }
+  ],
+  "无法检查令牌差异": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 212
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 288
+    }
+  ],
+  "重复 Steam 令牌的 SteamID 冲突": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 217
+    }
+  ],
+  "重复 Steam 令牌的 {{label}} 冲突": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 235
+    }
+  ],
+  "重复 Steam 令牌的 steam_data 冲突": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 264
+    }
+  ],
+  "无法创建恢复目录": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 310
+    }
+  ],
+  "无法保存新令牌恢复副本，请立即释放存储空间": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 324
+    }
+  ],
+  "新令牌恢复副本写入失败": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 327
+    }
+  ],
+  "无法派生加密密钥": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 345
+    }
+  ],
+  "无法序列化令牌": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 351
+    }
+  ],
+  "加密密钥错误": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 352
+    }
+  ],
+  "加密失败": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 355
+    }
+  ],
+  "无法写入加密备份": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 364
+    }
+  ],
+  "备份盐值错误": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 368
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 380
+    }
+  ],
+  "加密备份格式错误": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 372
+    }
+  ],
+  "不支持的加密备份版本": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 374
+    }
+  ],
+  "设备密钥与令牌库不匹配，请使用主密码解锁": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 382
+    }
+  ],
+  "备份随机数错误": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 384
+    }
+  ],
+  "备份参数无效": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 386
+    }
+  ],
+  "密钥错误": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 388
+    }
+  ],
+  "备份内容无效": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 389
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 395
+    }
+  ],
+  "密码错误或备份已损坏": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 393
+    }
+  ],
+  "备份密码至少需要 8 个字符": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 422
+    }
+  ],
+  "设备标识无效": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 465
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 466
+    }
+  ],
+  "无法编码设备标识": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 471
+    }
+  ],
+  "无法生成令牌版本": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 503
+    }
+  ],
+  "令牌库已存在，请解锁": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 509
+    }
+  ],
+  "主密码至少需要 8 个字符": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 512
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 532
+    }
+  ],
+  "令牌库过大": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 550
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 592
+    }
+  ],
+  "令牌库格式错误": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 553
+    }
+  ],
+  "盐值错误": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 554
+    }
+  ],
+  "保险库已锁定": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 561
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 604
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 627
+    }
+  ],
+  "主密码错误": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 573
+    }
+  ],
+  "设备密钥格式错误": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 584
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 586
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 588
+    }
+  ],
+  "无法清除预览缓存": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 618
+    }
+  ],
+  "令牌库已锁定，请先解锁": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 665
+    }
+  ],
+  "令牌库目录无效": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 669
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 675
+    }
+  ],
+  "令牌库已锁定": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 670
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 692
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 697
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 760
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 764
+    }
+  ],
+  "无法读取恢复目录": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 677
+    }
+  ],
+  "无法读取待恢复令牌": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 689
+    }
+  ],
+  "存在未恢复的 Steam 令牌，请保留 recovery 文件并使用其创建时的主密码导入": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 695
+    }
+  ],
+  "令牌已恢复，但恢复副本清理失败": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 727
+    }
+  ],
+  "无法创建令牌库事务": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 737
+    }
+  ],
+  "无法恢复令牌库事务": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 743
+    }
+  ],
+  "保险库达到大小限制，请导出备份，断开同步后创建新的同步库": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 767
+    }
+  ],
+  "无法创建令牌库": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 780
+    }
+  ],
+  "无法写入令牌库": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 784
+    }
+  ],
+  "无法编码备份": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 787
+    }
+  ],
+  "无法保存令牌库": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 817
+    }
+  ],
+  "设备认证提示文本无效": [
+    {
+      "file": "src-tauri/plugins/quick-access/src/lib.rs",
+      "line": 75
+    }
+  ],
+  "设备认证提示暂不可用": [
+    {
+      "file": "src-tauri/plugins/quick-access/src/lib.rs",
+      "line": 77
+    }
+  ],
+  "无法读取外部备份目录授权": [
+    {
+      "file": "src-tauri/plugins/quick-access/src/lib.rs",
+      "line": 99
+    },
+    {
+      "file": "src-tauri/plugins/quick-access/src/lib.rs",
+      "line": 112
+    }
+  ],
+  "未能选择外部备份目录，请重新授权文件夹访问": [
+    {
+      "file": "src-tauri/plugins/quick-access/src/lib.rs",
+      "line": 125
+    }
+  ],
+  "请使用桌面备份目录设置": [
+    {
+      "file": "src-tauri/plugins/quick-access/src/lib.rs",
+      "line": 129
+    }
+  ],
+  "无法重置外部备份目录": [
+    {
+      "file": "src-tauri/plugins/quick-access/src/lib.rs",
+      "line": 138
+    },
+    {
+      "file": "src-tauri/plugins/quick-access/android/src/main/java/com/kasen/steamguard/quickaccess/QuickAccessPlugin.kt",
+      "line": 228
+    },
+    {
+      "file": "src-tauri/plugins/quick-access/ios/Sources/QuickAccessPlugin.swift",
+      "line": 184
+    }
+  ],
+  "外部备份未写入，请检查目录授权和可用空间；本地快照已保留": [
+    {
+      "file": "src-tauri/plugins/quick-access/src/lib.rs",
+      "line": 157
+    }
+  ],
+  "无法配置系统备份": [
+    {
+      "file": "src-tauri/plugins/quick-access/src/lib.rs",
+      "line": 175
+    }
+  ],
+  "无法读取设备认证状态": [
+    {
+      "file": "src-tauri/plugins/quick-access/src/lib.rs",
+      "line": 188
+    }
+  ],
+  "指纹 / Face ID": [
+    {
+      "file": "src-tauri/plugins/quick-access/src/lib.rs",
+      "line": 193
+    }
+  ],
+  "未能启用快捷访问，请确认设备已设置指纹或 Face ID，并完成系统验证": [
+    {
+      "file": "src-tauri/plugins/quick-access/src/lib.rs",
+      "line": 204
+    }
+  ],
+  "快捷访问目前支持 Android 和 iOS": [
+    {
+      "file": "src-tauri/plugins/quick-access/src/lib.rs",
+      "line": 210
+    },
+    {
+      "file": "src-tauri/plugins/quick-access/src/lib.rs",
+      "line": 221
+    }
+  ],
+  "验证已取消或设备密钥不可用，请使用主密码解锁；更改系统指纹或 Face ID 后需重新启用": [
+    {
+      "file": "src-tauri/plugins/quick-access/src/lib.rs",
+      "line": 216
+    }
+  ],
+  "无法清除设备密钥，请重试": [
+    {
+      "file": "src-tauri/plugins/quick-access/src/lib.rs",
+      "line": 229
+    }
+  ],
+  "指纹 / 面容认证": [
+    {
+      "file": "src-tauri/plugins/quick-access/android/src/main/java/com/kasen/steamguard/quickaccess/QuickAccessPlugin.kt",
+      "line": 54
+    }
+  ],
+  "设备密钥不可用，请使用主密码": [
+    {
+      "file": "src-tauri/plugins/quick-access/android/src/main/java/com/kasen/steamguard/quickaccess/QuickAccessPlugin.kt",
+      "line": 81
+    }
+  ],
+  "设备验证已取消或不可用，请使用主密码": [
+    {
+      "file": "src-tauri/plugins/quick-access/android/src/main/java/com/kasen/steamguard/quickaccess/QuickAccessPlugin.kt",
+      "line": 84
+    }
+  ],
+  "无法启动设备验证，请使用主密码": [
+    {
+      "file": "src-tauri/plugins/quick-access/android/src/main/java/com/kasen/steamguard/quickaccess/QuickAccessPlugin.kt",
+      "line": 91
+    }
+  ],
+  "认证正在进行": [
+    {
+      "file": "src-tauri/plugins/quick-access/android/src/main/java/com/kasen/steamguard/quickaccess/QuickAccessPlugin.kt",
+      "line": 96
+    },
+    {
+      "file": "src-tauri/plugins/quick-access/android/src/main/java/com/kasen/steamguard/quickaccess/QuickAccessPlugin.kt",
+      "line": 115
+    },
+    {
+      "file": "src-tauri/plugins/quick-access/android/src/main/java/com/kasen/steamguard/quickaccess/QuickAccessPlugin.kt",
+      "line": 135
+    }
+  ],
+  "无法保存设备密钥，请使用主密码": [
+    {
+      "file": "src-tauri/plugins/quick-access/android/src/main/java/com/kasen/steamguard/quickaccess/QuickAccessPlugin.kt",
+      "line": 111
+    }
+  ],
+  "设备密钥不可用，请使用主密码重新启用": [
+    {
+      "file": "src-tauri/plugins/quick-access/android/src/main/java/com/kasen/steamguard/quickaccess/QuickAccessPlugin.kt",
+      "line": 131
+    }
+  ],
+  "无法删除设备密钥": [
+    {
+      "file": "src-tauri/plugins/quick-access/android/src/main/java/com/kasen/steamguard/quickaccess/QuickAccessPlugin.kt",
+      "line": 141
+    }
+  ],
+  "目录授权已失效，请重新选择备份目录": [
+    {
+      "file": "src-tauri/plugins/quick-access/android/src/main/java/com/kasen/steamguard/quickaccess/QuickAccessPlugin.kt",
+      "line": 175
+    },
+    {
+      "file": "src-tauri/plugins/quick-access/ios/Sources/QuickAccessPlugin.swift",
+      "line": 128
+    }
+  ],
+  "文件夹选择正在进行": [
+    {
+      "file": "src-tauri/plugins/quick-access/android/src/main/java/com/kasen/steamguard/quickaccess/QuickAccessPlugin.kt",
+      "line": 181
+    }
+  ],
+  "无法打开文件夹选择器": [
+    {
+      "file": "src-tauri/plugins/quick-access/android/src/main/java/com/kasen/steamguard/quickaccess/QuickAccessPlugin.kt",
+      "line": 188
+    }
+  ],
+  "目录授权或写入检查失败，请重新选择文件夹": [
+    {
+      "file": "src-tauri/plugins/quick-access/android/src/main/java/com/kasen/steamguard/quickaccess/QuickAccessPlugin.kt",
+      "line": 214
+    },
+    {
+      "file": "src-tauri/plugins/quick-access/ios/Sources/QuickAccessPlugin.swift",
+      "line": 175
+    }
+  ],
+  "外部备份写入失败，请检查目录授权和存储空间": [
+    {
+      "file": "src-tauri/plugins/quick-access/android/src/main/java/com/kasen/steamguard/quickaccess/QuickAccessPlugin.kt",
+      "line": 270
+    },
+    {
+      "file": "src-tauri/plugins/quick-access/ios/Sources/QuickAccessPlugin.swift",
+      "line": 231
+    }
+  ],
+  "备份目录不在应用存储区域": [
+    {
+      "file": "src-tauri/plugins/quick-access/ios/Sources/QuickAccessPlugin.swift",
+      "line": 32
+    }
+  ],
+  "请先设置 Face ID 或 Touch ID": [
+    {
+      "file": "src-tauri/plugins/quick-access/ios/Sources/QuickAccessPlugin.swift",
+      "line": 56
+    }
+  ],
+  "文件夹选择正在进行或不可用": [
+    {
+      "file": "src-tauri/plugins/quick-access/ios/Sources/QuickAccessPlugin.swift",
+      "line": 145
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import { t as translate, formatDateTime } from "./i18n";
 import {
   useCallback,
   useEffect,
@@ -7,6 +8,7 @@ import {
 } from "react";
 import {
   ArrowDownToLine,
+  ArrowUp, ArrowDown, Pin,
   ArrowRight,
   ArrowUpRight,
   Check,
@@ -45,6 +47,11 @@ import {
 import QRCode from "qrcode";
 import { TokenAvatar, IconPicker } from "./TokenAvatar";
 import { SettingsDisclosure } from "./SettingsDisclosure";
+import { BatchQrExport } from "./BatchQrExport";
+import { LanguageSettings } from "./LanguageSettings";
+import { UpdateSettings } from "./UpdateSettings";
+import { AppearanceSettings } from "./AppearanceSettings";
+import { SteamQrScanner } from "./SteamQrScanner";
 import { DesktopSettings } from "./DesktopSettings";
 import { QrImportPanel } from "./QrImportPanel";
 import { api, errorText, native } from "./api";
@@ -52,6 +59,7 @@ import { SyncPanel, useSyncWatcher } from "./SyncPanel";
 import { BackupPanel, BackupBrowser } from "./BackupPanel";
 import { TokenGroups } from "./TokenGroups";
 import { Modal } from "./Modal";
+import { ManualTokenForm, OtpParameters, PasswordSettings, TrashBrowser } from "./TokenManagement";
 import { QuickAccessSettings } from "./QuickAccessSettings";
 import { SteamNetworkPanel } from "./SteamNetworkPanel";
 import type {
@@ -62,6 +70,7 @@ import type {
   MarketResult,
   Page,
   TokenView,
+  TokenParameters,
   VaultStatus,
 } from "./types";
 
@@ -70,10 +79,10 @@ const navigation: {
   label: string;
   icon: typeof Shield;
 }[] = [
-  { id: "tokens", label: "令牌", icon: LayoutGrid },
-  { id: "confirmations", label: "交易确认", icon: CheckCheck },
-  { id: "market", label: "社区市场", icon: ShoppingBag },
-  { id: "settings", label: "设置", icon: Settings2 },
+  { id: "tokens", get label() { return translate("令牌"); }, icon: LayoutGrid },
+  { id: "confirmations", get label() { return translate("交易确认"); }, icon: CheckCheck },
+  { id: "market", get label() { return translate("社区市场"); }, icon: ShoppingBag },
+  { id: "settings", get label() { return translate("设置"); }, icon: Settings2 },
 ];
 
 function Spinner() {
@@ -112,7 +121,7 @@ export default function App() {
           return r.text();
         })
         .then(setLicenseText)
-        .catch(() => setLicenseText("无法读取许可文件"));
+        .catch(() => setLicenseText(translate("无法读取许可文件")));
   }, [licensesOpen]);
   const startupAccess = useRef(false);
   const [page, setPage] = useState<Page>("tokens");
@@ -124,15 +133,23 @@ export default function App() {
   const [groupsOpen, setGroupsOpen] = useState(false);
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("name");
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [batchGroup, setBatchGroup] = useState("");
+  const [batchDelete, setBatchDelete] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
+  const dragging = useRef<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [notification, setNotification] = useState<{
     text: string;
     error: boolean;
+    undo?: string[];
   } | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [loginToken, setLoginToken] = useState<TokenView | null>(null);
   const [editToken, setEditToken] = useState<TokenView | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [batchExportOpen, setBatchExportOpen] = useState(false);
   const [copied, setCopied] = useState("");
   const [account, setAccount] = useState("");
   const [confirmations, setConfirmations] = useState<Confirmation[]>([]);
@@ -143,15 +160,22 @@ export default function App() {
     approve: boolean;
   } | null>(null);
   const refreshing = useRef(false);
+  const statusRef = useRef<VaultStatus | null>(null);
+  const revisionRef = useRef<string | null>(null);
+  const accessEpoch = useRef(0);
+  const resuming = useRef(false);
+  statusRef.current = status;
   const notify = useCallback(
-    (text: string, error = false) => setNotification({ text, error }),
+    (text: string, error = false, undo?: string[]) => setNotification({ text, error, undo }),
     [],
   );
   const refresh = useCallback(async () => {
-    if (refreshing.current) return;
+    if (refreshing.current || resuming.current) return;
     refreshing.current = true;
+    const epoch = accessEpoch.current;
     try {
       let next = await api.status();
+      if (epoch !== accessEpoch.current || resuming.current) return;
       if (!startupAccess.current) {
         startupAccess.current = true;
         if (next.initialized && next.locked) {
@@ -160,46 +184,76 @@ export default function App() {
             else if (next.biometricEnabled) await api.biometricUnlock();
             next = await api.status();
           } catch (error) {
-            notify(errorText(error), true);
+            if (epoch === accessEpoch.current) notify(errorText(error), true);
           }
         }
       }
-      setStatus(next);
+      let nextTokens: TokenView[] = [];
+      let nextGroups: string[] = [];
       if (next.initialized && !next.locked) {
-        setTokens(await api.tokens());
-        setGroups(await api.groups());
-        setShowUnlock(false);
+        nextTokens = await api.tokens();
+        nextGroups = await api.groups();
       } else if (next.previewActive) {
         try {
-          const previewTokens = await api.previewTokens();
-          setTokens(previewTokens);
-          setGroups([
-            ...new Set(
-              previewTokens.map((t) => t.group).filter((g): g is string => !!g),
-            ),
-          ]);
+          nextTokens = await api.previewTokens();
+          nextGroups = [...new Set(nextTokens.map(t => t.group).filter((g): g is string => !!g))];
         } catch (error) {
-          setTokens([]);
           await api.previewExit();
-          setStatus(await api.status());
-          notify(errorText(error), true);
+          next = await api.status();
+          if (epoch === accessEpoch.current) notify(errorText(error), true);
         }
-      } else {
-        setTokens([]);
-        setGroups([]);
       }
+      if (epoch !== accessEpoch.current || resuming.current) return;
+      setStatus(next);
+      setTokens(nextTokens);
+      setGroups(nextGroups);
+      if (!next.locked) setShowUnlock(false);
     } catch (e) {
-      notify(errorText(e), true);
+      if (epoch === accessEpoch.current) notify(errorText(e), true);
     } finally {
       refreshing.current = false;
     }
   }, [notify]);
   useEffect(() => {
     void refresh();
-    const timer = setInterval(() => {
-      void refresh();
-    }, 1000);
-    return () => clearInterval(timer);
+    let polling = false;
+    let ticks = 0;
+    const poll = async () => {
+      if (document.hidden || polling || refreshing.current || resuming.current || !native) return;
+      const epoch = accessEpoch.current;
+      polling = true;
+      try {
+        const previous = statusRef.current;
+        if (++ticks % 5 === 0) {
+          const next = await api.status();
+          if (epoch !== accessEpoch.current || resuming.current) return;
+          setStatus(next);
+          if (next.locked !== previous?.locked || next.previewActive !== previous?.previewActive) {
+            await refresh();
+            return;
+          }
+        }
+        if (previous?.initialized && (!previous.locked || previous.previewActive)) {
+          const snapshot = await api.tokenCodes();
+          if (epoch !== accessEpoch.current || resuming.current) return;
+          if (revisionRef.current !== null && revisionRef.current !== snapshot.revision) {
+            revisionRef.current = snapshot.revision;
+            await refresh();
+            return;
+          }
+          revisionRef.current = snapshot.revision;
+          const byId = new Map(snapshot.codes.map(code => [code.id, code]));
+          setTokens(current => current.map(token => {
+            const code = byId.get(token.id);
+            return code ? { ...token, code: code.code, remaining: code.remaining, period: code.period } : token;
+          }));
+        }
+      } catch { await refresh(); } finally { polling = false; }
+    };
+    const timer = setInterval(() => void poll(), 1000);
+    const changed = () => { if (!document.hidden) void refresh(); };
+    window.addEventListener("steamguard:sync-updated", changed);
+    return () => { clearInterval(timer); window.removeEventListener("steamguard:sync-updated", changed); };
   }, [refresh]);
   useEffect(() => {
     if (notification) {
@@ -215,6 +269,12 @@ export default function App() {
     )
       setGroupFilter("all");
   }, [groups, groupFilter]);
+  useEffect(() => {
+    setSelected(previous => {
+      const next = previous.filter(id => tokens.some(token => token.id === id));
+      return next.length === previous.length ? previous : next;
+    });
+  }, [tokens]);
   const steamTokens = tokens.filter((t) => t.kind === "steam");
   const hasSteam = steamTokens.length > 0;
   const visibleNavigation = navigation.filter(
@@ -244,7 +304,6 @@ export default function App() {
         t.id,
         t.name,
         t.group,
-        t.icon,
         t.counter,
         t.steamId,
         t.enrollmentPending,
@@ -253,11 +312,16 @@ export default function App() {
   );
   useEffect(() => {
     if (!unlocked) {
+      setSelecting(false);
+      setSelected([]);
+      setTrashOpen(false);
+      setBatchDelete(false);
       setGroupsOpen(false);
       setImportOpen(false);
       setLoginToken(null);
       setEditToken(null);
       setExportOpen(false);
+      setBatchExportOpen(false);
       setAction(null);
       return;
     }
@@ -275,32 +339,63 @@ export default function App() {
         document.querySelector<HTMLInputElement>(".search-box input")?.focus();
       }
     };
-    let backgroundTimer: ReturnType<typeof setTimeout> | undefined;
-    const visibility = () => {
-      clearTimeout(backgroundTimer);
-      if (
-        native &&
-        /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) &&
-        document.hidden
-      ) {
-        backgroundTimer = setTimeout(() => {
-          void api
-            .lock()
-            .then(refresh)
-            .catch(() => {});
-        }, 60_000);
-      }
-    };
     document.addEventListener("pointerdown", touch);
     document.addEventListener("keydown", keyboard);
-    document.addEventListener("visibilitychange", visibility);
     return () => {
-      clearTimeout(backgroundTimer);
       document.removeEventListener("pointerdown", touch);
       document.removeEventListener("keydown", keyboard);
-      document.removeEventListener("visibilitychange", visibility);
     };
   }, [unlocked, refresh]);
+  useEffect(() => {
+    let hiddenAt: number | null = null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let disposed = false;
+    const mobile = native && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const clearCodes = () => {
+      accessEpoch.current += 1;
+      setTokens([]); setGroups([]);
+      setStatus(current => current ? { ...current, locked: true, previewActive: false } : current);
+    };
+    const lock = async () => {
+      resuming.current = true;
+      clearCodes();
+      try { await api.lock(); }
+      catch (error) { if (!disposed) notify(errorText(error), true); }
+      finally { resuming.current = false; if (!disposed) void refresh(); }
+    };
+    const visibility = () => {
+      clearTimeout(timer);
+      if (document.hidden) {
+        accessEpoch.current += 1;
+        if (mobile) {
+          hiddenAt = Date.now();
+          void api.background(true).catch(() => {});
+          timer = setTimeout(() => { void lock(); }, 60_000);
+        }
+        return;
+      }
+      if (!mobile) { void refresh().then(() => window.dispatchEvent(new Event("steamguard:foreground-ready"))); return; }
+      const expired = hiddenAt !== null && Date.now() - hiddenAt >= 60_000;
+      hiddenAt = null;
+      resuming.current = true;
+      if (expired) clearCodes();
+      void (async () => {
+        try {
+          // Native monotonic time covers a suspended WebView and wall-clock changes.
+          await api.background(false);
+          if (expired) await api.lock();
+        } catch (error) {
+          if (expired) await api.lock().catch(() => {});
+          if (!disposed) notify(errorText(error), true);
+        } finally {
+          resuming.current = false;
+          if (!disposed) void refresh().then(() => window.dispatchEvent(new Event("steamguard:foreground-ready")));
+        }
+      })();
+    };
+    document.addEventListener("visibilitychange", visibility);
+    return () => { disposed = true; clearTimeout(timer); document.removeEventListener("visibilitychange", visibility); };
+  }, [refresh, notify]);
   const visibleTokens = tokens
     .filter(
       (t) =>
@@ -316,9 +411,9 @@ export default function App() {
           .includes(search.toLowerCase()),
     )
     .sort((a, b) =>
-      sort === "type"
+      Number(!!b.pinned) - Number(!!a.pinned) || (sort === "manual" ? 0 : sort === "type"
         ? a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name)
-        : a.name.localeCompare(b.name),
+        : a.name.localeCompare(b.name)),
     );
   const run = async (job: () => Promise<unknown>, success?: string) => {
     setBusy(true);
@@ -332,15 +427,45 @@ export default function App() {
       setBusy(false);
     }
   };
+  const lockVault = () => run(async () => {
+    accessEpoch.current += 1;
+    resuming.current = true;
+    setTokens([]); setGroups([]);
+    setStatus(current => current ? { ...current, locked: true, previewActive: false } : current);
+    try { await api.lock(); }
+    finally { resuming.current = false; }
+  }, translate("保险库已锁定"));
   const copy = async (token: TokenView) => {
-    if (!token.code || token.hotpReadOnly) return;
+    if (!token.code || token.hotpReadOnly || document.hidden || resuming.current) return;
+    const epoch = accessEpoch.current;
     try {
-      await navigator.clipboard.writeText(token.code.replaceAll(" ", ""));
+      const current = await api.currentCode(token.id);
+      if (epoch !== accessEpoch.current || document.hidden || resuming.current) return;
+      setTokens(previous => previous.map(item => item.id === token.id ? { ...item, ...current } : item));
+      await navigator.clipboard.writeText(current.code.replaceAll(" ", ""));
+      if (epoch !== accessEpoch.current || resuming.current) return;
       setCopied(token.id);
-      setTimeout(() => setCopied(""), 1800);
-    } catch {
-      notify("无法写入剪贴板，请手动复制验证码。", true);
+      setTimeout(() => { if (epoch === accessEpoch.current) setCopied(""); }, 1800);
+    } catch (error) {
+      if (epoch === accessEpoch.current) notify(translate("无法复制验证码：{{value1}}", { value1: errorText(error) }), true);
     }
+  };
+  const reorder = async (id: string, target: string) => {
+    if (id === target) return;
+    const ids = tokens.map(t => t.id);
+    const from = ids.indexOf(id), to = ids.indexOf(target);
+    if (from < 0 || to < 0) return;
+    ids.splice(from, 1); ids.splice(to, 0, id);
+    await run(() => api.reorderTokens(ids));
+    setSort("manual");
+  };
+  const batch = async (action: "group" | "pin" | "delete", options?: { group?: string; pinned?: boolean }) => {
+    const ids = [...selected];
+    await run(async () => {
+      await api.tokenBatch(action, ids, options);
+      if (action === "delete") { notify(translate("已将 {{length}} 个令牌移入本机回收站", { length: ids.length }), false, ids); }
+      setSelected([]); setSelecting(false); setBatchDelete(false);
+    });
   };
   const loadConfirmations = async () => {
     if (!active) return;
@@ -391,7 +516,7 @@ export default function App() {
           </span>
         </a>
 
-        <nav aria-label="主导航">
+        <nav aria-label={translate("主导航")}>
           {visibleNavigation.map((item) => (
             <button
               key={item.id}
@@ -422,35 +547,31 @@ export default function App() {
                     disabled={!unlocked || !tokens.length}
                     onClick={() => setExportOpen(true)}
                   >
-                    <ArrowDownToLine size={16} />
-                    导出备份
-                  </button>
+                    <ArrowDownToLine size={16} />{translate("导出备份")}</button>
                   <button
                     className="button primary add-token"
-                    aria-label="添加令牌"
+                    aria-label={translate("添加令牌")}
                     disabled={!unlocked}
                     onClick={() => setImportOpen(true)}
                   >
                     <Plus size={17} />
-                    <span>添加令牌</span>
+                    <span>{translate("添加令牌")}</span>
                   </button>
                 </>
               )}
               {page === "settings" && unlocked && (
                 <button
                   className="button secondary"
-                  onClick={() => void run(() => api.lock(), "保险库已锁定")}
+                  onClick={() => void lockVault()}
                 >
-                  <LockKeyhole size={16} />
-                  锁定保险库
-                </button>
+                  <LockKeyhole size={16} />{translate("锁定保险库")}</button>
               )}
             </div>
           </div>
           {!status ? (
             <div className="loading-state">
               <Spinner />
-              <span>正在加载…</span>
+              <span>{translate("正在加载…")}</span>
             </div>
           ) : !unlocked && (!previewMode || page !== "tokens" || showUnlock) ? (
             <VaultGate
@@ -472,13 +593,11 @@ export default function App() {
                 <>
                   {previewMode && (
                     <div className="preview-notice">
-                      <span>只读预览</span>
+                      <span>{translate("只读预览")}</span>
                       <button
                         className="button secondary"
                         onClick={() => setShowUnlock(true)}
-                      >
-                        解锁
-                      </button>
+                      >{translate("解锁")}</button>
                     </div>
                   )}
                   <div className="section-toolbar">
@@ -487,9 +606,7 @@ export default function App() {
                         <button
                           className={filter === "all" ? "selected" : ""}
                           onClick={() => setFilter("all")}
-                        >
-                          全部
-                        </button>
+                        >{translate("全部")}</button>
                         <button
                           className={filter === "steam" ? "selected" : ""}
                           onClick={() => setFilter("steam")}
@@ -501,9 +618,7 @@ export default function App() {
                           onClick={() =>
                             setFilter(filter === "other" ? "all" : "other")
                           }
-                        >
-                          其他令牌
-                        </button>
+                        >{translate("其他令牌")}</button>
                       </div>
                     )}
                     <div className="toolbar-right">
@@ -512,19 +627,20 @@ export default function App() {
                         <input
                           value={search}
                           onChange={(e) => setSearch(e.target.value)}
-                          placeholder="搜索"
-                          aria-label="搜索令牌"
+                          placeholder={translate("搜索")}
+                          aria-label={translate("搜索令牌")}
                         />
                       </label>
-                      <label className="sort-select" title="排序">
+                      <label className="sort-select" title={translate("排序")}>
                         <SlidersHorizontal size={16} />
                         <select
                           value={sort}
                           onChange={(e) => setSort(e.target.value)}
-                          aria-label="令牌排序"
+                          aria-label={translate("令牌排序")}
                         >
-                          <option value="name">按名称</option>
-                          <option value="type">按类型</option>
+                          <option value="manual">{translate("手动排序")}</option>
+                          <option value="name">{translate("按名称")}</option>
+                          <option value="type">{translate("按类型")}</option>
                         </select>
                         <ChevronDown size={12} />
                       </label>
@@ -534,12 +650,12 @@ export default function App() {
                     <label>
                       <FolderOpen size={17} />
                       <select
-                        aria-label="分组筛选"
+                        aria-label={translate("分组筛选")}
                         value={groupFilter}
                         onChange={(e) => setGroupFilter(e.target.value)}
                       >
-                        <option value="all">全部分组</option>
-                        <option value="ungrouped">未分组</option>
+                        <option value="all">{translate("全部分组")}</option>
+                        <option value="ungrouped">{translate("未分组")}</option>
                         {groups.map((g) => (
                           <option key={g} value={"group:" + g}>
                             {g}
@@ -549,13 +665,25 @@ export default function App() {
                     </label>
                     <button
                       className="icon-button"
-                      aria-label="管理分组"
+                      aria-label={translate("管理分组")}
                       disabled={!unlocked}
                       onClick={() => setGroupsOpen(true)}
                     >
                       <Settings2 size={19} />
                     </button>
                   </div>
+                  {unlocked && <div className="token-management-toolbar">
+                    <button className="button text" disabled={busy || !tokens.length} onClick={() => { setSelecting(!selecting); setSelected([]); }}>{selecting ? translate("退出批量选择") : translate("批量管理")}</button>
+                    <button className="button text" onClick={() => setTrashOpen(true)}>{translate("回收站")}</button>
+                  </div>}
+                  {selecting && <div className="batch-toolbar" role="region" aria-label={translate("批量管理令牌")}>
+                    <label><input type="checkbox" aria-label={translate("选择当前筛选的全部令牌")} disabled={busy} ref={node => { if (node) node.indeterminate = visibleTokens.some(token => selected.includes(token.id)) && !visibleTokens.every(token => selected.includes(token.id)); }} checked={!!visibleTokens.length && visibleTokens.every(t => selected.includes(t.id))} onChange={e => setSelected(e.target.checked ? [...new Set([...selected, ...visibleTokens.map(t => t.id)])] : selected.filter(id => !visibleTokens.some(t => t.id === id)))} />{translate("已选 {{count}} 项", { count: selected.length })}</label>
+                    <select aria-label={translate("批量目标分组")} disabled={busy} value={batchGroup} onChange={e => setBatchGroup(e.target.value)}><option value="">{translate("未分组")}</option>{groups.map(g => <option key={g}>{g}</option>)}</select>
+                    <button className="button secondary" disabled={busy || !selected.length} onClick={() => void batch("group", { group: batchGroup })}>{translate("移至分组")}</button>
+                    <button className="button secondary" disabled={busy || !selected.length} onClick={() => void batch("pin", { pinned: true })}>{translate("置顶")}</button>
+                    <button className="button secondary" disabled={busy || !selected.length} onClick={() => void batch("pin", { pinned: false })}>{translate("取消置顶")}</button>
+                    <button className="button text danger-text" disabled={busy || !selected.length} onClick={() => setBatchDelete(true)}>{translate("删除")}</button>
+                  </div>}
                   {visibleTokens.filter(
                     (t) => filter !== "other" || t.kind !== "steam",
                   ).length ? (
@@ -563,11 +691,17 @@ export default function App() {
                       {visibleTokens
                         .filter((t) => filter !== "other" || t.kind !== "steam")
                         .map((token) => (
-                          <article className="token-card" key={token.id}>
+                          <article className={`token-card ${selected.includes(token.id) ? "token-selected" : ""}`} key={token.id}
+                            draggable={unlocked && !busy && sort === "manual" && !selecting}
+                            onDragStart={e => { dragging.current = token.id; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", token.id); }}
+                            onDragOver={e => { if (sort === "manual" && dragging.current) e.preventDefault(); }}
+                            onDrop={e => { e.preventDefault(); if (dragging.current) void reorder(dragging.current, token.id); dragging.current = null; }}
+                            onDragEnd={() => { dragging.current = null; }}>
+                            {selecting && <label className="token-selection"><input type="checkbox" aria-label={translate("选择 {{name}}", { name: token.name })} disabled={busy} checked={selected.includes(token.id)} onChange={e => setSelected(e.target.checked ? [...selected, token.id] : selected.filter(id => id !== token.id))}/><span>{translate("选择")}</span></label>}
                             <div className="token-card-top">
                               <TokenIcon token={token} />
                               <div className="token-identity">
-                                <h3>{token.name}</h3>
+                                <h3>{token.pinned && <Pin size={12} aria-label={translate("已置顶")}/>}{token.name}</h3>
                                 {token.group && (
                                   <small className="token-group-label">
                                     {token.group}
@@ -586,7 +720,7 @@ export default function App() {
                               </div>
                               <button
                                 className="icon-button token-menu"
-                                aria-label={`管理 ${token.name}`}
+                                aria-label={translate("管理 {{name}}", { name: token.name })}
                                 disabled={!unlocked}
                                 onClick={() => setEditToken(token)}
                               >
@@ -598,15 +732,15 @@ export default function App() {
                                 className={`token-code ${token.remaining <= 5 && token.kind !== "hotp" ? "expiring" : ""}`}
                                 onClick={() => void copy(token)}
                                 disabled={token.hotpReadOnly}
-                                aria-label={`复制 ${token.name} 验证码`}
+                                aria-label={translate("复制 {{name}} 验证码", { name: token.name })}
                               >
                                 {token.hotpReadOnly
-                                  ? "仅主设备"
+                                  ? translate("仅主设备")
                                   : token.code || "•••••"}
                               </button>
                               <button
                                 className={`copy-button ${copied === token.id ? "copied" : ""}`}
-                                aria-label="复制验证码"
+                                aria-label={translate("复制验证码")}
                                 disabled={token.hotpReadOnly}
                                 onClick={() => void copy(token)}
                               >
@@ -620,7 +754,7 @@ export default function App() {
                             {token.kind !== "hotp" && (
                               <div
                                 className="token-progress"
-                                aria-label={`剩余 ${token.remaining} 秒`}
+                                aria-label={translate("剩余 {{remaining}} 秒", { remaining: token.remaining })}
                               >
                                 <span
                                   style={{
@@ -633,7 +767,7 @@ export default function App() {
                               {token.kind === "hotp" && (
                                 <span className="token-time">
                                   {token.kind === "hotp"
-                                    ? `计数 ${token.counter ?? 0}`
+                                    ? translate("计数 {{value1}}", { value1: token.counter ?? 0 })
                                     : ""}
                                 </span>
                               )}
@@ -648,24 +782,16 @@ export default function App() {
                                 >
                                   {previewMode ? (
                                     <>
-                                      <LockKeyhole size={14} />
-                                      解锁后连接
-                                    </>
+                                      <LockKeyhole size={14} />{translate("解锁后连接")}</>
                                   ) : token.enrollmentPending ? (
                                     <>
-                                      <Clock3 size={12} />
-                                      继续激活
-                                    </>
+                                      <Clock3 size={12} />{translate("继续激活")}</>
                                   ) : token.loggedIn ? (
                                     <>
-                                      <span className="status-dot" />
-                                      已登录
-                                    </>
+                                      <span className="status-dot" />{translate("已登录")}</>
                                   ) : (
                                     <>
-                                      <LogIn size={12} />
-                                      连接 Steam
-                                    </>
+                                      <LogIn size={12} />{translate("连接 Steam")}</>
                                   )}
                                 </button>
                               ) : token.kind === "hotp" ? (
@@ -675,9 +801,7 @@ export default function App() {
                                   onClick={() =>
                                     void run(() => api.nextHotp(token.id))
                                   }
-                                >
-                                  下一验证码
-                                  <ArrowRight size={12} />
+                                >{translate("下一验证码")}<ArrowRight size={12} />
                                 </button>
                               ) : null}
                             </div>
@@ -687,7 +811,7 @@ export default function App() {
                   ) : tokens.length ? (
                     <div className="empty-state compact">
                       <Search size={28} />
-                      <h2>没有找到匹配的令牌</h2>
+                      <h2>{translate("没有找到匹配的令牌")}</h2>
 
                       <button
                         className="button secondary"
@@ -696,21 +820,17 @@ export default function App() {
                           setFilter("all");
                           setGroupFilter("all");
                         }}
-                      >
-                        清除筛选
-                      </button>
+                      >{translate("清除筛选")}</button>
                     </div>
                   ) : (
                     <div className="tokens-empty">
-                      <h2>暂无令牌</h2>
+                      <h2>{translate("暂无令牌")}</h2>
                       <button
                         className="button primary"
                         disabled={!unlocked}
                         onClick={() => setImportOpen(true)}
                       >
-                        <Plus size={17} />
-                        添加令牌
-                      </button>
+                        <Plus size={17} />{translate("添加令牌")}</button>
                     </div>
                   )}
                 </>
@@ -719,7 +839,7 @@ export default function App() {
                 <>
                   <div className="account-toolbar">
                     <div>
-                      <label htmlFor="steam-account">当前 Steam 账户</label>
+                      <label htmlFor="steam-account">{translate("当前 Steam 账户")}</label>
                       <div className="account-select">
                         <SteamMark small />
                         <select
@@ -728,12 +848,12 @@ export default function App() {
                           onChange={(e) => setAccount(e.target.value)}
                         >
                           {!steamTokens.length && (
-                            <option value="">暂无 Steam 令牌</option>
+                            <option value="">{translate("暂无 Steam 令牌")}</option>
                           )}
                           {steamTokens.map((t) => (
                             <option key={t.id} value={t.id}>
                               {t.name}
-                              {t.loggedIn ? " · 已登录" : " · 未登录"}
+                              {t.loggedIn ? translate(" · 已登录") : translate(" · 未登录")}
                             </option>
                           ))}
                         </select>
@@ -746,9 +866,7 @@ export default function App() {
                           className="button primary"
                           onClick={() => setLoginToken(active)}
                         >
-                          <LogIn size={16} />
-                          登录 Steam
-                        </button>
+                          <LogIn size={16} />{translate("登录 Steam")}</button>
                       )}
                       <button
                         className="button secondary"
@@ -759,45 +877,34 @@ export default function App() {
                             : loadConfirmations())
                         }
                       >
-                        {busy ? <Spinner /> : <RefreshCw size={15} />}刷新
-                        {page === "market" ? "市场" : "确认"}
+                        {busy ? <Spinner /> : <RefreshCw size={15} />}{translate("刷新")}{page === "market" ? translate("市场") : translate("确认")}
                       </button>
                     </div>
                   </div>
                   {!active ? (
                     <div className="empty-state">
                       <SteamMark />
-                      <h2>先添加一个 Steam 令牌</h2>
-                      <p>
-                        导入包含 Steam
-                        身份密钥的令牌，再登录账户即可使用此功能。
-                      </p>
+                      <h2>{translate("先添加一个 Steam 令牌")}</h2>
+                      <p>{translate("导入包含 Steam 身份密钥的令牌，再登录账户即可使用此功能。")}</p>
                       <button
                         className="button primary"
                         onClick={() => setImportOpen(true)}
                       >
-                        <Plus size={16} />
-                        导入 Steam 令牌
-                      </button>
+                        <Plus size={16} />{translate("导入 Steam 令牌")}</button>
                     </div>
                   ) : !active.loggedIn ? (
                     <div className="empty-state">
                       <span className="empty-state-icon">
                         <LogIn size={30} />
                       </span>
-                      <h2>连接你的 Steam 账户</h2>
-                      <p>
-                        登录后即可查看
-                        {page === "market"
-                          ? "社区市场在售物品"
-                          : "待处理的交易与市场确认"}
-                        。
-                      </p>
+                      <h2>{translate("连接你的 Steam 账户")}</h2>
+                      <p>{translate("登录后即可查看{{value1}}。", { value1: page === "market"
+                          ? translate("社区市场在售物品")
+                          : translate("待处理的交易与市场确认") })}</p>
                       <button
                         className="button primary"
                         onClick={() => setLoginToken(active)}
-                      >
-                        登录 {active.name}
+                      >{translate("登录")}{active.name}
                         <ArrowRight size={16} />
                       </button>
                     </div>
@@ -810,17 +917,15 @@ export default function App() {
                               <ShoppingBag size={25} />
                             </div>
                             <div className="confirmation-info">
-                              <span className="eyebrow">待你确认</span>
+                              <span className="eyebrow">{translate("待你确认")}</span>
                               <h3>{item.headline}</h3>
                               <p>
                                 {item.summary?.join(" · ") ||
-                                  `确认编号 ${item.id}`}
+                                  translate("确认编号 {{id}}", { id: item.id })}
                               </p>
                               {item.creationTime > 0 && (
                                 <small>
-                                  {new Date(
-                                    item.creationTime * 1000,
-                                  ).toLocaleString("zh-CN")}
+                                  {formatDateTime(item.creationTime * 1000)}
                                 </small>
                               )}
                             </div>
@@ -830,17 +935,13 @@ export default function App() {
                                 onClick={() =>
                                   setAction({ item, approve: false })
                                 }
-                              >
-                                拒绝
-                              </button>
+                              >{translate("拒绝")}</button>
                               <button
                                 className="button primary"
                                 onClick={() =>
                                   setAction({ item, approve: true })
                                 }
-                              >
-                                查看并确认
-                                <ArrowRight size={14} />
+                              >{translate("查看并确认")}<ArrowRight size={14} />
                               </button>
                             </div>
                           </article>
@@ -853,22 +954,20 @@ export default function App() {
                         </span>
                         <h2>
                           {confirmationLoaded
-                            ? "目前没有待确认的交易"
-                            : "查看待处理的交易"}
+                            ? translate("目前没有待确认的交易")
+                            : translate("查看待处理的交易")}
                         </h2>
                         <p>
                           {confirmationLoaded
-                            ? "新的交易或市场上架确认会在刷新后显示。"
-                            : "从 Steam 获取确认列表，再逐笔核对交易信息。"}
+                            ? translate("新的交易或市场上架确认会在刷新后显示。")
+                            : translate("从 Steam 获取确认列表，再逐笔核对交易信息。")}
                         </p>
                         <button
                           className="button secondary"
                           disabled={busy}
                           onClick={() => void loadConfirmations()}
                         >
-                          {busy ? <Spinner /> : <RefreshCw size={15} />}
-                          获取交易确认
-                        </button>
+                          {busy ? <Spinner /> : <RefreshCw size={15} />}{translate("获取交易确认")}</button>
                       </div>
                     )
                   ) : (
@@ -878,11 +977,11 @@ export default function App() {
                           <ShoppingBag size={26} />
                         </span>
                         <div>
-                          <h3>你的社区市场</h3>
+                          <h3>{translate("你的社区市场")}</h3>
                           <p>
                             {market?.walletBalance
-                              ? `钱包余额 ${market.walletBalance}`
-                              : "在这里查看在售物品，前往 Steam 完成市场操作。"}
+                              ? translate("钱包余额 {{walletBalance}}", { walletBalance: market.walletBalance })
+                              : translate("在这里查看在售物品，前往 Steam 完成市场操作。")}
                           </p>
                         </div>
                         <button
@@ -894,17 +993,15 @@ export default function App() {
                               ),
                             )
                           }
-                        >
-                          打开社区市场
-                          <ArrowUpRight size={15} />
+                        >{translate("打开社区市场")}<ArrowUpRight size={15} />
                         </button>
                       </div>
                       {market?.items.length ? (
                         <div className="market-table">
                           <div className="market-table-head">
-                            <span>在售物品</span>
-                            <span>数量</span>
-                            <span>价格</span>
+                            <span>{translate("在售物品")}</span>
+                            <span>{translate("数量")}</span>
+                            <span>{translate("价格")}</span>
                             <span />
                           </div>
                           {market.items.map((item) => (
@@ -915,7 +1012,7 @@ export default function App() {
                                 </span>
                                 <div>
                                   <strong>{item.name}</strong>
-                                  <small>{item.game || "Steam 社区市场"}</small>
+                                  <small>{item.game || translate("Steam 社区市场")}</small>
                                 </div>
                               </div>
                               <span>{item.quantity ?? 1}</span>
@@ -924,7 +1021,7 @@ export default function App() {
                               </strong>
                               <button
                                 className="icon-button"
-                                aria-label={`查看 ${item.name}`}
+                                aria-label={translate("查看 {{name}}", { name: item.name })}
                                 onClick={() =>
                                   void run(() =>
                                     api.external(
@@ -945,20 +1042,18 @@ export default function App() {
                             <ShoppingBag size={31} />
                           </span>
                           <h2>
-                            {market ? "当前没有在售物品" : "查看你的在售物品"}
+                            {market ? translate("当前没有在售物品") : translate("查看你的在售物品")}
                           </h2>
                           <p>
                             {market?.message ||
-                              "刷新以获取当前账户的社区市场信息。"}
+                              translate("刷新以获取当前账户的社区市场信息。")}
                           </p>
                           <button
                             className="button secondary"
                             disabled={busy}
                             onClick={() => void loadMarket()}
                           >
-                            {busy ? <Spinner /> : <RefreshCw size={15} />}
-                            获取市场列表
-                          </button>
+                            {busy ? <Spinner /> : <RefreshCw size={15} />}{translate("获取市场列表")}</button>
                         </div>
                       )}
                     </>
@@ -967,38 +1062,39 @@ export default function App() {
               )}
               {page === "settings" && (
                 <div className="settings-grid">
-                  <SettingsDisclosure title="多端同步">
+                  <SettingsDisclosure title={translate("多端同步")}>
                     <SyncPanel tokens={tokens} onChange={refresh} />
                   </SettingsDisclosure>
-                  <SettingsDisclosure title="自动备份">
+                  <SettingsDisclosure title={translate("自动备份")}>
                     <BackupPanel onChange={refresh} />
                   </SettingsDisclosure>
+                  <PasswordSettings onChange={refresh} />
                   <QuickAccessSettings status={status} onChange={refresh} />
                   <DesktopSettings />
+                  <AppearanceSettings />
+                  <LanguageSettings />
+                  <UpdateSettings />
                   <section className="settings-panel">
                     <div className="panel-title">
-                      <h2>导入与导出</h2>
+                      <h2>{translate("导入与导出")}</h2>
                     </div>
                     <div className="setting-row">
-                      <h3>加密备份</h3>
+                      <h3>{translate("加密备份")}</h3>
                       <button
                         className="button secondary"
                         disabled={!tokens.length}
                         onClick={() => setExportOpen(true)}
                       >
-                        <Download size={15} />
-                        导出
-                      </button>
+                        <Download size={15} />{translate("导出")}</button>
                     </div>
+                    <div className="setting-row"><h3>{translate("迁移二维码")}</h3><button className="button secondary" disabled={!tokens.some(token => token.kind !== "steam")} onClick={() => setBatchExportOpen(true)}><QrCode size={15}/>{translate("选择令牌")}</button></div>
                     <div className="setting-row">
-                      <h3>导入令牌或备份</h3>
+                      <h3>{translate("导入令牌或备份")}</h3>
                       <button
                         className="button secondary"
                         onClick={() => setImportOpen(true)}
                       >
-                        <Upload size={15} />
-                        导入
-                      </button>
+                        <Upload size={15} />{translate("导入")}</button>
                     </div>
                   </section>
                   {hasSteam && (
@@ -1008,16 +1104,15 @@ export default function App() {
                           <h2>Steam</h2>
                         </div>
                         <div className="setting-row">
-                          <h3>同步 Steam 时间</h3>
+                          <h3>{translate("同步 Steam 时间")}</h3>
                           <button
                             className="button secondary"
                             disabled={busy}
                             onClick={() =>
-                              void run(() => api.syncTime(), "时间已同步")
+                              void run(() => api.syncTime(), translate("时间已同步"))
                             }
                           >
-                            {busy ? <Spinner /> : <RefreshCw size={15} />}同步
-                          </button>
+                            {busy ? <Spinner /> : <RefreshCw size={15} />}{translate("同步")}</button>
                         </div>
                         <SteamNetworkPanel />
                       </section>
@@ -1033,8 +1128,8 @@ export default function App() {
                       </h2>
                       <p>
                         {hasSteam
-                          ? "开源双重验证器，支持通用 OTP、Steam 令牌、交易确认与社区市场。"
-                          : "开源双重验证器，支持 TOTP 与 HOTP。"}
+                          ? translate("开源双重验证器，支持通用 OTP、Steam 令牌、交易确认与社区市场。")
+                          : translate("开源双重验证器，支持 TOTP 与 HOTP。")}
                       </p>
                       <a
                         className="text-button"
@@ -1043,9 +1138,7 @@ export default function App() {
                           event.preventDefault();
                           setLicensesOpen(true);
                         }}
-                      >
-                        开源许可
-                      </a>
+                      >{translate("开源许可")}</a>
                     </div>
                   </section>
                 </div>
@@ -1054,7 +1147,7 @@ export default function App() {
           )}
         </main>
       </div>
-      <nav className="mobile-nav" aria-label="移动端导航">
+      <nav className="mobile-nav" aria-label={translate("移动端导航")}>
         {visibleNavigation.map((item) => (
           <button
             key={item.id}
@@ -1073,16 +1166,19 @@ export default function App() {
         >
           {notification.error ? <CircleHelp size={18} /> : <Check size={18} />}
           <span>{notification.text}</span>
-          <button onClick={() => setNotification(null)} aria-label="关闭提示">
+          {!!notification.undo?.length && !notification.error && <button onClick={() => void run(async () => { await api.trashRestore(notification.undo!); }, translate("已撤销删除"))}>{translate("撤销")}</button>}
+          <button onClick={() => setNotification(null)} aria-label={translate("关闭提示")}>
             <X size={15} />
           </button>
         </div>
       )}
       {licensesOpen && (
-        <Modal title="开源许可" onClose={() => setLicensesOpen(false)} wide>
-          <pre className="license-text">{licenseText || "加载中…"}</pre>
+        <Modal title={translate("开源许可")} onClose={() => setLicensesOpen(false)} wide>
+          <pre className="license-text">{licenseText || translate("加载中…")}</pre>
         </Modal>
       )}
+      {trashOpen && <TrashBrowser onClose={() => setTrashOpen(false)} onChange={refresh} />}
+      {batchDelete && <Modal title={translate("删除所选令牌？")} onClose={() => { if (!busy) setBatchDelete(false); }}><p className="dialog-intro">{translate("将 {{length}} 个令牌移入本机回收站，可撤销或稍后还原。Steam 登录会话会被移除。", { length: selected.length })}</p><div className="modal-actions"><button className="button secondary" disabled={busy} onClick={() => setBatchDelete(false)}>{translate("取消")}</button><button className="button danger" disabled={busy} onClick={() => void batch("delete")}>{translate("移入回收站")}</button></div></Modal>}
       {groupsOpen && (
         <TokenGroups
           groups={groups}
@@ -1093,11 +1189,12 @@ export default function App() {
       {importOpen && (
         <ImportDialog
           hasSteam={hasSteam}
+          groups={groups}
           onLogin={() => {
             setImportOpen(false);
             setLoginToken({
               id: "new-account",
-              name: "添加 Steam 令牌",
+              name: translate("添加 Steam 令牌"),
               kind: "steam",
               issuer: "Steam",
               code: "",
@@ -1109,7 +1206,7 @@ export default function App() {
           onComplete={async () => {
             setImportOpen(false);
             await refresh();
-            notify("导入完成");
+            notify(translate("导入完成"));
           }}
         />
       )}
@@ -1119,7 +1216,7 @@ export default function App() {
           onClose={closeLogin}
           onComplete={async () => {
             await refresh();
-            notify("Steam 会话已更新");
+            notify(translate("Steam 会话已更新"));
           }}
         />
       )}
@@ -1127,6 +1224,10 @@ export default function App() {
         <EditDialog
           token={editToken}
           groups={groups}
+          onDeleted={() => { notify(translate("令牌已移入本机回收站"), false, [editToken.id]); }}
+          onMove={async direction => { const index = tokens.findIndex(t => t.id === editToken.id); const other = tokens[index + direction]; if (other) await reorder(editToken.id, other.id); }}
+          canMoveUp={tokens.findIndex(t => t.id === editToken.id) > 0}
+          canMoveDown={tokens.findIndex(t => t.id === editToken.id) < tokens.length - 1}
           onClose={closeEdit}
           onComplete={async () => {
             setEditToken(null);
@@ -1134,18 +1235,19 @@ export default function App() {
           }}
         />
       )}
+      {batchExportOpen && <BatchQrExport tokens={tokens} onClose={() => setBatchExportOpen(false)} />}
       {exportOpen && (
         <ExportDialog
           onClose={closeExport}
           onComplete={(path) => {
             setExportOpen(false);
-            if (path) notify(`备份已导出：${path}`);
+            if (path) notify(translate("备份已导出：{{path}}", { path: path }));
           }}
         />
       )}
       {action && (
         <Modal
-          title={action.approve ? "确认这笔交易？" : "拒绝这笔交易？"}
+          title={action.approve ? translate("确认这笔交易？") : translate("拒绝这笔交易？")}
           eyebrow="STEAM CONFIRMATION"
           onClose={closeAction}
         >
@@ -1153,19 +1255,15 @@ export default function App() {
             <ShoppingBag size={25} />
             <h3>{action.item.headline}</h3>
             <p>{action.item.summary?.join(" · ")}</p>
-            <small>确认编号 {action.item.id}</small>
+            <small>{translate("确认编号 {{id}}", { id: action.item.id })}</small>
           </div>
-          <p className="form-hint">
-            请核对交易内容。此操作将直接提交至 Steam。
-          </p>
+          <p className="form-hint">{translate("请核对交易内容。此操作将直接提交至 Steam。")}</p>
           <div className="modal-actions">
             <button
               className="button secondary"
               disabled={busy}
               onClick={closeAction}
-            >
-              返回核对
-            </button>
+            >{translate("返回核对")}</button>
             <button
               className={`button ${action.approve ? "primary" : "danger"}`}
               disabled={busy}
@@ -1185,12 +1283,12 @@ export default function App() {
                       await loadConfirmations();
                     }
                   },
-                  action.approve ? "已确认交易" : "已拒绝交易",
+                  action.approve ? translate("已确认交易") : translate("已拒绝交易"),
                 );
               }}
             >
               {busy ? <Spinner /> : <Check size={16} />}
-              {action.approve ? "确认提交" : "拒绝交易"}
+              {action.approve ? translate("确认提交") : translate("拒绝交易")}
             </button>
           </div>
         </Modal>
@@ -1243,7 +1341,7 @@ function VaultGate({
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!initialized && password !== repeat) {
-      notify("两次输入的密码不一致", true);
+      notify(translate("两次输入的密码不一致"), true);
       return;
     }
     setBusy(true);
@@ -1261,7 +1359,7 @@ function VaultGate({
   return (
     <div className="vault-welcome">
       <div className="vault-form-wrap">
-        <h2>{initialized ? "解锁" : "设置密码"}</h2>
+        <h2>{initialized ? translate("解锁") : translate("设置密码")}</h2>
         {initialized && (biometricEnabled || previewEnabled) && (
           <div className="quick-gate-actions">
             {biometricEnabled && (
@@ -1270,26 +1368,22 @@ function VaultGate({
                 onClick={() => void quick(true)}
                 disabled={busy}
               >
-                {busy ? <Spinner /> : <Fingerprint size={21} />}指纹 / Face ID
-                解锁
-              </button>
+                {busy ? <Spinner /> : <Fingerprint size={21} />}{translate("指纹 / Face ID 解锁")}</button>
             )}
             {previewEnabled && (
               <button
                 className="button secondary full-width"
                 onClick={() => void quick(false)}
                 disabled={busy}
-              >
-                预览令牌
-                <ArrowRight size={17} />
+              >{translate("预览令牌")}<ArrowRight size={17} />
               </button>
             )}
-            <span className="access-divider">或使用主密码</span>
+            <span className="access-divider">{translate("或使用主密码")}</span>
           </div>
         )}
         <form onSubmit={(e) => void submit(e)}>
           <label className="field-label" htmlFor="vault-password">
-            {initialized ? "解锁密码" : "设置解锁密码"}
+            {initialized ? translate("解锁密码") : translate("设置解锁密码")}
           </label>
           <div className="input-with-icon">
             <LockKeyhole size={16} />
@@ -1301,14 +1395,12 @@ function VaultGate({
               onChange={(e) => setPassword(e.target.value)}
               minLength={initialized ? 1 : 8}
               required
-              placeholder={initialized ? "输入密码" : "至少 8 位"}
+              placeholder={initialized ? translate("输入密码") : translate("至少 8 位")}
             />
           </div>
           {!initialized && (
             <>
-              <label className="field-label" htmlFor="vault-repeat">
-                确认密码
-              </label>
+              <label className="field-label" htmlFor="vault-repeat">{translate("确认密码")}</label>
               <div className="input-with-icon">
                 <KeyRound size={16} />
                 <input
@@ -1319,24 +1411,23 @@ function VaultGate({
                   onChange={(e) => setRepeat(e.target.value)}
                   minLength={8}
                   required
-                  placeholder="再次输入解锁密码"
+                  placeholder={translate("再次输入解锁密码")}
                 />
               </div>
             </>
           )}
           <button className="button primary full-width" disabled={busy}>
             {busy ? <Spinner /> : <ShieldCheck size={17} />}
-            {initialized ? "解锁保险库" : "创建保险库"}
+            {initialized ? translate("解锁保险库") : translate("创建保险库")}
             <ArrowRight size={16} />
           </button>
         </form>
+        <LanguageSettings compact />
         {hasBackups && (
           <button
             className="text-button backup-gate-button"
             onClick={() => setBackupsOpen(true)}
-          >
-            查看本机自动备份
-          </button>
+          >{translate("查看本机自动备份")}</button>
         )}
         {backupsOpen && (
           <BackupBrowser
@@ -1352,6 +1443,7 @@ function VaultGate({
 
 function ImportDialog({
   hasSteam,
+  groups,
   onClose,
   onComplete,
   onLogin,
@@ -1360,8 +1452,9 @@ function ImportDialog({
   onComplete: () => Promise<void>;
   onLogin: () => void;
   hasSteam: boolean;
+  groups: string[];
 }) {
-  const [mode, setMode] = useState<"file" | "text" | "qr">("file");
+  const [mode, setMode] = useState<"file" | "text" | "qr" | "manual">("file");
   const [file, setFile] = useState<File | null>(null);
   const [text, setText] = useState("");
   const [password, setPassword] = useState("");
@@ -1392,7 +1485,7 @@ function ImportDialog({
     setBusy(true);
     try {
       if (mode === "file" && file && file.size > 10 * 1024 * 1024)
-        throw new Error("请选择不超过 10 MB 的令牌文件");
+        throw new Error(translate("请选择不超过 10 MB 的令牌文件"));
       const data =
         mode === "file" && file
           ? Array.from(new Uint8Array(await file.arrayBuffer()))
@@ -1428,10 +1521,10 @@ function ImportDialog({
     <Modal
       title={
         preview
-          ? "确认导入令牌"
+          ? translate("确认导入令牌")
           : mode === "qr"
-            ? "扫描验证器二维码"
-            : "把令牌带到这里"
+            ? translate("扫描验证器二维码")
+            : translate("把令牌带到这里")
       }
       eyebrow="IMPORT AUTHENTICATORS"
       onClose={onClose}
@@ -1444,19 +1537,16 @@ function ImportDialog({
             <div>
               <strong>
                 {preview.tokens.length
-                  ? `识别到 ${preview.tokens.length} 个令牌`
-                  : "合并已有令牌信息"}
+                  ? translate("识别到 {{length}} 个令牌", { length: preview.tokens.length })
+                  : translate("合并已有令牌信息")}
               </strong>
               {!!preview.groupCount && (
-                <p className="form-hint">
-                  备份包含 {preview.groupCount}{" "}
-                  个分组，已有令牌的缺失分组可一并补回。
-                </p>
+                <p className="form-hint">{translate("备份包含 {{groupCount}} 个分组，已有令牌的缺失分组可一并补回。", { groupCount: preview.groupCount })}</p>
               )}
               <p>
                 {preview.duplicates
-                  ? `${preview.duplicates} 个已有令牌将保留，可补充分组与 HOTP 计数`
-                  : "确认后保存到本机加密保险库"}
+                  ? translate("{{duplicates}} 个已有令牌将保留，可补充分组与 HOTP 计数", { duplicates: preview.duplicates })
+                  : translate("确认后保存到本机加密保险库")}
               </p>
             </div>
           </div>
@@ -1486,9 +1576,7 @@ function ImportDialog({
               className="button secondary"
               disabled={busy}
               onClick={() => setPreview(null)}
-            >
-              返回
-            </button>
+            >{translate("返回")}</button>
             <button
               className="button primary"
               disabled={
@@ -1496,8 +1584,7 @@ function ImportDialog({
               }
               onClick={() => void commit()}
             >
-              {busy ? <Spinner /> : <ShieldCheck size={16} />}确认导入
-            </button>
+              {busy ? <Spinner /> : <ShieldCheck size={16} />}{translate("确认导入")}</button>
           </div>
         </>
       ) : (
@@ -1506,41 +1593,34 @@ function ImportDialog({
             (hasSteam ? (
               <button className="steam-login-import" onClick={onLogin}>
                 <SteamMark small />
-                <span>登录 Steam 添加令牌</span>
+                <span>{translate("登录 Steam 添加令牌")}</span>
                 <ArrowRight size={16} />
               </button>
             ) : (
               <details className="additional-import">
-                <summary>其他添加方式</summary>
-                <button className="button secondary" onClick={onLogin}>
-                  添加 Steam 令牌
-                </button>
+                <summary>{translate("其他添加方式")}</summary>
+                <button className="button secondary" onClick={onLogin}>{translate("添加 Steam 令牌")}</button>
               </details>
             ))}
           <div className="dialog-tabs import-tabs">
+            <button className={mode === "manual" ? "selected" : ""} onClick={() => setMode("manual")}><Plus size={15}/>{translate("手动添加")}</button>
             <button
               className={mode === "qr" ? "selected" : ""}
               onClick={() => setMode("qr")}
             >
-              <QrCode size={15} />
-              扫码 / 图片
-            </button>
+              <QrCode size={15} />{translate("扫码 / 图片")}</button>
             <button
               className={mode === "file" ? "selected" : ""}
               onClick={() => setMode("file")}
             >
-              <FileKey2 size={15} />
-              从文件导入
-            </button>
+              <FileKey2 size={15} />{translate("从文件导入")}</button>
             <button
               className={mode === "text" ? "selected" : ""}
               onClick={() => setMode("text")}
             >
-              <KeyRound size={15} />
-              粘贴密钥 / 链接
-            </button>
+              <KeyRound size={15} />{translate("粘贴密钥 / 链接")}</button>
           </div>
-          {mode === "qr" ? (
+          {mode === "manual" ? <ManualTokenForm groups={groups} onComplete={onComplete} /> : mode === "qr" ? (
             <QrImportPanel onPreview={acceptPreview} />
           ) : (
             <>
@@ -1566,32 +1646,29 @@ function ImportDialog({
                       <Upload size={24} />
                     </span>
                     <strong>
-                      {file ? file.name : "选择文件，或拖放到这里"}
+                      {file ? file.name : translate("选择文件，或拖放到这里")}
                     </strong>
                     <span>
                       {file
-                        ? `${(file.size / 1024).toFixed(1)} KB · 点击重新选择`
+                        ? translate("{{value1}} KB · 点击重新选择", { value1: (file.size / 1024).toFixed(1) })
                         : "WattToolkit · Steam · Aegis · 2FAS · JSON"}
                     </span>
                   </button>
                 </>
               ) : (
                 <>
-                  <label className="field-label" htmlFor="import-text">
-                    OTP 链接或令牌 JSON
-                  </label>
+                  <label className="field-label" htmlFor="import-text">{translate("OTP 链接或令牌 JSON")}</label>
                   <textarea
                     id="import-text"
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     rows={5}
-                    placeholder="otpauth://totp/… 或粘贴 Steam maFile JSON"
+                    placeholder={translate("otpauth://totp/… 或粘贴 Steam maFile JSON")}
                     spellCheck={false}
                   />
                 </>
               )}
-              <label className="field-label" htmlFor="import-password">
-                备份密码 <span>（如已设置）</span>
+              <label className="field-label" htmlFor="import-password">{translate("备份密码")}<span>{translate("（如已设置）")}</span>
               </label>
               <input
                 id="import-password"
@@ -1599,28 +1676,23 @@ function ImportDialog({
                 autoComplete="off"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="未加密的备份可留空"
+                placeholder={translate("未加密的备份可留空")}
               />
               <p className="form-hint">
-                <LockKeyhole size={13} />
-                启用原设备保护的 .mpo 需要先在原设备导出可迁移备份。
-              </p>
+                <LockKeyhole size={13} />{translate("启用原设备保护的 .mpo 需要先在原设备导出可迁移备份。")}</p>
               {error && (
                 <div className="form-error" role="alert">
                   {error}
                 </div>
               )}
               <div className="modal-actions">
-                <button className="button secondary" onClick={onClose}>
-                  取消
-                </button>
+                <button className="button secondary" onClick={onClose}>{translate("取消")}</button>
                 <button
                   className="button primary"
                   disabled={busy || (mode === "file" ? !file : !text.trim())}
                   onClick={() => void check()}
                 >
-                  {busy ? <Spinner /> : <ArrowRight size={16} />}预览令牌
-                </button>
+                  {busy ? <Spinner /> : <ArrowRight size={16} />}{translate("预览令牌")}</button>
               </div>
             </>
           )}
@@ -1753,21 +1825,19 @@ function LoginDialog({
   };
   if (networkOpen)
     return (
-      <Modal title="Steam 网络设置" onClose={close}>
+      <Modal title={translate("Steam 网络设置")} onClose={close}>
         <SteamNetworkPanel />
         <div className="modal-actions">
           <button
             className="button secondary"
             onClick={() => setNetworkOpen(false)}
-          >
-            返回登录
-          </button>
+          >{translate("返回登录")}</button>
         </div>
       </Modal>
     );
   return (
     <Modal
-      title={isNew ? "添加 Steam 令牌" : "Steam 账户"}
+      title={isNew ? translate("添加 Steam 令牌") : translate("Steam 账户")}
       eyebrow="CONNECT YOUR ACCOUNT"
       onClose={close}
     >
@@ -1776,54 +1846,42 @@ function LoginDialog({
         <div>
           <strong>{token.name}</strong>
           <span>
-            {result?.steamId || token.steamId || "通过 Steam 官方认证接口登录"}
+            {result?.steamId || token.steamId || translate("通过 Steam 官方认证接口登录")}
           </span>
         </div>
-        {authenticated && <span className="secure-tag">已登录</span>}
+        {authenticated && <span className="secure-tag">{translate("已登录")}</span>}
       </div>
       {!isNew && (
-        <p className="form-hint">
-          当前令牌账号：{token.accountName || "未记录"} · SteamID：
-          {token.steamId && !/^0+$/.test(token.steamId)
+        <p className="form-hint">{translate("当前令牌账号：{{value1}} · SteamID：{{value2}}", { value1: token.accountName || translate("未记录"), value2: token.steamId && !/^0+$/.test(token.steamId)
             ? token.steamId
-            : "未关联，使用当前令牌验证成功后补全"}
-        </p>
+            : translate("未关联，使用当前令牌验证成功后补全") })}</p>
       )}
       {activation ? (
         <>
-          <p className="dialog-intro">
-            令牌密钥已加密保存。输入 Steam 发往{" "}
-            {enrollment?.phoneHint || "绑定手机"} 的短信验证码，完成激活。
-          </p>
+          <p className="dialog-intro">{translate("令牌密钥已加密保存。输入 Steam 发往 {{value1}} 的短信验证码，完成激活。", { value1: enrollment?.phoneHint || translate("绑定手机") })}</p>
           {enrollment?.revocationCode && (
             <div className="recovery-box">
-              <strong>请妥善保存恢复代码</strong>
+              <strong>{translate("请妥善保存恢复代码")}</strong>
               <code>{enrollment.revocationCode}</code>
               <label className="checkbox-label">
                 <input
                   type="checkbox"
                   checked={recoverySaved}
                   onChange={(e) => setRecoverySaved(e.target.checked)}
-                />
-                我已将恢复代码保存在安全位置
-              </label>
+                />{translate("我已将恢复代码保存在安全位置")}</label>
             </div>
           )}
-          <label className="field-label" htmlFor="activation-sms">
-            短信激活码
-          </label>
+          <label className="field-label" htmlFor="activation-sms">{translate("短信激活码")}</label>
           <input
             id="activation-sms"
             autoComplete="one-time-code"
             inputMode="numeric"
             value={sms}
             onChange={(e) => setSms(e.target.value)}
-            placeholder="Steam 短信验证码"
+            placeholder={translate("Steam 短信验证码")}
           />
           <div className="modal-actions">
-            <button className="button secondary" onClick={close}>
-              稍后激活
-            </button>
+            <button className="button secondary" onClick={close}>{translate("稍后激活")}</button>
             <button
               className="button primary"
               disabled={busy || !sms.trim() || (!!enrollment && !recoverySaved)}
@@ -1834,27 +1892,24 @@ function LoginDialog({
                 })
               }
             >
-              {busy ? <Spinner /> : <ShieldCheck size={16} />}激活令牌
-            </button>
+              {busy ? <Spinner /> : <ShieldCheck size={16} />}{translate("激活令牌")}</button>
           </div>
         </>
       ) : authenticated ? (
         <>
           {isNew && tool === "none" && (
             <>
-              <p className="dialog-intro">
-                登录已完成。请选择账号当前的令牌状态，继续添加本地令牌。
-              </p>
+              <p className="dialog-intro">{translate("登录已完成。请选择账号当前的令牌状态，继续添加本地令牌。")}</p>
               <div className="account-tool-grid">
                 <button onClick={() => setTool("enroll")}>
                   <Plus size={20} />
-                  <strong>绑定新令牌</strong>
-                  <span>账号尚未启用手机令牌</span>
+                  <strong>{translate("绑定新令牌")}</strong>
+                  <span>{translate("账号尚未启用手机令牌")}</span>
                 </button>
                 <button onClick={() => setTool("transfer")}>
                   <Smartphone size={20} />
-                  <strong>短信转移现有令牌</strong>
-                  <span>从原手机转移到本机</span>
+                  <strong>{translate("短信转移现有令牌")}</strong>
+                  <span>{translate("从原手机转移到本机")}</span>
                 </button>
               </div>
               <button
@@ -1864,25 +1919,18 @@ function LoginDialog({
                     api.external("https://store.steampowered.com/phone/manage"),
                   )
                 }
-              >
-                管理 Steam 绑定手机号
-                <ArrowUpRight size={13} />
+              >{translate("管理 Steam 绑定手机号")}<ArrowUpRight size={13} />
               </button>
             </>
           )}
           {tool === "enroll" && !enrollment && (
             <>
-              <p className="dialog-intro">
-                此操作会在 Steam
-                账号上创建手机令牌，并向已绑定的手机号发送激活短信。完成后请保存恢复代码和加密备份。
-              </p>
+              <p className="dialog-intro">{translate("此操作会在 Steam 账号上创建手机令牌，并向已绑定的手机号发送激活短信。完成后请保存恢复代码和加密备份。")}</p>
               <div className="modal-actions">
                 <button
                   className="button secondary"
                   onClick={() => setTool("none")}
-                >
-                  返回
-                </button>
+                >{translate("返回")}</button>
                 <button
                   className="button primary"
                   disabled={busy}
@@ -1893,8 +1941,7 @@ function LoginDialog({
                     })
                   }
                 >
-                  {busy ? <Spinner /> : <Plus size={16} />}创建并发送短信
-                </button>
+                  {busy ? <Spinner /> : <Plus size={16} />}{translate("创建并发送短信")}</button>
               </div>
             </>
           )}
@@ -1903,50 +1950,38 @@ function LoginDialog({
               {enrollment ? (
                 <>
                   <div className="recovery-box">
-                    <strong>令牌已转移，请保存恢复代码</strong>
+                    <strong>{translate("令牌已转移，请保存恢复代码")}</strong>
                     <code>{enrollment.revocationCode}</code>
                     <label className="checkbox-label">
                       <input
                         type="checkbox"
                         checked={recoverySaved}
                         onChange={(e) => setRecoverySaved(e.target.checked)}
-                      />
-                      我已保存恢复代码
-                    </label>
+                      />{translate("我已保存恢复代码")}</label>
                   </div>
-                  <p className="dialog-intro">
-                    新令牌已加密保存在本机。请在设置中导出一份加密备份。
-                  </p>
+                  <p className="dialog-intro">{translate("新令牌已加密保存在本机。请在设置中导出一份加密备份。")}</p>
                   <div className="modal-actions">
                     <button
                       className="button primary"
                       disabled={!recoverySaved}
                       onClick={() => void finish()}
                     >
-                      <Check size={16} />
-                      完成
-                    </button>
+                      <Check size={16} />{translate("完成")}</button>
                   </div>
                 </>
               ) : (
                 <>
-                  <p className="dialog-intro">
-                    使用 Steam
-                    绑定手机的短信验证码转移现有令牌。提交验证码后，原手机的令牌将被替换，Steam
-                    可能对交易施加冷却限制。
-                  </p>
+                  <p className="dialog-intro">{translate("使用 Steam 绑定手机的短信验证码转移现有令牌。提交验证码后，原手机的令牌将被替换，Steam 可能对交易施加冷却限制。")}</p>
                   {transferStarted && (
                     <>
-                      <label className="field-label" htmlFor="transfer-sms">
-                        短信验证码
-                      </label>
+                      <label className="field-label" htmlFor="transfer-sms">{translate("短信验证码")}</label>
                       <input
                         id="transfer-sms"
                         inputMode="numeric"
                         autoComplete="one-time-code"
                         value={sms}
                         onChange={(e) => setSms(e.target.value)}
-                        placeholder="输入短信验证码"
+                        placeholder={translate("输入短信验证码")}
                       />
                     </>
                   )}
@@ -1954,9 +1989,7 @@ function LoginDialog({
                     <button
                       className="button secondary"
                       onClick={() => setTool("none")}
-                    >
-                      返回
-                    </button>
+                    >{translate("返回")}</button>
                     <button
                       className="button primary"
                       disabled={busy || (transferStarted && !sms.trim())}
@@ -1974,7 +2007,7 @@ function LoginDialog({
                       }
                     >
                       {busy ? <Spinner /> : <Smartphone size={16} />}
-                      {transferStarted ? "确认转移令牌" : "发送转移短信"}
+                      {transferStarted ? translate("确认转移令牌") : translate("发送转移短信")}
                     </button>
                   </div>
                 </>
@@ -1983,13 +2016,9 @@ function LoginDialog({
           )}
           {tool === "approve" && (
             <>
-              <p className="dialog-intro">
-                粘贴 Steam
-                电脑端登录二维码中的链接，先核对设备和位置，再决定是否批准。
-              </p>
-              <label className="field-label" htmlFor="qr-request">
-                Steam 登录二维码链接
-              </label>
+              <p className="dialog-intro">{translate("粘贴 Steam 电脑端登录二维码中的链接，先核对设备和位置，再决定是否批准。")}</p>
+              <label className="field-label" htmlFor="qr-request">{translate("Steam 登录二维码链接")}</label>
+              <SteamQrScanner onScan={value => { setQrUrl(value); setQrInfo(null); }} />
               <input
                 id="qr-request"
                 value={qrUrl}
@@ -2003,9 +2032,9 @@ function LoginDialog({
               {qrInfo && (
                 <div className="qr-request-details">
                   <h3>
-                    {String(qrInfo.deviceFriendlyName || "Steam 登录设备")}
+                    {String(qrInfo.deviceFriendlyName || translate("Steam 登录设备"))}
                   </h3>
-                  <p>设备平台 {String(qrInfo.platformType ?? "未知")}</p>
+                  <p>{translate("设备平台 {{value1}}", { value1: String(qrInfo.platformType ?? translate("未知")) })}</p>
                   <p>
                     {[qrInfo.city, qrInfo.state, qrInfo.country, qrInfo.ip]
                       .filter(Boolean)
@@ -2013,14 +2042,10 @@ function LoginDialog({
                       .join(" · ")}
                   </p>
                   {!!qrInfo.locationMismatch && (
-                    <p className="danger-text">
-                      登录位置与近期使用位置不一致，请仔细核对。
-                    </p>
+                    <p className="danger-text">{translate("登录位置与近期使用位置不一致，请仔细核对。")}</p>
                   )}
                   {!!qrInfo.highUsageLogin && (
-                    <p className="danger-text">
-                      Steam 标记此请求为频繁登录，请核对是否由你发起。
-                    </p>
+                    <p className="danger-text">{translate("Steam 标记此请求为频繁登录，请核对是否由你发起。")}</p>
                   )}
                 </div>
               )}
@@ -2028,9 +2053,7 @@ function LoginDialog({
                 <button
                   className="button secondary"
                   onClick={() => setTool("none")}
-                >
-                  返回
-                </button>
+                >{translate("返回")}</button>
                 {qrInfo ? (
                   <>
                     <button
@@ -2046,9 +2069,7 @@ function LoginDialog({
                           }
                         })
                       }
-                    >
-                      拒绝
-                    </button>
+                    >{translate("拒绝")}</button>
                     <button
                       className="button primary"
                       disabled={busy}
@@ -2063,8 +2084,7 @@ function LoginDialog({
                         })
                       }
                     >
-                      {busy ? <Spinner /> : <Check size={16} />}批准登录
-                    </button>
+                      {busy ? <Spinner /> : <Check size={16} />}{translate("批准登录")}</button>
                   </>
                 ) : (
                   <button
@@ -2076,8 +2096,7 @@ function LoginDialog({
                       )
                     }
                   >
-                    {busy ? <Spinner /> : <ScanLine size={16} />}核对登录请求
-                  </button>
+                    {busy ? <Spinner /> : <ScanLine size={16} />}{translate("核对登录请求")}</button>
                 )}
               </div>
             </>
@@ -2086,36 +2105,28 @@ function LoginDialog({
             <>
               <div className="delete-warning">
                 <Shield size={28} />
-                <h3>解除 Steam 手机令牌</h3>
-                <p>
-                  此操作会关闭账号上的手机令牌保护。删除本地令牌不会解除远端绑定；请仅在确实需要解绑时继续。
-                </p>
+                <h3>{translate("解除 Steam 手机令牌")}</h3>
+                <p>{translate("此操作会关闭账号上的手机令牌保护。删除本地令牌不会解除远端绑定；请仅在确实需要解绑时继续。")}</p>
               </div>
-              <label className="field-label" htmlFor="remove-recovery">
-                Steam 恢复代码
-              </label>
+              <label className="field-label" htmlFor="remove-recovery">{translate("Steam 恢复代码")}</label>
               <input
                 id="remove-recovery"
                 value={revocation}
                 onChange={(e) => setRevocation(e.target.value)}
                 autoComplete="off"
-                placeholder="R 开头的恢复代码"
+                placeholder={translate("R 开头的恢复代码")}
               />
               <label className="checkbox-label">
                 <input
                   type="checkbox"
                   checked={removeChecked}
                   onChange={(e) => setRemoveChecked(e.target.checked)}
-                />
-                我确认解除此账号的 Steam 手机令牌保护
-              </label>
+                />{translate("我确认解除此账号的 Steam 手机令牌保护")}</label>
               <div className="modal-actions">
                 <button
                   className="button secondary"
                   onClick={() => setTool("none")}
-                >
-                  返回
-                </button>
+                >{translate("返回")}</button>
                 <button
                   className="button danger"
                   disabled={busy || !removeChecked || !revocation.trim()}
@@ -2127,21 +2138,18 @@ function LoginDialog({
                     })
                   }
                 >
-                  {busy ? <Spinner /> : <Trash2 size={16} />}确认解除令牌
-                </button>
+                  {busy ? <Spinner /> : <Trash2 size={16} />}{translate("确认解除令牌")}</button>
               </div>
             </>
           )}
           {!isNew && tool === "none" && (
             <>
-              <p className="dialog-intro">
-                此账户已建立 Steam 会话，可以读取交易确认和市场信息。
-              </p>
+              <p className="dialog-intro">{translate("此账户已建立 Steam 会话，可以读取交易确认和市场信息。")}</p>
               <div className="account-tool-grid">
                 <button onClick={() => setTool("approve")}>
                   <ScanLine size={20} />
-                  <strong>批准二维码登录</strong>
-                  <span>核对并批准电脑端登录请求</span>
+                  <strong>{translate("批准二维码登录")}</strong>
+                  <span>{translate("核对并批准电脑端登录请求")}</span>
                 </button>
                 <button
                   onClick={() =>
@@ -2153,16 +2161,14 @@ function LoginDialog({
                   }
                 >
                   <Smartphone size={20} />
-                  <strong>管理绑定手机号</strong>
-                  <span>前往 Steam 官方页面</span>
+                  <strong>{translate("管理绑定手机号")}</strong>
+                  <span>{translate("前往 Steam 官方页面")}</span>
                 </button>
               </div>
               <button
                 className="text-button danger-text"
                 onClick={() => setTool("remove")}
-              >
-                解除 Steam 手机令牌
-              </button>
+              >{translate("解除 Steam 手机令牌")}</button>
               <div className="modal-actions">
                 <button
                   className="button secondary danger-text"
@@ -2174,12 +2180,8 @@ function LoginDialog({
                     })
                   }
                 >
-                  <LogOut size={15} />
-                  退出会话
-                </button>
-                <button className="button primary" onClick={close}>
-                  完成
-                </button>
+                  <LogOut size={15} />{translate("退出会话")}</button>
+                <button className="button primary" onClick={close}>{translate("完成")}</button>
               </div>
             </>
           )}
@@ -2192,9 +2194,7 @@ function LoginDialog({
                 className={mode === "password" ? "selected" : ""}
                 onClick={() => setMode("password")}
               >
-                <KeyRound size={15} />
-                账号密码
-              </button>
+                <KeyRound size={15} />{translate("账号密码")}</button>
               <button
                 className={mode === "qr" ? "selected" : ""}
                 onClick={() => {
@@ -2204,9 +2204,7 @@ function LoginDialog({
                   );
                 }}
               >
-                <QrCode size={15} />
-                二维码登录
-              </button>
+                <QrCode size={15} />{translate("二维码登录")}</button>
             </div>
           )}
           {mode === "qr" ? (
@@ -2214,7 +2212,7 @@ function LoginDialog({
               {qrImage ? (
                 <img
                   src={qrImage}
-                  alt="Steam 登录二维码，请使用 Steam 手机应用扫描"
+                  alt={translate("Steam 登录二维码，请使用 Steam 手机应用扫描")}
                   width={264}
                   height={264}
                 />
@@ -2223,7 +2221,7 @@ function LoginDialog({
                   <QrCode size={64} />
                 </div>
               )}
-              <p>使用 Steam 手机应用扫描，并在手机上批准登录。</p>
+              <p>{translate("使用 Steam 手机应用扫描，并在手机上批准登录。")}</p>
               <button
                 className="button secondary"
                 disabled={busy}
@@ -2233,9 +2231,7 @@ function LoginDialog({
                   )
                 }
               >
-                <RefreshCw size={15} />
-                刷新二维码
-              </button>
+                <RefreshCw size={15} />{translate("刷新二维码")}</button>
             </div>
           ) : (
             <form
@@ -2256,8 +2252,8 @@ function LoginDialog({
                 <>
                   <p className="dialog-intro">
                     {result?.guardSubmitted
-                      ? "验证码已提交，正在等待 Steam 完成登录。"
-                      : "请完成 Steam 返回的验证方式：令牌验证码、邮箱验证码或手机应用批准。"}
+                      ? translate("验证码已提交，正在等待 Steam 完成登录。")
+                      : translate("请完成 Steam 返回的验证方式：令牌验证码、邮箱验证码或手机应用批准。")}
                   </p>
                   {canUseLocalGuard && (
                     <div className="local-guard-panel">
@@ -2271,20 +2267,13 @@ function LoginDialog({
                           )
                         }
                       >
-                        <ShieldCheck size={16} />
-                        使用当前令牌验证
-                      </button>
-                      <p className="form-hint">
-                        使用 Steam
-                        服务器时间生成最新验证码并直接提交，无需复制；邮箱验证仍需输入邮件中的验证码。
-                      </p>
+                        <ShieldCheck size={16} />{translate("使用当前令牌验证")}</button>
+                      <p className="form-hint">{translate("使用 Steam 服务器时间生成最新验证码并直接提交，无需复制；邮箱验证仍需输入邮件中的验证码。")}</p>
                     </div>
                   )}
                   {canSubmitCode && (
                     <>
-                      <label className="field-label" htmlFor="guard-type">
-                        验证方式
-                      </label>
+                      <label className="field-label" htmlFor="guard-type">{translate("验证方式")}</label>
                       <select
                         id="guard-type"
                         value={codeType}
@@ -2302,20 +2291,18 @@ function LoginDialog({
                               value={g.confirmationType}
                             >
                               {g.confirmationType === 3
-                                ? "Steam 令牌验证码"
-                                : `邮箱验证码 ${g.associatedMessage}`}
+                                ? translate("Steam 令牌验证码")
+                                : translate("邮箱验证码 {{associatedMessage}}", { associatedMessage: g.associatedMessage })}
                             </option>
                           ))}
                       </select>
-                      <label className="field-label" htmlFor="guard-code">
-                        验证码
-                      </label>
+                      <label className="field-label" htmlFor="guard-code">{translate("验证码")}</label>
                       <input
                         id="guard-code"
                         value={code}
                         onChange={(e) => setCode(e.target.value)}
                         autoComplete="one-time-code"
-                        placeholder="输入 Steam 验证码"
+                        placeholder={translate("输入 Steam 验证码")}
                       />
                     </>
                   )}
@@ -2329,29 +2316,21 @@ function LoginDialog({
                       )
                     }
                   >
-                    <RefreshCw size={14} />
-                    已在手机批准，检查登录状态
-                  </button>
+                    <RefreshCw size={14} />{translate("已在手机批准，检查登录状态")}</button>
                 </>
               ) : (
                 <>
-                  <p className="dialog-intro">
-                    密码仅用于向 Steam 建立登录会话，不会存入保险库。
-                  </p>
-                  <label className="field-label" htmlFor="steam-username">
-                    Steam 账户名
-                  </label>
+                  <p className="dialog-intro">{translate("密码仅用于向 Steam 建立登录会话，不会存入保险库。")}</p>
+                  <label className="field-label" htmlFor="steam-username">{translate("Steam 账户名")}</label>
                   <input
                     id="steam-username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     autoComplete="username"
                     required
-                    placeholder="用于登录的账户名"
+                    placeholder={translate("用于登录的账户名")}
                   />
-                  <label className="field-label" htmlFor="steam-password">
-                    密码
-                  </label>
+                  <label className="field-label" htmlFor="steam-password">{translate("密码")}</label>
                   <input
                     id="steam-password"
                     type="password"
@@ -2359,7 +2338,7 @@ function LoginDialog({
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="current-password"
                     required
-                    placeholder="Steam 账户密码"
+                    placeholder={translate("Steam 账户密码")}
                   />
                 </>
               )}
@@ -2368,9 +2347,7 @@ function LoginDialog({
                   type="button"
                   className="button secondary"
                   onClick={close}
-                >
-                  取消
-                </button>
+                >{translate("取消")}</button>
                 <button
                   className="button primary"
                   disabled={
@@ -2383,9 +2360,9 @@ function LoginDialog({
                   {busy ? <Spinner /> : <LogIn size={16} />}
                   {awaiting
                     ? canSubmitCode
-                      ? "提交验证码"
-                      : "检查登录状态"
-                    : "登录"}
+                      ? translate("提交验证码")
+                      : translate("检查登录状态")
+                    : translate("登录")}
                 </button>
               </div>
             </form>
@@ -2403,9 +2380,7 @@ function LoginDialog({
                   setError("");
                 })
               }
-            >
-              重新输入账号
-            </button>
+            >{translate("重新输入账号")}</button>
           )}
           {mode === "qr" && (
             <div className="modal-actions">
@@ -2416,9 +2391,7 @@ function LoginDialog({
                   setMode("password");
                   setResult(null);
                 }}
-              >
-                返回密码登录
-              </button>
+              >{translate("返回密码登录")}</button>
               <button
                 className="button primary"
                 disabled={busy || !awaiting}
@@ -2428,8 +2401,7 @@ function LoginDialog({
                   )
                 }
               >
-                {busy ? <Spinner /> : <RefreshCw size={15} />}检查登录状态
-              </button>
+                {busy ? <Spinner /> : <RefreshCw size={15} />}{translate("检查登录状态")}</button>
             </div>
           )}
         </>
@@ -2440,9 +2412,7 @@ function LoginDialog({
             {error}
           </div>
           <button className="text-button" onClick={() => setNetworkOpen(true)}>
-            <Globe2 size={15} />
-            检查网络与代理
-          </button>
+            <Globe2 size={15} />{translate("检查网络与代理")}</button>
         </>
       )}
     </Modal>
@@ -2451,11 +2421,15 @@ function LoginDialog({
 
 function EditDialog({
   token,
+  onDeleted, onMove, canMoveUp, canMoveDown,
   groups,
   onClose,
   onComplete,
 }: {
   token: TokenView;
+  onDeleted: () => void;
+  onMove: (direction: number) => Promise<void>;
+  canMoveUp: boolean; canMoveDown: boolean;
   groups: string[];
   onClose: () => void;
   onComplete: () => Promise<void>;
@@ -2464,6 +2438,7 @@ function EditDialog({
   const [pickIcon, setPickIcon] = useState(false);
   const [name, setName] = useState(token.name);
   const [group, setGroup] = useState(token.group ?? "");
+  const [parameters, setParameters] = useState<TokenParameters>({ issuer: token.issuer, algorithm: token.algorithm ?? "SHA1", digits: token.digits ?? 6, period: token.period || 30, counter: token.counter ?? 0, pinned: !!token.pinned });
   const [deleting, setDeleting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -2479,7 +2454,8 @@ function EditDialog({
         ? api.remove(token.id)
         : api.updateToken(token.id, name.trim(), group || null, {
             value: icon,
-          }));
+          }, token.kind === "steam" ? { pinned: parameters.pinned } : { ...parameters, period: token.kind === "totp" ? parameters.period : undefined, counter: token.kind === "hotp" && !token.hotpReadOnly && parameters.counter !== token.counter ? parameters.counter : undefined }));
+      if (remove) onDeleted();
       await onComplete();
     } catch (e) {
       setError(errorText(e));
@@ -2506,7 +2482,7 @@ function EditDialog({
     setError("");
     try {
       const path = await api.tokenExport(token.id, format);
-      if (path) setExported(`已导出：${path}`);
+      if (path) setExported(translate("已导出：{{path}}", { path: path }));
     } catch (e) {
       setError(errorText(e));
     } finally {
@@ -2517,12 +2493,12 @@ function EditDialog({
     <Modal
       title={
         pickIcon
-          ? "选择头像"
+          ? translate("选择头像")
           : deleting
-            ? "删除这个令牌？"
+            ? translate("删除这个令牌？")
             : showQr
-              ? "令牌迁移二维码"
-              : "管理令牌"
+              ? translate("令牌迁移二维码")
+              : translate("管理令牌")
       }
       eyebrow="AUTHENTICATOR SETTINGS"
       onClose={onClose}
@@ -2541,19 +2517,15 @@ function EditDialog({
         <div className="delete-warning">
           <Trash2 size={27} />
           <h3>{token.name}</h3>
-          <p>
-            此令牌及其本地登录会话将从保险库删除。请先确认你已保留可用的备份。
-          </p>
+          <p>{translate("此令牌将移入本机回收站，可撤销或稍后还原。Steam 登录会话会被移除。")}</p>
         </div>
       ) : showQr ? (
         <>
-          <p className="dialog-intro">
-            二维码包含令牌密钥。仅在受信任的设备上扫描，不要分享或截图发送给他人。
-          </p>
+          <p className="dialog-intro">{translate("二维码包含令牌密钥。仅在受信任的设备上扫描，不要分享或截图发送给他人。")}</p>
           <div className="qr-login-panel">
             <img
               src={qrImage}
-              alt="包含令牌密钥的迁移二维码"
+              alt={translate("包含令牌密钥的迁移二维码")}
               width={260}
               height={260}
             />
@@ -2563,23 +2535,21 @@ function EditDialog({
             onClick={() =>
               void navigator.clipboard
                 .writeText(uri)
-                .catch(() => setError("无法复制链接"))
+                .catch(() => setError(translate("无法复制链接")))
             }
           >
-            <Copy size={15} />
-            复制 OTP 链接
-          </button>
+            <Copy size={15} />{translate("复制 OTP 链接")}</button>
         </>
       ) : (
         <>
           <div className="login-account">
             <button
               className="avatar-edit"
-              aria-label="更换头像"
+              aria-label={translate("更换头像")}
               onClick={() => setPickIcon(true)}
             >
               <TokenAvatar token={token} icon={icon} />
-              <span>更换头像</span>
+              <span>{translate("更换头像")}</span>
             </button>
             <div>
               <strong>
@@ -2591,43 +2561,39 @@ function EditDialog({
               {token.steamId && <span>{token.steamId}</span>}
             </div>
           </div>
-          <label className="field-label" htmlFor="token-name">
-            显示名称
-          </label>
+          <label className="field-label" htmlFor="token-name">{translate("显示名称")}</label>
           <input
             id="token-name"
             value={name}
             maxLength={120}
             onChange={(e) => setName(e.target.value)}
           />
-          <label className="field-label" htmlFor="token-group">
-            分组
-          </label>
+          <label className="field-label" htmlFor="token-group">{translate("分组")}</label>
           <select
             id="token-group"
             value={group}
             onChange={(e) => setGroup(e.target.value)}
             disabled={busy}
           >
-            <option value="">未分组</option>
+            <option value="">{translate("未分组")}</option>
             {groups.map((g) => (
               <option key={g} value={g}>
                 {g}
               </option>
             ))}
           </select>
+          <label className="sync-choice"><input type="checkbox" checked={!!parameters.pinned} disabled={busy} onChange={e => setParameters({ ...parameters, pinned: e.target.checked })}/><span>{translate("置顶显示")}</span></label>
+          <div className="manual-order-actions"><span>{translate("手动排序")}</span><button className="button secondary" disabled={busy || !canMoveUp} onClick={() => void onMove(-1)}><ArrowUp size={15}/>{translate("上移")}</button><button className="button secondary" disabled={busy || !canMoveDown} onClick={() => void onMove(1)}><ArrowDown size={15}/>{translate("下移")}</button></div>
+          {token.kind !== "steam" && <><label className="field-label" htmlFor="token-issuer">{translate("服务名称")}</label><input id="token-issuer" value={parameters.issuer ?? ""} disabled={busy} maxLength={120} onChange={e => setParameters({ ...parameters, issuer: e.target.value })}/><OtpParameters kind={token.kind} value={parameters} onChange={setParameters} disabled={busy} counterReadOnly={token.hotpReadOnly}/></>}
           <details className="token-details">
-            <summary>令牌详情</summary>
+            <summary>{translate("令牌详情")}</summary>
             <div className="token-metadata">
-              <span>
-                类型 <strong>{token.kind.toUpperCase()}</strong>
+              <span>{translate("类型")}<strong>{token.kind.toUpperCase()}</strong>
               </span>
-              <span>
-                周期 <strong>{token.period} 秒</strong>
+              <span>{translate("周期")}<strong>{translate("{{period}} 秒", { period: token.period })}</strong>
               </span>
               {token.algorithm && (
-                <span>
-                  算法 <strong>{token.algorithm}</strong>
+                <span>{translate("算法")}<strong>{token.algorithm}</strong>
                 </span>
               )}
             </div>
@@ -2635,8 +2601,8 @@ function EditDialog({
           <div className="account-tool-grid">
             <button disabled={busy} onClick={() => void revealQr()}>
               <QrCode size={20} />
-              <strong>迁移二维码</strong>
-              <span>显示 OTP 密钥链接</span>
+              <strong>{translate("迁移二维码")}</strong>
+              <span>{translate("显示 OTP 密钥链接")}</span>
             </button>
             <button
               disabled={busy}
@@ -2646,9 +2612,9 @@ function EditDialog({
             >
               <Download size={20} />
               <strong>
-                {token.kind === "steam" ? "导出 maFile" : "导出 OTP 链接"}
+                {token.kind === "steam" ? translate("导出 maFile") : translate("导出 OTP 链接")}
               </strong>
-              <span>包含密钥的明文文件</span>
+              <span>{translate("包含密钥的明文文件")}</span>
             </button>
           </div>
         </>
@@ -2663,16 +2629,13 @@ function EditDialog({
                 className="button secondary"
                 disabled={busy}
                 onClick={() => setDeleting(false)}
-              >
-                返回
-              </button>
+              >{translate("返回")}</button>
               <button
                 className="button danger"
                 disabled={busy}
                 onClick={() => void act(true)}
               >
-                {busy ? <Spinner /> : <Trash2 size={15} />}确认删除
-              </button>
+                {busy ? <Spinner /> : <Trash2 size={15} />}{translate("确认删除")}</button>
             </>
           ) : showQr ? (
             <button
@@ -2682,25 +2645,20 @@ function EditDialog({
                 setUri("");
                 setQrImage("");
               }}
-            >
-              隐藏密钥并返回
-            </button>
+            >{translate("隐藏密钥并返回")}</button>
           ) : (
             <>
               <button
                 className="button text danger-text"
                 onClick={() => setDeleting(true)}
               >
-                <Trash2 size={15} />
-                删除令牌
-              </button>
+                <Trash2 size={15} />{translate("删除令牌")}</button>
               <button
                 className="button primary"
                 disabled={busy || !name.trim()}
                 onClick={() => void act(false)}
               >
-                {busy ? <Spinner /> : <Check size={15} />}保存
-              </button>
+                {busy ? <Spinner /> : <Check size={15} />}{translate("保存")}</button>
             </>
           )}
         </div>
@@ -2724,7 +2682,7 @@ function ExportDialog({
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (password !== repeat) {
-      setError("两次输入的密码不一致");
+      setError(translate("两次输入的密码不一致"));
       return;
     }
     setBusy(true);
@@ -2741,28 +2699,24 @@ function ExportDialog({
     }
   };
   return (
-    <Modal title="导出加密备份" eyebrow="KEEP A SAFE COPY" onClose={onClose}>
-      <p className="dialog-intro">为备份设置独立密码，并与备份文件分开保管。</p>
+    <Modal title={translate("导出加密备份")} eyebrow="KEEP A SAFE COPY" onClose={onClose}>
+      <p className="dialog-intro">{translate("为备份设置独立密码，并与备份文件分开保管。")}</p>
       <form onSubmit={(e) => void submit(e)}>
-        <label className="field-label" htmlFor="export-format">
-          备份格式
-        </label>
+        <label className="field-label" htmlFor="export-format">{translate("备份格式")}</label>
         <select
           id="export-format"
           value={format}
           onChange={(e) => setFormat(e.target.value as "sgvault" | "mpo")}
         >
-          <option value="sgvault">SteamGuard 加密备份（.sgvault）</option>
-          <option value="mpo">Watt Toolkit 原始格式（.mpo）</option>
+          <option value="sgvault">{translate("SteamGuard 加密备份（.sgvault）")}</option>
+          <option value="mpo">{translate("Watt Toolkit 原始格式（.mpo）")}</option>
         </select>
         <p className="form-hint">
           {format === "sgvault"
-            ? "使用 Argon2id 与 AES-GCM 加密，可包含本地登录会话。"
-            : "兼容 Watt Toolkit V2，使用原格式的二级密码保护。"}
+            ? translate("使用 Argon2id 与 AES-GCM 加密，可包含本地登录会话。")
+            : translate("兼容 Watt Toolkit V2，使用原格式的二级密码保护。")}
         </p>
-        <label className="field-label" htmlFor="export-password">
-          备份密码
-        </label>
+        <label className="field-label" htmlFor="export-password">{translate("备份密码")}</label>
         <input
           id="export-password"
           type="password"
@@ -2771,11 +2725,9 @@ function ExportDialog({
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="至少 8 位"
+          placeholder={translate("至少 8 位")}
         />
-        <label className="field-label" htmlFor="export-repeat">
-          确认密码
-        </label>
+        <label className="field-label" htmlFor="export-repeat">{translate("确认密码")}</label>
         <input
           id="export-repeat"
           type="password"
@@ -2784,16 +2736,13 @@ function ExportDialog({
           required
           value={repeat}
           onChange={(e) => setRepeat(e.target.value)}
-          placeholder="再次输入备份密码"
+          placeholder={translate("再次输入备份密码")}
         />
         {error && <div className="form-error">{error}</div>}
         <div className="modal-actions">
-          <button type="button" className="button secondary" onClick={onClose}>
-            取消
-          </button>
+          <button type="button" className="button secondary" onClick={onClose}>{translate("取消")}</button>
           <button className="button primary" disabled={busy}>
-            {busy ? <Spinner /> : <Download size={16} />}选择位置并导出
-          </button>
+            {busy ? <Spinner /> : <Download size={16} />}{translate("选择位置并导出")}</button>
         </div>
       </form>
     </Modal>
