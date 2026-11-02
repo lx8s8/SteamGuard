@@ -9,6 +9,7 @@ pub fn allowed_invoke(label: &str, command: &str) -> bool {
         || matches!(
             command,
             "desktop_snapshot"
+                | "desktop_codes"
                 | "desktop_copy"
                 | "desktop_open_main"
                 | "desktop_hide"
@@ -21,10 +22,44 @@ pub fn allowed_invoke(label: &str, command: &str) -> bool {
 pub struct Settings {
     supported: bool,
     resident: bool,
+    shortcut: String,
+    shortcut_registered: bool,
+    autostart: bool,
+    autostart_supported: bool,
+}
+#[derive(serde::Deserialize)]
+pub struct Labels {
+    open: String,
+    lock: String,
+    quit: String,
+    tokens: String,
+    quick: String,
+}
+#[tauri::command]
+pub fn desktop_localize(app: AppHandle, labels: Labels) -> Result<(), String> {
+    if [
+        &labels.open,
+        &labels.lock,
+        &labels.quit,
+        &labels.tokens,
+        &labels.quick,
+    ]
+    .iter()
+    .any(|s| s.is_empty() || s.len() > 256 || s.chars().any(char::is_control))
+    {
+        return Err("菜单文字无效".into());
+    }
+    #[cfg(desktop)]
+    {
+        platform::localize(&app, labels)?;
+    }
+    let _ = app;
+    Ok(())
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Snapshot {
+    revision: String,
     initialized: bool,
     locked: bool,
     preview: bool,
@@ -66,8 +101,10 @@ fn snapshot(s: &AppState, q: &QuickAccess) -> Result<Snapshot, String> {
     let preview = locked && q.active();
     let now = s.timestamp();
     let tokens = if let Some(data) = &vault.data {
-        data.tokens
-            .iter()
+        let mut sorted = data.tokens.iter().collect::<Vec<_>>();
+        sorted.sort_by_key(|t| (!t.pinned, t.sort_order));
+        sorted
+            .into_iter()
             .map(|t| {
                 Ok(PopupToken {
                     id: t.id.clone(),
@@ -91,19 +128,26 @@ fn snapshot(s: &AppState, q: &QuickAccess) -> Result<Snapshot, String> {
             })
             .collect::<Result<Vec<_>, String>>()?
     } else if preview {
-        q.tokens(&vault.path, now)?
-            .into_iter()
-            .map(Into::into)
-            .collect()
+        let mut tokens = q.tokens(&vault.path, now)?;
+        tokens.sort_by_key(|t| !t.pinned);
+        tokens.into_iter().map(Into::into).collect()
     } else {
         vec![]
     };
     // Reading the popup never extends the inactivity timeout.
+    let revision = if !locked {
+        vault.revision.clone()
+    } else if preview {
+        q.codes(&vault.path, now)?.revision
+    } else {
+        String::new()
+    };
     let preview_enabled = q.preferences()?.preview_enabled;
     if !locked {
         vault.ensure()?;
     }
     Ok(Snapshot {
+        revision,
         initialized,
         locked,
         preview,
@@ -112,49 +156,69 @@ fn snapshot(s: &AppState, q: &QuickAccess) -> Result<Snapshot, String> {
     })
 }
 #[tauri::command]
+pub fn desktop_codes(
+    s: State<AppState>,
+    q: State<QuickAccess>,
+) -> Result<crate::token_commands::CodeSnapshot, String> {
+    crate::token_commands::codes(&s, &q)
+}
+#[tauri::command]
 pub fn desktop_snapshot(s: State<AppState>, q: State<QuickAccess>) -> Result<Snapshot, String> {
     snapshot(&s, &q)
 }
 #[tauri::command]
 pub fn desktop_settings(app: AppHandle) -> Settings {
     #[cfg(desktop)]
-    if let Some(settings) = app.try_state::<platform::Controller>() {
+    if let Some(controller) = app.try_state::<platform::Controller>() {
+        use tauri_plugin_autostart::ManagerExt;
+        use tauri_plugin_global_shortcut::GlobalShortcutExt;
+        let shortcut = controller
+            .operation
+            .lock()
+            .map(|p| p.shortcut.clone())
+            .unwrap_or_default();
+        let autostart = app.autolaunch().is_enabled();
         return Settings {
-            supported: settings.supported.load(std::sync::atomic::Ordering::SeqCst),
-            resident: settings.resident.load(std::sync::atomic::Ordering::SeqCst),
+            supported: controller
+                .supported
+                .load(std::sync::atomic::Ordering::SeqCst),
+            resident: controller
+                .resident
+                .load(std::sync::atomic::Ordering::SeqCst),
+            shortcut_registered: !shortcut.is_empty()
+                && app.global_shortcut().is_registered(shortcut.as_str()),
+            shortcut,
+            autostart_supported: autostart.is_ok(),
+            autostart: autostart.unwrap_or(false),
         };
     }
     let _ = app;
     Settings {
         supported: false,
         resident: false,
+        shortcut: String::new(),
+        shortcut_registered: false,
+        autostart: false,
+        autostart_supported: false,
     }
 }
 #[tauri::command]
 pub fn desktop_configure(
     app: AppHandle,
     s: State<AppState>,
-    resident: bool,
+    resident: Option<bool>,
+    shortcut: Option<String>,
+    autostart: Option<bool>,
 ) -> Result<Settings, String> {
     s.unlocked()?;
     #[cfg(desktop)]
     {
-        let controller = app.state::<platform::Controller>();
-        let _guard = controller.operation.lock().map_err(|_| "桌面设置不可用")?;
-        let bytes = serde_json::to_vec(&platform::Preferences { resident })
-            .map_err(|_| "无法保存桌面设置")?;
-        let temporary = controller.path.with_extension("tmp");
-        std::fs::write(&temporary, bytes)
-            .and_then(|_| std::fs::rename(&temporary, &controller.path))
-            .map_err(|_| "无法保存桌面设置")?;
-        controller
-            .resident
-            .store(resident, std::sync::atomic::Ordering::SeqCst);
+        platform::configure(&app, resident, shortcut, autostart)?;
         Ok(desktop_settings(app.clone()))
     }
     #[cfg(mobile)]
     {
-        let _ = (app, resident);
+        let _ = (app, resident, shortcut, autostart);
         Err("此设置仅适用于桌面端".into())
     }
 }
@@ -246,66 +310,197 @@ mod platform {
         tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
         LogicalSize, PhysicalPosition, WebviewUrl, WebviewWindowBuilder, Window, WindowEvent,
     };
-    #[derive(serde::Serialize, serde::Deserialize)]
+    #[derive(Clone, serde::Serialize, serde::Deserialize)]
+    #[serde(default)]
     pub(super) struct Preferences {
         pub resident: bool,
+        pub shortcut: String,
+    }
+    impl Default for Preferences {
+        fn default() -> Self {
+            Self {
+                resident: true,
+                shortcut: "CmdOrCtrl+Shift+G".into(),
+            }
+        }
+    }
+    #[derive(Default)]
+    struct Menus {
+        open: Option<MenuItem<tauri::Wry>>,
+        lock: Option<MenuItem<tauri::Wry>>,
+        quit: Option<MenuItem<tauri::Wry>>,
+        quick: Option<MenuItem<tauri::Wry>>,
+        tokens: Option<Submenu<tauri::Wry>>,
     }
     pub(super) struct Controller {
         pub supported: AtomicBool,
         pub resident: AtomicBool,
         pub path: PathBuf,
-        pub operation: Mutex<()>,
+        pub operation: Mutex<Preferences>,
+        menus: Mutex<Menus>,
     }
     pub fn setup(app: &mut tauri::App) -> tauri::Result<()> {
         let path = app.path().app_data_dir()?.join("device-only/desktop.json");
-        let resident = std::fs::read(&path)
+        let preferences = std::fs::read(&path)
             .ok()
             .and_then(|b| serde_json::from_slice::<Preferences>(&b).ok())
-            .is_none_or(|p| p.resident);
+            .unwrap_or_default();
+        let shortcut = preferences.shortcut.clone();
+        let resident = preferences.resident;
         app.manage(Controller {
             path,
             resident: AtomicBool::new(resident),
             supported: AtomicBool::new(false),
-            operation: Mutex::new(()),
+            operation: Mutex::new(preferences),
+            menus: Mutex::new(Menus::default()),
         });
         if create(app).is_ok() {
             app.state::<Controller>()
                 .supported
                 .store(true, Ordering::SeqCst);
+            if !shortcut.is_empty() {
+                let _ = register_shortcut(app.handle(), &shortcut);
+            }
+            if std::env::args().any(|a| a == "--autostart") && resident {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.hide();
+                }
+                #[cfg(target_os = "macos")]
+                let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            }
             // The same popup can also be opened from the native application menu.
             if let Some(menu) = app.menu() {
-                let quick = MenuItem::with_id(
-                    app,
-                    "quick-tokens",
-                    "快捷复制",
-                    true,
-                    Some("CmdOrCtrl+Shift+G"),
-                )?;
+                let quick = MenuItem::with_id(app, "quick-tokens", "快捷复制", true, None::<&str>)?;
                 let submenu = Submenu::with_items(app, "令牌", true, &[&quick])?;
                 menu.append(&submenu)?;
+                if let Ok(mut menus) = app.state::<Controller>().menus.lock() {
+                    menus.quick = Some(quick);
+                    menus.tokens = Some(submenu);
+                }
                 app.on_menu_event(|app, event| {
                     if event.id.as_ref() == "quick-tokens" {
-                        if let Some(tray) = app.tray_by_id("authenticator") {
-                            if let Ok(Some(rect)) = tray.rect() {
-                                let scale = app
-                                    .primary_monitor()
-                                    .ok()
-                                    .flatten()
-                                    .map_or(1.0, |m| m.scale_factor());
-                                let position = rect.position.to_physical::<f64>(scale);
-                                let _ = toggle(app, position, rect);
-                            }
-                        }
+                        let _ = toggle_from_shortcut(app);
                     }
                 });
             }
         }
         Ok(())
     }
+    pub(super) fn localize(app: &AppHandle, labels: Labels) -> Result<(), String> {
+        let controller = app.state::<Controller>();
+        let menus = controller.menus.lock().map_err(|_| "菜单不可用")?;
+        for (item, text) in [
+            (&menus.open, &labels.open),
+            (&menus.lock, &labels.lock),
+            (&menus.quit, &labels.quit),
+            (&menus.quick, &labels.quick),
+        ] {
+            if let Some(item) = item {
+                item.set_text(text).map_err(|_| "无法更新菜单")?;
+            }
+        }
+        if let Some(tokens) = &menus.tokens {
+            tokens.set_text(labels.tokens).map_err(|_| "无法更新菜单")?;
+        }
+        Ok(())
+    }
+    fn register_shortcut(app: &AppHandle, shortcut: &str) -> Result<(), String> {
+        use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
+        app.global_shortcut()
+            .on_shortcut(shortcut, |app, _, event| {
+                if event.state == ShortcutState::Pressed {
+                    let _ = toggle_from_shortcut(app);
+                }
+            })
+            .map_err(|_| "快捷键无效或已被其他应用占用".to_string())
+    }
+    fn toggle_from_shortcut(app: &AppHandle) -> Result<(), String> {
+        if let Some(tray) = app.tray_by_id("authenticator") {
+            if let Ok(Some(rect)) = tray.rect() {
+                let scale = app
+                    .primary_monitor()
+                    .ok()
+                    .flatten()
+                    .map_or(1.0, |m| m.scale_factor());
+                return toggle(app, rect.position.to_physical::<f64>(scale), rect);
+            }
+        }
+        open_main(app)
+    }
+    pub(super) fn configure(
+        app: &AppHandle,
+        resident: Option<bool>,
+        shortcut: Option<String>,
+        autostart: Option<bool>,
+    ) -> Result<(), String> {
+        use tauri_plugin_autostart::ManagerExt;
+        use tauri_plugin_global_shortcut::GlobalShortcutExt;
+        let controller = app.state::<Controller>();
+        let mut old = controller.operation.lock().map_err(|_| "桌面设置不可用")?;
+        let mut next = old.clone();
+        if let Some(resident) = resident {
+            next.resident = resident;
+        }
+        if let Some(shortcut) = shortcut {
+            next.shortcut = shortcut.trim().to_string();
+            if next.shortcut.len() > 128 {
+                return Err("快捷键无效或已被其他应用占用".into());
+            }
+        }
+        let previous_autostart = if autostart.is_some() {
+            Some(
+                app.autolaunch()
+                    .is_enabled()
+                    .map_err(|_| "无法读取开机启动设置")?,
+            )
+        } else {
+            None
+        };
+        let changed = next.shortcut != old.shortcut;
+        let old_registered =
+            !old.shortcut.is_empty() && app.global_shortcut().is_registered(old.shortcut.as_str());
+        if changed && !next.shortcut.is_empty() {
+            register_shortcut(app, &next.shortcut)?;
+        }
+        let result = (|| {
+            if let Some(enabled) = autostart {
+                if enabled {
+                    app.autolaunch().enable()
+                } else {
+                    app.autolaunch().disable()
+                }
+                .map_err(|_| "无法修改开机启动设置")?;
+            }
+            let bytes = serde_json::to_vec(&next).map_err(|_| "无法保存桌面设置")?;
+            let temporary = controller.path.with_extension("tmp");
+            std::fs::write(&temporary, bytes)
+                .and_then(|_| std::fs::rename(&temporary, &controller.path))
+                .map_err(|_| "无法保存桌面设置")?;
+            Ok::<_, String>(())
+        })();
+        if let Err(error) = result {
+            if changed && !next.shortcut.is_empty() {
+                let _ = app.global_shortcut().unregister(next.shortcut.as_str());
+            }
+            if autostart.is_some() {
+                if previous_autostart == Some(true) {
+                    let _ = app.autolaunch().enable();
+                } else {
+                    let _ = app.autolaunch().disable();
+                }
+            }
+            return Err(error);
+        }
+        if changed && old_registered {
+            let _ = app.global_shortcut().unregister(old.shortcut.as_str());
+        }
+        controller.resident.store(next.resident, Ordering::SeqCst);
+        *old = next;
+        Ok(())
+    }
     fn create(app: &tauri::App) -> tauri::Result<()> {
         WebviewWindowBuilder::new(app, POPUP, WebviewUrl::App("index.html?view=tray".into()))
             .title("SteamGuard")
-            .theme(Some(tauri::Theme::Light))
             .inner_size(360.0, 520.0)
             .visible(false)
             .focused(false)
@@ -320,6 +515,11 @@ mod platform {
         let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
         let line = PredefinedMenuItem::separator(app)?;
         let menu = Menu::with_items(app, &[&open, &lock, &line, &quit])?;
+        if let Ok(mut menus) = app.state::<Controller>().menus.lock() {
+            menus.open = Some(open);
+            menus.lock = Some(lock);
+            menus.quit = Some(quit);
+        }
         TrayIconBuilder::with_id("authenticator")
             .icon(tauri::image::Image::from_bytes(
                 if cfg!(target_os = "macos") {

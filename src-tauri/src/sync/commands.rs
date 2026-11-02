@@ -10,6 +10,7 @@ pub struct Status {
     configured: bool,
     active: bool,
     busy: bool,
+    alias: String,
     endpoint: String,
     username: String,
     library_id: String,
@@ -28,6 +29,7 @@ fn status(s: &AppState) -> Result<Status, String> {
         configured: true,
         active: config.active,
         busy: s.sync.busy(),
+        alias: config.alias.clone(),
         endpoint: config.endpoint.clone(),
         username: config.username.clone(),
         library_id: config.library.clone(),
@@ -183,6 +185,84 @@ impl Connection {
         storage::validate_endpoint(&self.endpoint)
     }
 }
+#[tauri::command]
+pub async fn sync_update_credentials(
+    s: State<'_, AppState>,
+    connection: Connection,
+) -> Result<Status, String> {
+    update_credentials(&s, connection).await
+}
+async fn update_credentials(s: &AppState, connection: Connection) -> Result<Status, String> {
+    let endpoint = connection.validate()?;
+    let lease = s.sync.begin()?;
+    let (config, network, epoch) = {
+        let mut v = s.vault()?;
+        let d = v.ensure()?;
+        (
+            d.sync.clone().ok_or("尚未连接同步库")?,
+            d.network.clone(),
+            s.epoch.load(Ordering::SeqCst),
+        )
+    };
+    let op = storage::client(
+        &endpoint,
+        connection.username.trim(),
+        &connection.password,
+        &network,
+    )?;
+    let header = tokio::select! {
+        _ = lease.cancellation.cancelled() => return Err("同步已取消".into()),
+        r = storage::header(&op, &config.library) => r?,
+    };
+    config.verify_header(&header)?;
+    let mut v = s.vault()?;
+    same(s, epoch, v.ensure()?, &config)?;
+    v.update(|d| {
+        let c = d.sync.as_mut().ok_or("同步已断开")?;
+        c.endpoint = endpoint;
+        c.username = connection.username.trim().into();
+        c.password.zeroize();
+        c.password = connection.password.clone();
+        Ok(())
+    })?;
+    drop(v);
+    drop(lease);
+    if let Ok(mut result) = s.sync.result.lock() {
+        result.1 = None;
+    }
+    status(s)
+}
+#[tauri::command]
+pub fn sync_set_alias(s: State<AppState>, alias: String) -> Result<Status, String> {
+    let alias = alias.trim();
+    if alias.chars().count() > 80 {
+        return Err("本机名称最多 80 个字符".into());
+    }
+    s.vault()?.update(|d| {
+        d.sync.as_mut().ok_or("尚未连接同步库")?.alias = alias.into();
+        Ok(())
+    })?;
+    status(&s)
+}
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectionInfo {
+    endpoint: String,
+    username: String,
+    library_id: String,
+    alias: String,
+    connection_qr: String,
+}
+#[tauri::command]
+pub fn sync_connection_info(s: State<AppState>) -> Result<ConnectionInfo, String> {
+    let mut v = s.vault()?;
+    let c = v.ensure()?.sync.as_ref().ok_or("尚未连接同步库")?;
+    Ok(ConnectionInfo {
+        endpoint: c.endpoint.clone(), username: c.username.clone(), library_id: c.library.clone(), alias: c.alias.clone(),
+        connection_qr: serde_json::json!({"format":"SteamGuard Sync Connection", "version":1, "endpoint":c.endpoint, "username":c.username, "libraryId":c.library}).to_string(),
+    })
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ConnectRequest {
@@ -590,6 +670,43 @@ mod tests {
             v.lock();
             std::fs::remove_dir_all(dir).unwrap();
         }
+    }
+    #[tokio::test]
+    async fn refreshing_expired_credentials_preserves_history_and_uploads_pending_deletion() {
+        let dav = storage::tests::Dav::new();
+        let (header, key) =
+            create_header(&uuid::Uuid::new_v4().to_string(), "synthetic-sync-password").unwrap();
+        storage::create(&dav.op("synthetic"), &header)
+            .await
+            .unwrap();
+        let a = app(&dav, &header, &key, true);
+        let b = app(&dav, &header, &key, false);
+        run(&a, false).await.unwrap();
+        run(&b, false).await.unwrap();
+        let id = a.vault().unwrap().ensure().unwrap().tokens[0].id.clone();
+        a.vault()
+            .unwrap()
+            .update(|d| {
+                crate::token_commands::delete(d, &[id])?;
+                d.sync.as_mut().unwrap().password = "expired-application-password".into();
+                Ok(())
+            })
+            .unwrap();
+        let before = a.vault().unwrap().ensure().unwrap().sync.clone().unwrap();
+        assert!(before.dirty().unwrap());
+        update_credentials(&a, credentials(&dav)).await.unwrap();
+        let after = a.vault().unwrap().ensure().unwrap().sync.clone().unwrap();
+        assert_eq!(after.doc, before.doc);
+        assert_eq!(after.baseline, before.baseline);
+        assert_eq!(after.uploaded_heads, before.uploaded_heads);
+        assert_eq!(after.library, before.library);
+        assert!(after.dirty().unwrap());
+        run(&a, false).await.unwrap();
+        run(&b, false).await.unwrap();
+        assert!(a.vault().unwrap().ensure().unwrap().tokens.is_empty());
+        assert!(b.vault().unwrap().ensure().unwrap().tokens.is_empty());
+        assert_eq!(b.vault().unwrap().ensure().unwrap().trash.len(), 1);
+        clean(vec![a, b]);
     }
     #[tokio::test]
     async fn empty_device_joins_discovered_phone_library_without_creating_another() {

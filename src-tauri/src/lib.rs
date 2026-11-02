@@ -2,14 +2,19 @@
 mod android_proxy;
 mod avatar;
 mod backup;
+mod backup_commands;
+mod backup_external;
 mod desktop;
 mod import;
+mod migration;
 mod models;
 mod network;
 mod otp;
 mod quick_access;
 mod steam;
 mod sync;
+mod token_commands;
+mod updates;
 mod vault;
 
 use models::{Token, TokenView};
@@ -31,6 +36,7 @@ struct Preview {
     groups: Vec<String>,
     tokens: Vec<Token>,
     created: u64,
+    expected_revision: Option<String>,
 }
 impl Drop for Preview {
     fn drop(&mut self) {
@@ -48,7 +54,9 @@ struct AppState {
 impl AppState {
     fn vault(&self) -> Result<std::sync::MutexGuard<'_, vault::Vault>, String> {
         let mut v = self.vault.lock().map_err(|_| "令牌库暂不可用")?;
-        if v.data.is_some() && models::now().saturating_sub(v.last_activity) > 900 {
+        if v.data.is_some()
+            && (v.background_expired() || models::now().saturating_sub(v.last_activity) > 900)
+        {
             self.epoch.fetch_add(1, Ordering::SeqCst);
             self.sync.cancel();
             v.lock();
@@ -130,6 +138,47 @@ struct VaultStatus {
     preview_enabled: bool,
     biometric_enabled: bool,
     preview_active: bool,
+}
+#[tauri::command]
+fn ui_localize(app: tauri::AppHandle, reason: String, fallback: String) -> Result<(), String> {
+    app.secure_access().localize(&reason, &fallback)
+}
+#[tauri::command]
+async fn appearance_configure(app: tauri::AppHandle, theme: String) -> Result<(), String> {
+    app.secure_access().appearance(&theme).await?;
+    let theme = match theme.as_str() {
+        "light" => Some(tauri::Theme::Light),
+        "dark" => Some(tauri::Theme::Dark),
+        "system" => None,
+        _ => return Err("主题无效".into()),
+    };
+    #[cfg(desktop)]
+    for window in app.webview_windows().values() {
+        window.set_theme(theme).map_err(|_| "无法设置主题")?;
+    }
+    #[cfg(mobile)]
+    let _ = theme;
+    Ok(())
+}
+#[tauri::command]
+fn vault_background(
+    s: State<AppState>,
+    q: State<quick_access::QuickAccess>,
+    hidden: bool,
+) -> Result<(), String> {
+    let expired = s
+        .vault
+        .lock()
+        .map_err(|_| "令牌库暂不可用")?
+        .background_expired();
+    if expired {
+        vault_lock(s.clone(), q.clone())?;
+    }
+    s.vault()?.set_background(hidden);
+    if hidden {
+        q.clear();
+    }
+    Ok(())
 }
 #[tauri::command]
 fn vault_status(
@@ -489,6 +538,32 @@ mod integration_tests {
     }
 }
 #[tauri::command]
+async fn vault_change_password(
+    app: tauri::AppHandle,
+    s: State<'_, AppState>,
+    q: State<'_, quick_access::QuickAccess>,
+    current_password: String,
+    new_password: String,
+) -> Result<(), String> {
+    let _operation = q.operation()?;
+    let current = Zeroizing::new(current_password);
+    let next = Zeroizing::new(new_password);
+    let mut v = s.vault()?;
+    v.credential(&current)?;
+    if next.chars().count() < 8 {
+        return Err("主密码至少需要 8 个字符".into());
+    }
+    q.set("preview", false)?;
+    q.set("biometric", false)?;
+    q.clear();
+    v.preview_key(None)?;
+    // Stale native credentials cannot open the newly salted vault. Disabled
+    // preferences also prevent a failed system-store cleanup from being used.
+    let _ = app.secure_access().remove("preview");
+    let _ = app.secure_access().remove("biometric");
+    v.change_password(&current, &next)
+}
+#[tauri::command]
 fn vault_lock(s: State<AppState>, q: State<quick_access::QuickAccess>) -> Result<(), String> {
     s.sync.cancel();
     s.epoch.fetch_add(1, Ordering::SeqCst);
@@ -514,6 +589,7 @@ fn list_tokens(s: State<AppState>) -> Result<Vec<TokenView>, String> {
         .iter()
         .map(|t| {
             Ok(TokenView {
+                pinned: t.pinned,
                 group: t.group.clone(),
                 id: t.id.clone(),
                 name: t.name.clone(),
@@ -597,6 +673,7 @@ fn prepare_import_preview(
         groups: imported_groups,
         tokens,
         created: models::now(),
+        expected_revision: None,
     };
     if staged.tokens.len() > 1000 {
         return Err("一次最多导入 1000 个令牌".into());
@@ -621,15 +698,22 @@ fn prepare_import_preview(
                 && seen.insert((t.kind.as_str(), t.secret.as_slice()))
         })
         .collect::<Vec<_>>();
-    let metadata_changes = staged.tokens.iter().any(|t| {
-        existing.iter().any(|e| {
-            e.kind == t.kind
-                && e.secret == t.secret
-                && (e.icon.is_none() && t.icon.is_some()
-                    || e.group.is_none() && t.group.is_some()
-                    || t.kind == "hotp" && t.counter > e.counter)
-        })
-    });
+    let mut metadata_changes = false;
+    let mut checked = vault::VaultData::default();
+    checked.tokens = existing.clone();
+    // Dry run validates both existing duplicates and conflicting duplicates in the file.
+    checked.merge_import(staged.tokens.clone(), staged.groups.clone())?;
+    for incoming in &staged.tokens {
+        if let Some(old) = existing
+            .iter()
+            .find(|e| e.kind == incoming.kind && e.secret == incoming.secret)
+        {
+            let mut old = old.clone();
+            metadata_changes |= vault::merge_metadata(&mut old, incoming)?;
+            old.erase();
+        }
+    }
+    checked.tokens.iter_mut().for_each(Token::erase);
     let new_groups = staged
         .groups
         .iter()
@@ -726,7 +810,7 @@ fn commit_import_preview(s: &AppState, preview_id: &str) -> Result<usize, String
     if models::now().saturating_sub(p.created) > 300 {
         return Err("预览已过期，请重新导入".into());
     }
-    v.update(|d| Ok(d.merge_import(std::mem::take(&mut p.tokens), std::mem::take(&mut p.groups))))
+    v.update(|d| d.merge_import(std::mem::take(&mut p.tokens), std::mem::take(&mut p.groups)))
 }
 #[tauri::command]
 fn token_groups(s: State<AppState>) -> Result<Vec<String>, String> {
@@ -753,6 +837,7 @@ fn token_update(
     name: String,
     group: Option<String>,
     icon: Option<IconUpdate>,
+    parameters: Option<token_commands::Parameters>,
 ) -> Result<(), String> {
     let icon = icon
         .map(|update| {
@@ -775,6 +860,9 @@ fn token_update(
             .iter_mut()
             .find(|t| t.id == id)
             .ok_or("令牌不存在")?;
+        if let Some(parameters) = parameters {
+            parameters.apply(token)?;
+        }
         token.name = name.into();
         token.group = group;
         if let Some(value) = icon {
@@ -790,19 +878,22 @@ struct BackupStatus {
     entries: Vec<backup::BackupEntry>,
     error: Option<String>,
     system_backup: String,
+    directory: String,
+    external_supported: bool,
 }
 #[tauri::command]
 async fn backup_status(
     app: tauri::AppHandle,
     s: State<'_, AppState>,
 ) -> Result<BackupStatus, String> {
-    let (enabled, entries, error, path) = {
+    let (enabled, entries, error, path, directory) = {
         let v = s.vault()?;
         (
             v.data.as_ref().is_none_or(|d| d.auto_backup),
             backup::list(&v.path)?,
             v.backup_error.clone(),
             v.path.parent().ok_or("存储目录无效")?.to_owned(),
+            backup::directory(&v.path)?.to_string_lossy().into_owned(),
         )
     };
     #[cfg(target_os = "ios")]
@@ -823,7 +914,15 @@ async fn backup_status(
         entries,
         error,
         system_backup,
+        directory,
+        external_supported: !cfg!(mobile),
     })
+}
+#[tauri::command]
+fn backup_directory_configure(s: State<AppState>, path: Option<String>) -> Result<(), String> {
+    let mut v = s.vault()?;
+    v.ensure()?;
+    backup::configure_directory(&v.path, path.as_deref())
 }
 #[tauri::command]
 fn backup_configure(s: State<AppState>, enabled: bool) -> Result<(), String> {
@@ -860,7 +959,7 @@ fn backup_restore(s: State<AppState>, name: String, password: String) -> Result<
     v.ensure()?;
     let bytes = Zeroizing::new(backup::read(&v.path, &name)?);
     let data = vault::decode(&bytes, &password)?;
-    v.update(|d| Ok(d.merge_backup(data)))
+    v.update(|d| d.merge_backup(data))
 }
 #[tauri::command]
 fn token_rename(s: State<AppState>, id: String, name: String) -> Result<(), String> {
@@ -879,17 +978,8 @@ fn token_rename(s: State<AppState>, id: String, name: String) -> Result<(), Stri
 }
 #[tauri::command]
 fn token_delete(s: State<AppState>, id: String) -> Result<(), String> {
-    let mut v = s.vault()?;
-    v.update(|d| {
-        if let Some(t) = d.tokens.iter_mut().find(|t| t.id == id) {
-            t.erase();
-        }
-        d.tokens.retain(|t| t.id != id);
-        if let Some(m) = d.sessions.as_object_mut() {
-            m.remove(&id);
-        }
-        Ok(())
-    })?;
+    s.vault()?
+        .update(|d| token_commands::delete(d, &[id.clone()]))?;
     s.steam.logout(&id);
     Ok(())
 }
@@ -938,6 +1028,9 @@ fn token_reorder(s: State<AppState>, ids: Vec<String>) -> Result<(), String> {
             token.erase();
         }
         *tokens = ordered;
+        for (index, token) in tokens.iter_mut().enumerate() {
+            token.sort_order = index as u64 * 1024;
+        }
         Ok(())
     })
 }
@@ -1505,9 +1598,20 @@ pub fn run() {
     #[cfg(mobile)]
     let builder = builder.plugin(tauri_plugin_barcode_scanner::init());
     #[cfg(desktop)]
-    let builder = builder.plugin(tauri_plugin_clipboard_manager::init());
+    let builder = builder
+        .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(
+            tauri_plugin_autostart::Builder::new()
+                .app_name("SteamGuard")
+                .arg("--autostart")
+                .build(),
+        )
+        .plugin(tauri_plugin_updater::Builder::new().build());
     builder
         .setup(|app| {
+            app.manage(updates::Controller::default());
+            backup_external::install(app.handle().clone());
             let path = app.path().app_data_dir()?.join("vault.sgvault");
             std::fs::create_dir_all(path.parent().ok_or("存储目录无效")?.join("device-only"))?;
             #[cfg(target_os = "ios")]
@@ -1549,13 +1653,21 @@ pub fn run() {
                 return true;
             }
             let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![
+                desktop::desktop_localize,
                 desktop::desktop_settings,
                 desktop::desktop_configure,
                 desktop::desktop_snapshot,
+                desktop::desktop_codes,
                 desktop::desktop_copy,
                 desktop::desktop_open_main,
                 desktop::desktop_hide,
+                updates::update_check,
+                updates::update_install,
+                updates::update_open_download,
                 sync::commands::sync_status,
+                sync::commands::sync_update_credentials,
+                sync::commands::sync_set_alias,
+                sync::commands::sync_connection_info,
                 sync::commands::sync_connect,
                 sync::commands::sync_discover,
                 sync::commands::sync_switch,
@@ -1565,6 +1677,9 @@ pub fn run() {
                 sync::commands::sync_resolve,
                 sync::commands::sync_claim_hotp,
                 vault_status,
+                appearance_configure,
+                ui_localize,
+                vault_background,
                 quick_capabilities,
                 quick_configure,
                 quick_biometric_unlock,
@@ -1574,6 +1689,7 @@ pub fn run() {
                 vault_create,
                 vault_unlock,
                 vault_lock,
+                vault_change_password,
                 vault_touch,
                 list_tokens,
                 import_preview,
@@ -1581,10 +1697,24 @@ pub fn run() {
                 import_discard,
                 import_camera_supported,
                 import_commit,
+                migration::token_export_qr_batch,
+                token_commands::token_create,
+                token_commands::token_codes,
+                token_commands::token_current_code,
+                token_commands::token_batch,
+                token_commands::trash_list,
+                token_commands::trash_restore,
+                token_commands::trash_delete,
                 token_groups,
                 token_group_manage,
                 token_update,
+                backup_commands::backup_preview,
+                backup_commands::backup_restore_selected,
+                backup_external::backup_external_status,
+                backup_external::backup_external_choose,
+                backup_external::backup_external_clear,
                 backup_status,
+                backup_directory_configure,
                 backup_configure,
                 backup_now,
                 backup_export,
@@ -1650,6 +1780,39 @@ mod qr_import_tests {
             time_offset: std::sync::atomic::AtomicI64::new(0),
             sync: sync::Controller::default(),
         }
+    }
+    #[test]
+    fn steam_metadata_only_preview_can_commit_and_conflicting_preview_is_rejected() {
+        let dir = std::env::temp_dir().join(format!(
+            "steamguard-enrich-preview-{}",
+            uuid::Uuid::new_v4()
+        ));
+        let s = state(dir.join("vault.sgvault"), "synthetic-password");
+        let old = Token::new("old fixture".into(), "steam".into(), vec![9; 20]);
+        s.vault()
+            .unwrap()
+            .update(|d| {
+                d.tokens.push(old.clone());
+                Ok(())
+            })
+            .unwrap();
+        let mut enriched = old;
+        enriched.steam_id = Some("12345".into());
+        enriched.identity_secret = Some("synthetic-identity".into());
+        enriched.device_id = Some("android:fixture".into());
+        let preview = prepare_import_preview(&s, vec![enriched.clone()], vec![], 0).unwrap();
+        assert!(preview.can_commit);
+        assert!(preview.tokens.is_empty());
+        assert_eq!(preview.duplicates, 1);
+        assert_eq!(commit_import_preview(&s, &preview.preview_id).unwrap(), 0);
+        assert_eq!(
+            s.vault().unwrap().ensure().unwrap().tokens[0].steam_id,
+            enriched.steam_id
+        );
+        enriched.steam_id = Some("different-steam-id".into());
+        assert!(prepare_import_preview(&s, vec![enriched], vec![], 0).is_err());
+        s.vault().unwrap().lock();
+        std::fs::remove_dir_all(dir).unwrap();
     }
     #[test]
     fn version_two_zero_id_pages_import_twenty_two_tokens_in_one_commit() {

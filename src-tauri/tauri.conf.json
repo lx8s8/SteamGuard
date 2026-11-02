@@ -16,8 +16,7 @@
         "width": 1180,
         "height": 820,
         "minWidth": 360,
-        "minHeight": 600,
-        "theme": "Light"
+        "minHeight": 600
       }
     ],
     "security": {
@@ -48,6 +47,15 @@
     "android": {
       "minSdkVersion": 24
     },
-    "publisher": "kasen"
+    "publisher": "kasen",
+    "createUpdaterArtifacts": false
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDI0QjI5RkNCNjYwRjY2NUMKUldSY1pnOW15NSt5SkJicExtK0grOHBuUmRDWWJWdnVYV0VFSFd1VmpDaGM1SEw5d25TS0ZoS1oK",
+      "endpoints": [
+        "https://github.com/lx8s8/SteamGuard/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

@@ -272,6 +272,73 @@ fn collect_with_limits(
     Ok(collection)
 }
 
+/// Google-compatible batch export. The format cannot represent custom TOTP periods.
+pub(crate) fn export_batch(tokens: &[Token]) -> Result<Vec<String>, String> {
+    if tokens.is_empty() || tokens.len() > 1000 {
+        return Err("请选择 1–1000 个令牌".into());
+    }
+    let mut groups: Vec<Vec<OtpParameters>> = vec![vec![]];
+    let mut size = 0;
+    for t in tokens {
+        t.validate()?;
+        if !matches!(t.kind.as_str(), "totp" | "hotp") || t.kind == "totp" && t.period != 30 {
+            return Err("此格式仅支持 30 秒 TOTP 和 HOTP，其他令牌请使用加密备份".into());
+        }
+        let account = OtpParameters {
+            secret: t.secret.clone(),
+            name: t.name.clone(),
+            issuer: t.issuer.clone(),
+            algorithm: match t.algorithm.as_str() {
+                "SHA1" => 1,
+                "SHA256" => 2,
+                "SHA512" => 3,
+                _ => return Err("不支持的令牌算法".into()),
+            },
+            digits: match t.digits {
+                6 => 1,
+                8 => 2,
+                _ => return Err("迁移二维码仅支持 6 位或 8 位验证码".into()),
+            },
+            kind: if t.kind == "hotp" { 1 } else { 2 },
+            counter: i64::try_from(t.counter).map_err(|_| "HOTP 计数超出迁移格式范围")?,
+        };
+        let length = account.encoded_len() + 4;
+        if length > 900 {
+            return Err("令牌名称或密钥过长，请使用加密备份迁移".into());
+        }
+        if size + length > 900 {
+            groups.push(vec![]);
+            size = 0;
+        }
+        groups.last_mut().unwrap().push(account);
+        size += length;
+    }
+    if groups.len() > MAX_CODES {
+        return Err("迁移二维码数量过多，请减少选择的令牌".into());
+    }
+    let count = groups.len() as i32;
+    let batch_id = (rand::random::<u32>() & 0x7fff_ffff).max(1) as i32;
+    groups
+        .into_iter()
+        .enumerate()
+        .map(|(index, accounts)| {
+            let payload = MigrationPayload {
+                accounts,
+                version: 1,
+                batch_size: count,
+                batch_index: index as i32,
+                batch_id,
+            };
+            let bytes = Zeroizing::new(payload.encode_to_vec());
+            let encoded = Zeroizing::new(general_purpose::STANDARD.encode(&bytes));
+            let mut url =
+                url::Url::parse("otpauth-migration://offline").map_err(|_| "无法生成迁移地址")?;
+            url.query_pairs_mut().append_pair("data", &encoded);
+            Ok(url.to_string())
+        })
+        .collect()
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
@@ -385,6 +452,43 @@ pub(crate) mod tests {
         ] {
             assert!(collect(&[first.clone(), incompatible]).is_err());
         }
+    }
+    #[test]
+    fn batch_export_roundtrips_all_parameters_and_rejects_unrepresentable_tokens() {
+        let mut tokens = Vec::new();
+        for i in 0..30 {
+            let mut t = Token::new(
+                format!("Synthetic {i}"),
+                if i % 2 == 0 {
+                    "totp".into()
+                } else {
+                    "hotp".into()
+                },
+                vec![i; 20],
+            );
+            t.issuer = "Example".into();
+            t.algorithm = "SHA256".into();
+            t.digits = 8;
+            t.counter = i as u64;
+            tokens.push(t);
+        }
+        let pages = export_batch(&tokens).unwrap();
+        assert!(pages.len() > 1);
+        let parsed = collect(&pages).unwrap();
+        assert!(parsed.progress.complete);
+        assert_eq!(parsed.tokens.len(), 30);
+        for (a, b) in parsed.tokens.iter().zip(&tokens) {
+            assert_eq!(a.secret, b.secret);
+            assert_eq!(a.kind, b.kind);
+            assert_eq!(a.algorithm, b.algorithm);
+            assert_eq!(a.digits, b.digits);
+            assert_eq!(a.counter, b.counter);
+        }
+        tokens[0].period = 60;
+        assert!(export_batch(&tokens).is_err());
+        tokens[0].period = 30;
+        tokens[0].kind = "steam".into();
+        assert!(export_batch(&tokens).is_err());
     }
     #[test]
     fn legacy_zero_and_one_versions_keep_their_compatibility() {

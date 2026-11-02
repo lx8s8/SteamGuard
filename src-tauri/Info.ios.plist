@@ -3,6 +3,6 @@
 <plist version="1.0">
 <dict>
 	<key>NSFaceIDUsageDescription</key>
-	<string>使用 Face ID 解锁本机加密令牌库；你也可以使用主密码。</string>
+	<string>Use Face ID to unlock your authenticator vault.</string>
 </dict>
 </plist>

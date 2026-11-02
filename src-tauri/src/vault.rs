@@ -12,7 +12,15 @@ use zeroize::Zeroizing;
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct TrashEntry {
+    pub token: Token,
+    pub deleted_at: u64,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct VaultData {
+    #[serde(default)]
+    pub trash: Vec<TrashEntry>,
     pub tokens: Vec<Token>,
     #[serde(default)]
     pub sessions: serde_json::Value,
@@ -28,6 +36,7 @@ pub struct VaultData {
 impl Default for VaultData {
     fn default() -> Self {
         Self {
+            trash: vec![],
             tokens: vec![],
             sessions: serde_json::Value::Null,
             network: Default::default(),
@@ -41,6 +50,12 @@ impl VaultData {
     pub fn validate(&self) -> Result<(), String> {
         for token in &self.tokens {
             token.validate()?;
+        }
+        for entry in &self.trash {
+            entry.token.validate()?;
+        }
+        if self.trash.len() > 1000 {
+            return Err("回收站已满，请永久删除不再需要的令牌".into());
         }
         let names = self.group_names();
         if names.len() > 100
@@ -126,7 +141,35 @@ impl VaultData {
         }
         Ok(())
     }
-    pub fn merge_import(&mut self, tokens: Vec<Token>, groups: Vec<String>) -> usize {
+    pub fn merge_import(
+        &mut self,
+        tokens: Vec<Token>,
+        groups: Vec<String>,
+    ) -> Result<usize, String> {
+        // Reject identity conflicts before applying any metadata or groups.
+        let mut checked = self.tokens.clone();
+        for token in &tokens {
+            if let Some(existing) = checked
+                .iter_mut()
+                .find(|e| e.kind == token.kind && e.secret == token.secret)
+            {
+                merge_metadata(existing, token)?;
+            } else {
+                if token.kind == "steam"
+                    && crate::models::known_steam_id(token.steam_id.as_deref()).is_some()
+                    && checked.iter().any(|e| {
+                        e.kind == "steam"
+                            && crate::models::known_steam_id(e.steam_id.as_deref())
+                                == crate::models::known_steam_id(token.steam_id.as_deref())
+                    })
+                {
+                    checked.iter_mut().for_each(Token::erase);
+                    return Err("同一 Steam 账号存在不同密钥，请确认已失效令牌后再导入".into());
+                }
+                checked.push(token.clone());
+            }
+        }
+        checked.iter_mut().for_each(Token::erase);
         for group in groups {
             if !self.groups.contains(&group) {
                 self.groups.push(group);
@@ -140,61 +183,129 @@ impl VaultData {
                 .iter_mut()
                 .find(|e| e.kind == token.kind && e.secret == token.secret)
             {
-                if existing.group.is_none() {
-                    existing.group = token.group.clone();
-                }
-                if existing.icon.is_none() {
-                    existing.icon = token.icon.clone();
-                }
-                if token.kind == "hotp" {
-                    existing.counter = existing.counter.max(token.counter);
-                }
+                merge_metadata(existing, &token)?;
                 token.erase();
             } else {
                 token.id = uuid::Uuid::new_v4().to_string();
+                token.sort_order = self
+                    .tokens
+                    .iter()
+                    .map(|t| t.sort_order)
+                    .max()
+                    .unwrap_or(0)
+                    .saturating_add(1024);
                 self.tokens.push(token);
                 count += 1;
             }
         }
-        count
+        Ok(count)
     }
-    pub fn merge_backup(&mut self, mut incoming: VaultData) -> usize {
-        let mut count = 0;
-        for mut token in incoming.tokens.drain(..) {
-            token.hotp_read_only = false;
-            if let Some(existing) = self.tokens.iter_mut().find(|t| {
-                t.kind == token.kind
-                    && (t.secret == token.secret
-                        || t.kind == "steam"
-                            && crate::models::known_steam_id(t.steam_id.as_deref()).is_some()
-                            && crate::models::known_steam_id(t.steam_id.as_deref())
-                                == crate::models::known_steam_id(token.steam_id.as_deref()))
-            }) {
-                if token.kind == "hotp" {
-                    existing.counter = existing.counter.max(token.counter);
-                }
-                if existing.group.is_none() {
-                    existing.group = token.group.clone();
-                }
-                if existing.icon.is_none() {
-                    existing.icon = token.icon.clone();
-                }
-                token.erase();
-            } else {
-                token.id = uuid::Uuid::new_v4().to_string();
-                self.tokens.push(token);
-                count += 1;
-            }
-        }
-        for name in incoming.group_names() {
-            if !self.groups.contains(&name) {
-                self.groups.push(name);
-            }
-        }
-        self.groups = self.group_names();
+    pub fn merge_backup(&mut self, mut incoming: VaultData) -> Result<usize, String> {
+        let groups = incoming.group_names();
+        let tokens = std::mem::take(&mut incoming.tokens);
         wipe_json(&mut incoming.sessions);
-        count
+        self.merge_import(tokens, groups)
     }
+}
+/// A duplicate may fill absent metadata; identity differences never overwrite silently.
+pub fn merge_metadata(existing: &mut Token, incoming: &Token) -> Result<bool, String> {
+    let before = Zeroizing::new(serde_json::to_vec(&*existing).map_err(|_| "无法检查令牌差异")?);
+    if existing.kind == "steam" {
+        let old = crate::models::known_steam_id(existing.steam_id.as_deref());
+        let new = crate::models::known_steam_id(incoming.steam_id.as_deref());
+        if old.is_some() && new.is_some() && old != new {
+            return Err("重复 Steam 令牌的 SteamID 冲突".into());
+        }
+        if old.is_none() && new.is_some() {
+            existing.steam_id = incoming.steam_id.clone();
+        }
+        for (target, source, label) in [
+            (
+                &mut existing.identity_secret,
+                &incoming.identity_secret,
+                "identity_secret",
+            ),
+            (&mut existing.device_id, &incoming.device_id, "device_id"),
+        ] {
+            if let Some(value) = source.as_ref().filter(|v| !v.trim().is_empty()) {
+                if target
+                    .as_ref()
+                    .is_some_and(|old| !old.trim().is_empty() && old != value)
+                {
+                    return Err(format!("重复 Steam 令牌的 {label} 冲突"));
+                }
+                if target.as_ref().is_none_or(|old| old.trim().is_empty()) {
+                    *target = Some(value.clone());
+                }
+            }
+        }
+        if existing.account_name.as_ref().is_none_or(|v| v.is_empty()) {
+            existing.account_name = incoming.account_name.clone();
+        }
+        fn fill(
+            target: &mut serde_json::Value,
+            source: &serde_json::Value,
+            field: &str,
+        ) -> Result<(), String> {
+            if target.is_null() || target.as_str().is_some_and(str::is_empty) {
+                *target = source.clone();
+                return Ok(());
+            }
+            if let (Some(a), Some(b)) = (target.as_object_mut(), source.as_object()) {
+                for (key, value) in b {
+                    let target = a.entry(key).or_insert(serde_json::Value::Null);
+                    let normalized = key.to_ascii_lowercase().replace('_', "");
+                    if normalized == "steamid"
+                        && (target.as_u64() == Some(0)
+                            || target
+                                .as_str()
+                                .is_some_and(|v| crate::models::known_steam_id(Some(v)).is_none()))
+                    {
+                        *target = serde_json::Value::Null;
+                    }
+                    fill(target, value, &normalized)?;
+                }
+            } else if !source.is_null() && target != source {
+                // Session cookies/timestamps and unknown extension fields can change
+                // between exports. Keep the current value; only identity-bearing
+                // values are conflicts, never replace any existing opaque metadata.
+                if [
+                    "steamid",
+                    "sharedsecret",
+                    "identitysecret",
+                    "deviceid",
+                    "revocationcode",
+                    "serialnumber",
+                ]
+                .contains(&field)
+                {
+                    return Err("重复 Steam 令牌的 steam_data 冲突".into());
+                }
+            }
+            Ok(())
+        }
+        if let Some(source) = &incoming.steam_data {
+            fill(
+                existing.steam_data.get_or_insert(serde_json::Value::Null),
+                source,
+                "",
+            )?;
+        }
+    }
+    if existing.group.is_none() {
+        existing.group = incoming.group.clone();
+    }
+    if existing.icon.is_none() {
+        existing.icon = incoming.icon.clone();
+    }
+    if existing.kind == "hotp" {
+        if existing.hotp_read_only && incoming.counter > existing.counter {
+            return Err("此 HOTP 的主设备为其他设备，请先切换主设备".into());
+        }
+        existing.counter = existing.counter.max(incoming.counter);
+    }
+    Ok(before.as_slice()
+        != Zeroizing::new(serde_json::to_vec(existing).map_err(|_| "无法检查令牌差异")?).as_slice())
 }
 fn default_backup_enabled() -> bool {
     true
@@ -341,10 +452,12 @@ pub struct Vault {
     key: Option<Zeroizing<[u8; 32]>>,
     salt: [u8; 16],
     pub last_activity: u64,
+    background_since: Option<std::time::Instant>,
     preview_key: Option<Zeroizing<[u8; 32]>>,
     pub backup_error: Option<String>,
     pub sync_actor: String,
     pub device_id: String,
+    pub revision: String,
 }
 impl Vault {
     pub fn new(path: PathBuf) -> Self {
@@ -354,10 +467,12 @@ impl Vault {
             key: None,
             salt: [0; 16],
             last_activity: 0,
+            background_since: None,
             preview_key: None,
             backup_error: None,
             sync_actor: uuid::Uuid::new_v4().to_string(),
             device_id: uuid::Uuid::new_v4().to_string(),
+            revision: String::new(),
         }
     }
     fn initialize_device(&mut self) -> Result<(), String> {
@@ -396,6 +511,19 @@ impl Vault {
             }
         }
     }
+    fn data_revision(data: &VaultData) -> Result<String, String> {
+        use sha2::{Digest, Sha256};
+        let sessions = data
+            .sessions
+            .as_object()
+            .map(|m| m.keys().collect::<Vec<_>>())
+            .unwrap_or_default();
+        let bytes = Zeroizing::new(
+            serde_json::to_vec(&(&data.tokens, &data.groups, sessions))
+                .map_err(|_| "无法生成令牌版本")?,
+        );
+        Ok(format!("{:x}", Sha256::digest(&bytes)))
+    }
     pub fn create(&mut self, password: &str) -> Result<(), String> {
         if self.path.exists() {
             return Err("令牌库已存在，请解锁".into());
@@ -414,6 +542,28 @@ impl Vault {
         }
         Ok(())
     }
+    pub fn change_password(
+        &mut self,
+        current_password: &str,
+        new_password: &str,
+    ) -> Result<(), String> {
+        self.credential(current_password)?;
+        if new_password.chars().count() < 8 {
+            return Err("主密码至少需要 8 个字符".into());
+        }
+        // A failed replacement leaves the previous password and in-memory key intact.
+        let mut next_salt = [0u8; 16];
+        OsRng.fill_bytes(&mut next_salt);
+        let next_key = key(new_password, &next_salt)?;
+        let previous_key = self.key.replace(next_key);
+        let previous_salt = std::mem::replace(&mut self.salt, next_salt);
+        let result = self.save();
+        if result.is_err() {
+            self.key = previous_key;
+            self.salt = previous_salt;
+        }
+        result
+    }
     pub fn unlock(&mut self, password: &str) -> Result<(), String> {
         let bytes = fs::read(&self.path).map_err(|_| "无法读取令牌库")?;
         if bytes.len() > 20 * 1024 * 1024 {
@@ -428,6 +578,7 @@ impl Vault {
         self.bind_sync_device();
         self.touch();
         self.recover(Some(password))?;
+        self.revision = Self::data_revision(self.data.as_ref().ok_or("保险库已锁定")?)?;
         Ok(())
     }
     /// This credential stays between Rust and the device's protected native store.
@@ -470,6 +621,7 @@ impl Vault {
             self.lock();
             return Err(error);
         }
+        self.revision = Self::data_revision(self.data.as_ref().ok_or("保险库已锁定")?)?;
         Ok(())
     }
     pub fn preview_key(&mut self, key: Option<Zeroizing<[u8; 32]>>) -> Result<(), String> {
@@ -501,11 +653,28 @@ impl Vault {
             for t in &mut d.tokens {
                 t.erase()
             }
+            for entry in &mut d.trash {
+                entry.token.erase();
+            }
             wipe_json(&mut d.sessions);
         }
         self.data = None;
         self.key = None;
         self.preview_key = None;
+        self.background_since = None;
+    }
+    /// Native monotonic clock survives webview timer suspension and wall-clock changes.
+    pub fn set_background(&mut self, hidden: bool) {
+        if hidden {
+            self.background_since
+                .get_or_insert_with(std::time::Instant::now);
+        } else {
+            self.background_since = None;
+        }
+    }
+    pub fn background_expired(&self) -> bool {
+        self.background_since
+            .is_some_and(|since| since.elapsed() >= std::time::Duration::from_secs(60))
     }
     pub fn touch(&mut self) {
         self.last_activity = crate::models::now();
@@ -596,6 +765,9 @@ impl Vault {
                 for token in &mut current.tokens {
                     token.erase();
                 }
+                for entry in &mut current.trash {
+                    entry.token.erase();
+                }
                 wipe_json(&mut current.sessions);
             }
             self.data = Some(original);
@@ -608,6 +780,7 @@ impl Vault {
         let data = self.data.as_mut().ok_or("令牌库已锁定")?;
         crate::sync::record_local(data, &self.sync_actor)?;
         data.validate()?;
+        let revision = Self::data_revision(data)?;
         let key = self.key.as_ref().ok_or("令牌库已锁定")?;
         let bytes = encrypt(data, key, &self.salt)?;
         if bytes.len() > 20 * 1024 * 1024 {
@@ -662,6 +835,7 @@ impl Vault {
             None
         };
         fs::rename(tmp, &self.path).map_err(|_| "无法保存令牌库")?;
+        self.revision = revision;
         if let Some((portable, previous)) = snapshots {
             self.backup_error = crate::backup::record(
                 &self.path,
@@ -866,10 +1040,10 @@ mod tests {
             tokens: vec![token],
             ..Default::default()
         };
-        assert_eq!(existing.merge_backup(restored), 0);
+        assert_eq!(existing.merge_backup(restored).unwrap(), 0);
         assert_eq!(existing.tokens[0].icon.as_deref(), Some("brand:github"));
         existing.tokens[0].icon = Some("brand:google".into());
-        existing.merge_import(data.tokens, vec![]);
+        existing.merge_import(data.tokens, vec![]).unwrap();
         assert_eq!(existing.tokens[0].icon.as_deref(), Some("brand:google"));
     }
     #[test]
@@ -949,7 +1123,7 @@ mod tests {
             sessions: serde_json::json!({"fixture":"do-not-restore-session"}),
             ..Default::default()
         };
-        assert_eq!(decoded.merge_backup(source), 1);
+        assert_eq!(decoded.merge_backup(source).unwrap(), 1);
         assert_eq!(decoded.tokens[0].counter, 20);
         assert!(decoded.sessions.is_null());
         assert!(decoded.groups.contains(&"空备份组".into()));
@@ -993,13 +1167,12 @@ mod tests {
             tokens: vec![current],
             ..Default::default()
         };
-        assert_eq!(
-            target.merge_backup(VaultData {
+        assert!(target
+            .merge_backup(VaultData {
                 tokens: vec![old],
                 ..Default::default()
-            }),
-            0
-        );
+            })
+            .is_err());
         assert_eq!(target.tokens.len(), 1);
         assert_eq!(target.tokens[0].secret, vec![1; 20]);
     }
@@ -1014,7 +1187,9 @@ mod tests {
         token.group = Some("恢复分组".into());
         token.counter = 10;
         assert_eq!(
-            existing.merge_import(vec![token], vec!["恢复分组".into(), "空分组".into()]),
+            existing
+                .merge_import(vec![token], vec!["恢复分组".into(), "空分组".into()])
+                .unwrap(),
             0
         );
         assert_eq!(existing.tokens.len(), 1);
@@ -1037,5 +1212,110 @@ mod tests {
         assert!(vault.ensure().unwrap().groups.is_empty());
         vault.lock();
         fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod completion_tests {
+    use super::*;
+    #[test]
+    fn duplicate_steam_enriches_missing_identity_and_rejects_conflicts_atomically() {
+        let mut old = Token::new("existing".into(), "steam".into(), vec![3; 20]);
+        old.steam_id = Some("0".into());
+        old.steam_data = Some(serde_json::json!({"steamid":"0","existing":"keep"}));
+        let mut incoming = old.clone();
+        incoming.steam_id = Some("123456789".into());
+        incoming.identity_secret = Some("synthetic-identity".into());
+        incoming.device_id = Some("android:fixture".into());
+        incoming.steam_data =
+            Some(serde_json::json!({"steamid":"123456789","revocation_code":"synthetic-revoke"}));
+        let mut data = VaultData {
+            tokens: vec![old],
+            ..Default::default()
+        };
+        assert_eq!(
+            data.merge_import(vec![incoming.clone()], vec![]).unwrap(),
+            0
+        );
+        assert_eq!(data.tokens[0].steam_id, incoming.steam_id);
+        assert_eq!(data.tokens[0].identity_secret, incoming.identity_secret);
+        assert_eq!(
+            data.tokens[0].steam_data.as_ref().unwrap()["existing"],
+            "keep"
+        );
+        let before = serde_json::to_vec(&data).unwrap();
+        incoming.device_id = Some("android:different".into());
+        assert!(data
+            .merge_import(vec![incoming], vec!["must-not-commit".into()])
+            .is_err());
+        assert_eq!(serde_json::to_vec(&data).unwrap(), before);
+    }
+    #[test]
+    fn password_rotation_commits_atomically_and_invalidates_old_device_credentials() {
+        let dir =
+            std::env::temp_dir().join(format!("steamguard-password-{}", uuid::Uuid::new_v4()));
+        let mut vault = Vault::new(dir.join("vault.sgvault"));
+        vault.create("original password").unwrap();
+        let credential = vault.credential("original password").unwrap();
+        assert!(vault
+            .change_password("wrong password", "replacement password")
+            .is_err());
+        std::fs::create_dir(vault.path.with_extension("tmp")).unwrap();
+        assert!(vault
+            .change_password("original password", "replacement password")
+            .is_err());
+        vault.credential("original password").unwrap();
+        std::fs::remove_dir(vault.path.with_extension("tmp")).unwrap();
+        vault
+            .change_password("original password", "replacement password")
+            .unwrap();
+        vault.lock();
+        assert!(vault.unlock("original password").is_err());
+        assert!(vault.unlock_credential(&credential).is_err());
+        vault.unlock("replacement password").unwrap();
+        vault.lock();
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn native_background_timeout_is_monotonic_and_does_not_extend_on_repeat_events() {
+        let mut vault = Vault::new(std::env::temp_dir().join("unused-background-vault"));
+        assert!(!vault.background_expired());
+        vault.set_background(true);
+        let original = vault.background_since;
+        vault.set_background(true);
+        assert_eq!(vault.background_since, original);
+        vault.background_since =
+            Some(std::time::Instant::now() - std::time::Duration::from_secs(61));
+        assert!(vault.background_expired());
+        vault.touch();
+        assert!(vault.background_expired());
+        vault.lock();
+        assert!(!vault.background_expired());
+        vault.set_background(true);
+        vault.set_background(false);
+        assert!(!vault.background_expired());
+    }
+    #[test]
+    fn duplicate_steam_export_keeps_current_session_and_fills_identity_without_false_conflicts() {
+        let mut old = Token::new("current label".into(), "steam".into(), vec![4; 20]);
+        old.steam_data = Some(
+            serde_json::json!({"Session":{"SteamID":"0","AccessToken":"current-session"},"extension":"current"}),
+        );
+        let mut incoming = old.clone();
+        incoming.steam_id = Some("76561198000000001".into());
+        incoming.identity_secret = Some("synthetic-identity".into());
+        incoming.steam_data = Some(
+            serde_json::json!({"Session":{"SteamID":"76561198000000001","AccessToken":"older-session","RefreshToken":"synthetic-refresh"},"extension":"old","revocation_code":"synthetic-revoke"}),
+        );
+        assert!(merge_metadata(&mut old, &incoming).unwrap());
+        let metadata = old.steam_data.as_ref().unwrap();
+        assert_eq!(metadata["Session"]["AccessToken"], "current-session");
+        assert_eq!(metadata["Session"]["SteamID"], "76561198000000001");
+        assert_eq!(metadata["extension"], "current");
+        assert_eq!(metadata["revocation_code"], "synthetic-revoke");
+        incoming.steam_data.as_mut().unwrap()["revocation_code"] = "different-revoke".into();
+        assert!(merge_metadata(&mut old, &incoming).is_err());
+        old.erase();
+        incoming.erase();
     }
 }

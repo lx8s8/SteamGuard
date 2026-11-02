@@ -29,6 +29,8 @@ targets:
     platform: iOS
     sources:
       - path: Sources
+      - path: ../../locales
+        buildPhase: resources
       - path: Assets.xcassets
       # Exclude built static libs: regenerating with xcodegen after a build
       # otherwise turns the per-configuration libapp.a copies into colliding
@@ -44,11 +46,10 @@ targets:
     info:
       path: steamguard_iOS/Info.plist
       properties:
-        NSPhotoLibraryUsageDescription: 选择二维码图片，在本机导入令牌。
-        NSCameraUsageDescription: 扫描验证器二维码，在本机导入令牌。
-        NSFaceIDUsageDescription: 使用 Face ID 解锁本机加密令牌库；你也可以使用主密码。
+        NSPhotoLibraryUsageDescription: Select QR code images to import your accounts.
+        NSCameraUsageDescription: Scan authenticator QR codes to import your accounts.
+        NSFaceIDUsageDescription: Use Face ID to unlock your authenticator vault.
         LSRequiresIPhoneOS: true
-        UIUserInterfaceStyle: Light
         UILaunchStoryboardName: LaunchScreen
         UIRequiredDeviceCapabilities: [arm64, metal]
         UISupportedInterfaceOrientations:

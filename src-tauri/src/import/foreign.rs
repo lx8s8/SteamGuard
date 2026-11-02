@@ -1,4 +1,4 @@
-//! Plaintext backup adapters, based on Aegis vault.md and 2FAS BackupContent.
+//! Decrypted/plaintext backup adapters, based on Aegis vault.md and 2FAS BackupContent.
 use super::{decode_base32, json_string, Json, Token};
 use std::collections::BTreeMap;
 
@@ -87,6 +87,10 @@ fn aegis(value: &Json) -> Result<Vec<Token>, String> {
             json_string(entry, &["type"]).ok_or("Aegis 令牌缺少类型")?,
             info,
         )?;
+        token.pinned = entry
+            .get("favorite")
+            .and_then(Json::as_bool)
+            .unwrap_or(false);
         token.group = entry
             .get("groups")
             .and_then(Json::as_array)
@@ -134,8 +138,8 @@ fn twofas(value: &Json) -> Result<Vec<Token>, String> {
             .get("otp")
             .filter(|v| v.is_object())
             .ok_or("2FAS 令牌缺少 otp 参数")?;
-        let mut info = otp.clone();
-        info["secret"] = entry.get("secret").cloned().ok_or("2FAS 令牌缺少密钥")?;
+        let mut info = super::encrypted::SecretJson(otp.clone());
+        info.0["secret"] = entry.get("secret").cloned().ok_or("2FAS 令牌缺少密钥")?;
         let mut token = convert(
             json_string(otp, &["account", "label"])
                 .or_else(|| json_string(entry, &["name"]))
@@ -144,7 +148,7 @@ fn twofas(value: &Json) -> Result<Vec<Token>, String> {
                 .or_else(|| json_string(entry, &["name"]))
                 .unwrap_or_default(),
             json_string(otp, &["tokenType"]).unwrap_or("totp".into()),
-            &info,
+            &info.0,
         )?;
         token.group = entry
             .get("groupId")

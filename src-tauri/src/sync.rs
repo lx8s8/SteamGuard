@@ -30,6 +30,8 @@ const FORMAT: &str = "SteamGuard Sync";
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct State {
+    #[serde(default)]
+    pub alias: String,
     pub endpoint: String,
     pub username: String,
     pub password: String,
@@ -344,6 +346,8 @@ fn project(
         current.insert(format!("{prefix}alive"), "true".into());
         current.insert(format!("{prefix}core"), json(&Core::from(token))?);
         current.insert(format!("{prefix}name"), json(&token.name)?);
+        current.insert(format!("{prefix}pinned"), json(&token.pinned)?);
+        current.insert(format!("{prefix}order"), json(&token.sort_order)?);
         current.insert(format!("{prefix}group"), json(&token.group)?);
         if token.icon.is_some()
             || doc
@@ -368,6 +372,23 @@ pub fn record_local(data: &mut VaultData, actor: &str) -> Result<(), String> {
     let result = (|| {
         let key = crate::quick_access::read_key(&state.key)?;
         let mut doc = load(&state, actor)?;
+        for token in data.tokens.iter_mut().filter(|t| t.kind == "hotp") {
+            let prefix = format!("t/{}", identity(&key, token));
+            let counter_values = values(&doc, &format!("{prefix}/counter"))?;
+            let max_counter = counter_values
+                .iter()
+                .filter_map(|(_, v)| v.parse::<u64>().ok())
+                .max()
+                .unwrap_or(0);
+            if let Some(owner) = one(&doc, &format!("{prefix}/owner"))? {
+                token.hotp_read_only = serde_json::from_str::<String>(&owner).ok().as_deref()
+                    != Some(state.device.as_str());
+            }
+            if token.hotp_read_only && !counter_values.is_empty() && token.counter > max_counter {
+                return Err("此 HOTP 的主设备为其他设备，请先切换主设备".into());
+            }
+            token.counter = token.counter.max(max_counter);
+        }
         let current = project(data, &state, &doc, &key)?;
         for (key, value) in &current {
             if state.baseline.get(key) != Some(value) {
@@ -438,6 +459,14 @@ fn safe_label(field: &str, value: &str) -> String {
             _ => "自动图标".into(),
         },
         "counter" => "计数版本".into(),
+        "pinned" => {
+            if value == "true" {
+                "置顶".into()
+            } else {
+                "取消置顶".into()
+            }
+        }
+        "order" => "排列顺序".into(),
         "owner" => "HOTP 主设备版本".into(),
         _ => serde_json::from_str::<Option<String>>(value)
             .ok()
@@ -473,6 +502,8 @@ fn inspect(doc: &AutoCommit, baseline: &BTreeMap<String, String>) -> Result<Vec<
             } else {
                 match field {
                     "name" => "显示名称",
+                    "pinned" => "置顶状态",
+                    "order" => "排列顺序",
                     "group" => "所属分组",
                     "avatar" => "头像",
                     "core" => "令牌数据",
@@ -515,7 +546,8 @@ fn validate_document(doc: &AutoCommit) -> Result<(), String> {
                 && parts[0] == "t"
                 && valid_id(parts[1])
                 && [
-                    "alive", "core", "name", "group", "counter", "owner", "avatar",
+                    "alive", "core", "name", "group", "counter", "owner", "avatar", "pinned",
+                    "order",
                 ]
                 .contains(&parts[2]))
         {
@@ -606,9 +638,13 @@ fn materialize(
         }
         let alive = one(doc, &format!("{prefix}/alive"))?.ok_or("同步令牌缺少状态")?;
         if alive == "false" {
-            if let Some(mut old) = current.remove(&id) {
+            if let Some(old) = current.remove(&id) {
                 logout.push(old.id.clone());
-                old.erase();
+                data.trash.retain(|entry| entry.token.id != old.id);
+                data.trash.push(crate::vault::TrashEntry {
+                    token: old,
+                    deleted_at: crate::models::now(),
+                });
             }
             continue;
         }
@@ -626,6 +662,14 @@ fn materialize(
         token.group =
             serde_json::from_str(&one(doc, &format!("{prefix}/group"))?.ok_or("同步分组缺失")?)
                 .map_err(|_| "同步分组无效")?;
+        token.pinned = one(doc, &format!("{prefix}/pinned"))?
+            .map(|v| serde_json::from_str(&v).map_err(|_| "同步置顶状态无效"))
+            .transpose()?
+            .unwrap_or(false);
+        token.sort_order = one(doc, &format!("{prefix}/order"))?
+            .map(|v| serde_json::from_str(&v).map_err(|_| "同步顺序无效"))
+            .transpose()?
+            .unwrap_or(0);
         token.icon = one(doc, &format!("{prefix}/avatar"))?
             .map(|value| serde_json::from_str(&value).map_err(|_| "同步头像格式无效"))
             .transpose()?
@@ -651,6 +695,10 @@ fn materialize(
         }
         if let Some(mut old) = current.remove(&id) {
             token.id = old.id.clone();
+            if token.kind == "hotp" && old.counter > token.counter {
+                token.counter = old.counter;
+                put(doc, &format!("{prefix}/counter"), &json(&token.counter)?)?;
+            }
             if old.steam_id != token.steam_id
                 || old.identity_secret != token.identity_secret
                 || old.device_id != token.device_id
@@ -699,6 +747,7 @@ fn materialize(
     for token in &mut data.tokens {
         token.erase();
     }
+    result.sort_by_key(|t| t.sort_order);
     data.tokens = result;
     data.groups = groups;
     if let Some(sessions) = data.sessions.as_object_mut() {
@@ -724,6 +773,7 @@ impl State {
         device: String,
     ) -> Self {
         Self {
+            alias: String::new(),
             endpoint,
             username,
             password,
@@ -1152,6 +1202,28 @@ mod tests {
         assert_eq!(b.tokens[0].counter, 27);
         assert!(!b.tokens[0].hotp_read_only);
         assert!(!hotp_allowed(&a, &a.tokens[0], "device-a"));
+    }
+    #[test]
+    fn hotp_history_never_rolls_back_and_pin_order_survive_sync() {
+        let mut a = first();
+        a.tokens[0].kind = "hotp".into();
+        a.tokens[0].counter = 75;
+        a.tokens[0].pinned = true;
+        a.tokens[0].sort_order = 4096;
+        record_local(&mut a, "actor-a").unwrap();
+        apply(&mut a, "actor-a").unwrap();
+        a.tokens[0].counter = 2;
+        record_local(&mut a, "actor-a").unwrap();
+        assert_eq!(a.tokens[0].counter, 75);
+        let mut b = copy(&a);
+        assert_eq!(b.tokens[0].counter, 75);
+        assert!(b.tokens[0].pinned);
+        assert_eq!(b.tokens[0].sort_order, 4096);
+        assert!(b.tokens[0].hotp_read_only);
+        b.tokens[0].counter = 1;
+        record_local(&mut b, "actor-b").unwrap();
+        receive(&b, &mut a, "actor-a");
+        assert_eq!(a.tokens[0].counter, 75);
     }
     #[test]
     fn locked_sync_controller_cancels_current_lease_and_allows_retry() {
