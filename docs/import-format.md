@@ -2,6 +2,8 @@
 
 二维码识别与文件处理均在本机完成；迁移协议解析、解密与令牌校验由 Rust 处理。原始账户文件、密钥、恢复码、账号名和生成的动态码不会写入测试日志。导入以整个文件为单位验证；任一记录损坏或无法解密时不会部分写入保险库。
 
+本页描述当前源码；尚未发布的格式支持见 [Unreleased 更新记录](../CHANGELOG.md)。已发布安装包以对应版本说明为准。
+
 ## 支持矩阵
 
 | 格式 | 导入 | 导出 | 范围 |
@@ -11,10 +13,11 @@
 | 新版本 MemoryPack 格式 | 暂不支持 | 不生成 | 不将无法识别的数据当作导入成功；此实现针对所提供 2024 年文件使用的 MessagePack 格式 |
 | SDA `.maFile` / Steam Guard JSON | 支持 | 支持单个 Steam 令牌 | `shared_secret`、`identity_secret`、`steamid`、`account_name`、`device_id`；兼容嵌套 `Session.SteamID` |
 | `otpauth://` 文本 | 支持 | 支持单个令牌 | 多行、注释、TOTP/HOTP、SHA1/SHA256/SHA512、位数、周期和计数器；支持 `encoder=steam` |
-| Google Authenticator `otpauth-migration://` | 支持 | 不生成 | MigrationPayload v1 的 TOTP/HOTP；支持相机、批量图片、多码图片与多行链接；收齐同一次导出的全部二维码后统一确认 |
+| Google Authenticator `otpauth-migration://` | 支持 | 支持兼容令牌批量导出 | 迁移格式 0/1/2；支持相机、批量图片、多码图片与多行链接，收齐同一次导出的全部二维码后确认；导出范围见下文 |
 | Aegis 未加密 JSON | 支持 | 不生成 | 外层 v1、内容 v1–v3；TOTP/HOTP/Steam、算法、周期、计数及分组；多个分组时保留第一个可识别分组 |
 | 2FAS 未加密 `.2fas` / JSON | 支持 | 不生成 | schema v1–v4 的 services/otp，保留账号、算法、位数、周期、计数及分组 |
-| Aegis / 2FAS 加密备份 | 明确拒绝 | 不生成 | 请在原软件导出未加密文件，再导入本机加密保险库 |
+| Aegis 密码加密备份 | 支持 | 不生成 | 外层 v1 密码槽、scrypt 与 AES-256-GCM；密码槽和派生资源有上限；不使用设备生物认证槽解密 |
+| 2FAS 密码加密备份 | 支持 | 不生成 | schema v1–v4，PBKDF2-HMAC-SHA256 与 AES-256-GCM；校验格式参考标记，支持 Unicode 密码 |
 | WinAuth 未加密 XML | 支持 | 不生成 | `WinAuthAuthenticator`、十六进制 `secretdata`、Steam/HOTP/Battle.net 和普通 TOTP 附加数据 |
 | WinAuth 加密 XML | 明确拒绝 | 不生成 | 先从 WinAuth 导出未加密 XML 或 otpauth 文本 |
 | WattToolkit v1 压缩 `.dat` | 暂不支持 | 不生成 | 可先经原软件转换为 `.mpo` 或 otpauth 文本 |
@@ -40,6 +43,27 @@ Google 导出使用 `otpauth-migration://offline?data=…`，内容为 Base64 �
 - 图片和桌面相机使用随应用分发的 ZXing-C++ WebAssembly，运行时不从 CDN 下载识别组件。原始二维码内容不会写入浏览器持久存储或诊断日志。
 - 每次最多收集 128 张不同二维码、1000 个令牌；单个二维码文本不超过 64 KiB，总文本不超过 1 MiB。图片每张不超过 12 MiB，超过 4000 万像素会提示裁剪；识别画面会缩放以控制内存占用。
 - 离开扫码页会丢弃本次收集，需重新开始；原生预览缓存 5 分钟过期，关闭或锁定时清理。请把同一次 Google 导出的所有码收齐后再离开。
+
+## 批量迁移二维码导出
+
+在设置中的导出入口选择迁移二维码，勾选令牌后按页显示。接收端须支持 Google Authenticator 迁移格式；所有页面属于同一批次，需全部扫描。二维码仅在当前窗口生成，不自动写入文件或持久存储。
+
+- 支持 30 秒 TOTP 和 HOTP，6 / 8 位验证码，SHA1 / SHA256 / SHA512；HOTP 计数需在有符号 64 位范围内。
+- Steam 令牌、自定义周期及其他不兼容参数不进入此导出。保留全部数据时使用加密 `.sgvault` 备份。
+- 迁移格式不包含分组、图标、自定义头像、Steam 会话或恢复信息。
+- 每批最多 1,000 个令牌、128 页。单条记录过大时会拒绝生成，避免得到无法识别的二维码。
+
+## 密码加密备份导入
+
+选择 Aegis 或 2FAS 备份，在导入窗口填写原软件导出时的密码，预览后确认。无需先制作明文副本。错误密码、认证标签损坏或不兼容参数会拒绝整批导入，不保存部分记录。
+
+Aegis 密码派生限制峰值内存为 64 MiB，并限制密码槽数量和累计工作量。默认参数可用；超限时需在原软件使用默认加密参数重新导出。解密后的账号内容仅用于本次解析，不写入临时明文文件。格式参考 [Aegis vault 文档](https://github.com/beemdevelopment/Aegis/blob/master/docs/vault.md)与 [2FAS Android 源码](https://github.com/twofas/2fas-android)。
+
+## 去重与恢复
+
+已有令牌按类型与密钥匹配。缺失的 SteamID、交易确认字段和设备信息可补入，已有身份字段冲突时拒绝导入。名称、分组和 HOTP 计数按预览规则合并，计数不会回退。
+
+自动备份历史另提供差异预览：确认解密后区分新增、设置变更、相同与冲突项，再选择恢复哪些令牌。修改主密码不会重写旧备份，旧文件仍需生成时的密码。
 
 ## `.mpo` 的原始结构
 

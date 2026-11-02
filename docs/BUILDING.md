@@ -5,6 +5,7 @@
 ```sh
 npm ci
 npm run check
+npm run test:i18n
 npm run test:core -- --locked
 npm run build
 npx playwright install chromium
@@ -145,3 +146,14 @@ Actions 单独上传 **`iOS-arm64-device-IPA-unsigned`**。在 iPhone 上先解�
 所有构建产物作为 Actions artifacts 保留 14 天。仅正式版本标签使用配置的签名身份；主分支、Pull Request 和手动开发构建不加载签名 Secret。macOS/iOS 使用 `ditto` 保留可执行权限，不加载本机真实令牌备份或 Steam 密码。
 
 推送与应用版本一致的 `v*` 标签后，所有测试及原生构建成功才会触发集中发布任务，收集四平台安装器、开源许可证与 SHA-256 校验和；先完成草稿上传，再将 GitHub Release 发布为正式版。只有发布任务具有 `contents: write` 权限，其他任务维持只读权限。不会自动上传到应用商店。
+
+
+## 桌面应用内更新
+
+当前源码使用 Tauri 官方 updater 插件。检查更新从 GitHub 正式 Release 读取版本和说明；桌面安装会核对内置公钥对应的更新签名，移动端打开下载页。没有可用的更新清单时提供手动下载，不安装未验证的文件。
+
+普通源码推送不触发打包。正式标签或手动工作流才构建；发布仍要求所有平台检查成功。桌面正式标签需配置独立的 `STEAMGUARD_UPDATER` Actions secret，JSON 包含 `privateKey`、`password`；使用仓库外保存的 Tauri signer 身份，不能临时重建身份替换已分发版本的验证公钥。`prepare-updater.mjs` 仅在 runner 临时目录生成构建覆盖配置，将凭据传给构建工具；默认本机构建不生成更新签名产物。
+
+正式分发增加两份 macOS `.app.tar.gz` 和 `latest.json`。Windows 根据原安装方式使用同一 NSIS 或 MSI 安装器；签名嵌在清单中，收集脚本会拒绝缺少更新签名、版本不一致或多余附件。首次接入更新签名的版本仍需手动安装，随后才能在应用内检查和安装后续版本。主密码、备份、网盘配置均不进入更新清单。
+
+Apple 权限说明内置于 `src-tauri/locales/*.lproj`，macOS 通过平台配置映射到 Resources 根目录，iOS 通过 XcodeGen 的本地化资源组收录。修改 `project.yml` 后用 XcodeGen 重新生成原生工程，避免手改生成的资源索引。
