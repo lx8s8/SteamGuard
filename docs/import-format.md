@@ -1,6 +1,6 @@
 # 导入、导出与兼容格式
 
-解析和解密在 Rust 进程内完成。原始账户文件、密钥、恢复码、账号名和生成的动态码不会写入测试日志。导入以整个文件为单位验证；任一记录损坏或无法解密时不会部分写入保险库。
+二维码识别与文件处理均在本机完成；迁移协议解析、解密与令牌校验由 Rust 处理。原始账户文件、密钥、恢复码、账号名和生成的动态码不会写入测试日志。导入以整个文件为单位验证；任一记录损坏或无法解密时不会部分写入保险库。
 
 ## 支持矩阵
 
@@ -11,7 +11,10 @@
 | 新版本 MemoryPack 格式 | 暂不支持 | 不生成 | 不将无法识别的数据当作导入成功；此实现针对所提供 2024 年文件使用的 MessagePack 格式 |
 | SDA `.maFile` / Steam Guard JSON | 支持 | 支持单个 Steam 令牌 | `shared_secret`、`identity_secret`、`steamid`、`account_name`、`device_id`；兼容嵌套 `Session.SteamID` |
 | `otpauth://` 文本 | 支持 | 支持单个令牌 | 多行、注释、TOTP/HOTP、SHA1/SHA256/SHA512、位数、周期和计数器；支持 `encoder=steam` |
-| Google Authenticator `otpauth-migration://` | 支持 | 不生成 | MigrationPayload v1 中的 TOTP/HOTP；可逐张导入批次二维码文本 |
+| Google Authenticator `otpauth-migration://` | 支持 | 不生成 | MigrationPayload v1 的 TOTP/HOTP；支持相机、批量图片、多码图片与多行链接；收齐同一次导出的全部二维码后统一确认 |
+| Aegis 未加密 JSON | 支持 | 不生成 | 外层 v1、内容 v1–v3；TOTP/HOTP/Steam、算法、周期、计数及分组；多个分组时保留第一个可识别分组 |
+| 2FAS 未加密 `.2fas` / JSON | 支持 | 不生成 | schema v1–v4 的 services/otp，保留账号、算法、位数、周期、计数及分组 |
+| Aegis / 2FAS 加密备份 | 明确拒绝 | 不生成 | 请在原软件导出未加密文件，再导入本机加密保险库 |
 | WinAuth 未加密 XML | 支持 | 不生成 | `WinAuthAuthenticator`、十六进制 `secretdata`、Steam/HOTP/Battle.net 和普通 TOTP 附加数据 |
 | WinAuth 加密 XML | 明确拒绝 | 不生成 | 先从 WinAuth 导出未加密 XML 或 otpauth 文本 |
 | WattToolkit v1 压缩 `.dat` | 暂不支持 | 不生成 | 可先经原软件转换为 `.mpo` 或 otpauth 文本 |
@@ -19,6 +22,24 @@
 | 本项目 `.sgvault` | 支持 | 支持 | 由保险库模块处理，AES-256-GCM + Argon2id 密码派生；与 `.mpo` 分开识别 |
 
 界面导入命令限制文件为 10 MiB、每次最多 1,000 个令牌。底层解析器限制文件和解压后的数据为 16 MiB、最多 10,000 条记录，MessagePack 深度和压缩嵌套层数有限制。普通 OTP 位数为 4–10、周期为 1–86,400 秒；不支持的算法会报错。
+
+## 扫码导入与 Google 多张二维码
+
+1. 在 SteamGuard 中点击“添加令牌 → 扫码 / 图片”。
+2. Google Authenticator 中选择“转移账号 → 导出账号”，选择账号后显示一张或多张二维码；参见[Google 官方迁移说明](https://support.google.com/accounts/answer/1066447)。
+3. 使用另一台设备的相机扫码，或点击“选择二维码图片”。可以多选图片，也支持一张图片中出现多个二维码。
+4. Google 导出会显示“已收集 X/Y 张”和缺少的序号。可乱序扫描；重复二维码不会重复加入。同批次同序号的不同内容、混入其他导出批次会被拒绝，已收集的有效内容保留。
+5. 收齐后点击“预览令牌”，核对名称和数量，再“确认导入”。收集与预览阶段均不写入保险库。已有令牌按类型和密钥匹配，HOTP 保留较大的计数。
+
+Google 导出使用 `otpauth-migration://offline?data=…`，内容为 Base64 编码的 Protobuf，包含批次编号、总张数和当前序号。解析采用 Prost，字段与 Aegis 当前维护的[迁移协议定义](https://github.com/beemdevelopment/Aegis/blob/master/app/src/main/proto/google_auth.proto)对照。文本导入同样检查批次完整性，不能通过逐张粘贴跳过缺页检查。
+
+普通 `otpauth://` 设置码可以连续收集多个，适用于能导出标准设置码的 Aegis、Ente Auth、2FAS 等软件以及网站的双重验证设置页。完整备份文件按上面的格式矩阵支持，不把专有云同步或加密备份当作标准 OTP 码。
+
+- 相机仅在点击扫码后开启。完成单次识别、停止、关闭导入窗口、锁定或切入后台时释放相机；无相机、拒绝权限或扫描超时可改用图片或文本。
+- 手机采用 Tauri 官方原生扫码插件；Android 使用随包附带的 ML Kit 模型，避免依赖首次 Google Play 模型下载。iOS / LiveContainer 的相机权限仍由系统与宿主环境控制。
+- 图片和桌面相机使用随应用分发的 ZXing-C++ WebAssembly，运行时不从 CDN 下载识别组件。原始二维码内容不会写入浏览器持久存储或诊断日志。
+- 每次最多收集 128 张不同二维码、1000 个令牌；单个二维码文本不超过 64 KiB，总文本不超过 1 MiB。图片每张不超过 12 MiB，超过 4000 万像素会提示裁剪；识别画面会缩放以控制内存占用。
+- 离开扫码页会丢弃本次收集，需重新开始；原生预览缓存 5 分钟过期，关闭或锁定时清理。请把同一次 Google 导出的所有码收齐后再离开。
 
 ## `.mpo` 的原始结构
 

@@ -8,6 +8,7 @@ import type {
   QuickCapabilities,
   TokenView,
   ImportPreview,
+  QrImportProgress,
   LoginResult,
   Confirmation,
   MarketResult,
@@ -68,6 +69,11 @@ export const api = {
     text?: string;
     password?: string;
   }) => call<ImportPreview>("import_preview", args),
+  qrPreview: (payloads: string[]) =>
+    call<QrImportProgress>("import_qr_preview", { payloads }),
+  discardPreview: (previewId: string) =>
+    call<void>("import_discard", { previewId }),
+  importCameraSupported: () => call<boolean>("import_camera_supported"),
   commit: (previewId: string) => call<void>("import_commit", { previewId }),
   groups: () => call<string[]>("token_groups"),
   manageGroup: (

@@ -44,6 +44,7 @@ import {
   X,
 } from "lucide-react";
 import QRCode from "qrcode";
+import { QrImportPanel } from "./QrImportPanel";
 import { api, errorText, native } from "./api";
 import { SyncPanel, useSyncWatcher } from "./SyncPanel";
 import { BackupPanel, BackupBrowser } from "./BackupPanel";
@@ -416,7 +417,7 @@ export default function App() {
           </div>
           <div className="sidebar-version">
             <span>STEAMGUARD</span>
-            <span>v1.3.2</span>
+            <span>v1.4.0</span>
           </div>
         </div>
       </aside>
@@ -1150,7 +1151,7 @@ export default function App() {
                     <div className="setting-row">
                       <div>
                         <h3>导入备份</h3>
-                        <p>支持 .mpo、.maFile、.sgvault 与 otpauth 链接。</p>
+                        <p>支持验证器二维码、Google 多码导出及常见备份文件。</p>
                       </div>
                       <button
                         className="button secondary"
@@ -1203,7 +1204,7 @@ export default function App() {
                     </span>
                     <div>
                       <h2>
-                        SteamGuard <span>1.3.2</span>
+                        SteamGuard <span>1.4.0</span>
                       </h2>
                       <p>
                         参考 Watt Toolkit 本地令牌功能构建。基于 Tauri
@@ -1590,7 +1591,7 @@ function ImportDialog({
   onComplete: () => Promise<void>;
   onLogin: () => void;
 }) {
-  const [mode, setMode] = useState<"file" | "text">("file");
+  const [mode, setMode] = useState<"file" | "text" | "qr">("file");
   const [file, setFile] = useState<File | null>(null);
   const [text, setText] = useState("");
   const [password, setPassword] = useState("");
@@ -1598,6 +1599,17 @@ function ImportDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const picker = useRef<HTMLInputElement>(null);
+  const lastPreview = useRef<string | null>(null);
+  useEffect(() => {
+    lastPreview.current = preview?.previewId ?? lastPreview.current;
+  }, [preview]);
+  useEffect(
+    () => () => {
+      if (lastPreview.current)
+        void api.discardPreview(lastPreview.current).catch(() => {});
+    },
+    [],
+  );
   const check = async () => {
     setError("");
     setBusy(true);
@@ -1637,7 +1649,13 @@ function ImportDialog({
   };
   return (
     <Modal
-      title={preview ? "确认导入令牌" : "把令牌带到这里"}
+      title={
+        preview
+          ? "确认导入令牌"
+          : mode === "qr"
+            ? "扫描验证器二维码"
+            : "把令牌带到这里"
+      }
       eyebrow="IMPORT AUTHENTICATORS"
       onClose={onClose}
       wide
@@ -1707,18 +1725,29 @@ function ImportDialog({
         </>
       ) : (
         <>
-          <p className="dialog-intro">
-            兼容原始备份格式，无需提前转换。你的密钥只在本机处理。
-          </p>
-          <button className="steam-login-import" onClick={onLogin}>
-            <SteamMark small />
-            <span>
-              <strong>登录 Steam 添加令牌</strong>
-              <small>新建绑定，或通过手机短信迁移现有令牌</small>
-            </span>
-            <ArrowRight size={16} />
-          </button>
-          <div className="dialog-tabs">
+          {mode !== "qr" && (
+            <>
+              <p className="dialog-intro">
+                兼容原始备份格式，无需提前转换。你的密钥只在本机处理。
+              </p>
+              <button className="steam-login-import" onClick={onLogin}>
+                <SteamMark small />
+                <span>
+                  <strong>登录 Steam 添加令牌</strong>
+                  <small>新建绑定，或通过手机短信迁移现有令牌</small>
+                </span>
+                <ArrowRight size={16} />
+              </button>
+            </>
+          )}
+          <div className="dialog-tabs import-tabs">
+            <button
+              className={mode === "qr" ? "selected" : ""}
+              onClick={() => setMode("qr")}
+            >
+              <QrCode size={15} />
+              扫码 / 图片
+            </button>
             <button
               className={mode === "file" ? "selected" : ""}
               onClick={() => setMode("file")}
@@ -1734,82 +1763,90 @@ function ImportDialog({
               粘贴密钥 / 链接
             </button>
           </div>
-          {mode === "file" ? (
-            <>
-              <input
-                ref={picker}
-                type="file"
-                className="visually-hidden"
-                accept=".mpo,.maFile,.json,.txt,.sgvault,.xml"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              />
-              <button
-                className={`file-drop ${file ? "has-file" : ""}`}
-                onClick={() => picker.current?.click()}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setFile(e.dataTransfer.files[0] ?? null);
-                }}
-              >
-                <span className="file-drop-icon">
-                  <Upload size={24} />
-                </span>
-                <strong>{file ? file.name : "选择文件，或拖放到这里"}</strong>
-                <span>
-                  {file
-                    ? `${(file.size / 1024).toFixed(1)} KB · 点击重新选择`
-                    : "Watt Toolkit .mpo · Steam .maFile · .sgvault · JSON"}
-                </span>
-              </button>
-            </>
+          {mode === "qr" ? (
+            <QrImportPanel onPreview={setPreview} />
           ) : (
             <>
-              <label className="field-label" htmlFor="import-text">
-                OTP 链接或令牌 JSON
+              {mode === "file" ? (
+                <>
+                  <input
+                    ref={picker}
+                    type="file"
+                    className="visually-hidden"
+                    accept=".mpo,.maFile,.json,.txt,.sgvault,.xml,.2fas"
+                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  />
+                  <button
+                    className={`file-drop ${file ? "has-file" : ""}`}
+                    onClick={() => picker.current?.click()}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setFile(e.dataTransfer.files[0] ?? null);
+                    }}
+                  >
+                    <span className="file-drop-icon">
+                      <Upload size={24} />
+                    </span>
+                    <strong>
+                      {file ? file.name : "选择文件，或拖放到这里"}
+                    </strong>
+                    <span>
+                      {file
+                        ? `${(file.size / 1024).toFixed(1)} KB · 点击重新选择`
+                        : "WattToolkit · Steam · Aegis · 2FAS · JSON"}
+                    </span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <label className="field-label" htmlFor="import-text">
+                    OTP 链接或令牌 JSON
+                  </label>
+                  <textarea
+                    id="import-text"
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    rows={5}
+                    placeholder="otpauth://totp/… 或粘贴 Steam maFile JSON"
+                    spellCheck={false}
+                  />
+                </>
+              )}
+              <label className="field-label" htmlFor="import-password">
+                备份密码 <span>（如已设置）</span>
               </label>
-              <textarea
-                id="import-text"
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                rows={5}
-                placeholder="otpauth://totp/… 或粘贴 Steam maFile JSON"
-                spellCheck={false}
+              <input
+                id="import-password"
+                type="password"
+                autoComplete="off"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="未加密的备份可留空"
               />
+              <p className="form-hint">
+                <LockKeyhole size={13} />
+                启用原设备保护的 .mpo 需要先在原设备导出可迁移备份。
+              </p>
+              {error && (
+                <div className="form-error" role="alert">
+                  {error}
+                </div>
+              )}
+              <div className="modal-actions">
+                <button className="button secondary" onClick={onClose}>
+                  取消
+                </button>
+                <button
+                  className="button primary"
+                  disabled={busy || (mode === "file" ? !file : !text.trim())}
+                  onClick={() => void check()}
+                >
+                  {busy ? <Spinner /> : <ArrowRight size={16} />}预览令牌
+                </button>
+              </div>
             </>
           )}
-          <label className="field-label" htmlFor="import-password">
-            备份密码 <span>（如已设置）</span>
-          </label>
-          <input
-            id="import-password"
-            type="password"
-            autoComplete="off"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="未加密的备份可留空"
-          />
-          <p className="form-hint">
-            <LockKeyhole size={13} />
-            启用原设备保护的 .mpo 需要先在原设备导出可迁移备份。
-          </p>
-          {error && (
-            <div className="form-error" role="alert">
-              {error}
-            </div>
-          )}
-          <div className="modal-actions">
-            <button className="button secondary" onClick={onClose}>
-              取消
-            </button>
-            <button
-              className="button primary"
-              disabled={busy || (mode === "file" ? !file : !text.trim())}
-              onClick={() => void check()}
-            >
-              {busy ? <Spinner /> : <ArrowRight size={16} />}预览令牌
-            </button>
-          </div>
         </>
       )}
     </Modal>

@@ -30,6 +30,11 @@ struct Preview {
     tokens: Vec<Token>,
     created: u64,
 }
+impl Drop for Preview {
+    fn drop(&mut self) {
+        self.tokens.iter_mut().for_each(Token::erase);
+    }
+}
 struct AppState {
     vault: Mutex<vault::Vault>,
     previews: Mutex<HashMap<String, Preview>>,
@@ -557,6 +562,7 @@ async fn import_preview(
     password: Option<String>,
 ) -> Result<ImportPreview, String> {
     s.unlocked()?;
+    let epoch = s.epoch.load(Ordering::SeqCst);
     let p = Zeroizing::new(password.unwrap_or_default());
     let bytes = Zeroizing::new(data.unwrap_or_else(|| text.unwrap_or_default().into_bytes()));
     if bytes.is_empty() || bytes.len() > 10 * 1024 * 1024 {
@@ -576,26 +582,43 @@ async fn import_preview(
                 &filename,
             )?
         };
-    if tokens.len() > 1000 {
+    prepare_import_preview(&s, tokens, imported_groups, epoch)
+}
+fn prepare_import_preview(
+    s: &AppState,
+    tokens: Vec<Token>,
+    imported_groups: Vec<String>,
+    epoch: u64,
+) -> Result<ImportPreview, String> {
+    let staged = Preview {
+        groups: imported_groups,
+        tokens,
+        created: models::now(),
+    };
+    if staged.tokens.len() > 1000 {
         return Err("一次最多导入 1000 个令牌".into());
     }
-    for t in &tokens {
+    for t in &staged.tokens {
         t.validate()?;
     }
     let mut v = s.vault()?;
     let existing = &v.ensure()?.tokens;
-    let count = tokens.len();
+    if s.epoch.load(Ordering::SeqCst) != epoch {
+        return Err("保险库状态已变化，请重新导入".into());
+    }
+    let count = staged.tokens.len();
     let mut seen = std::collections::HashSet::new();
-    let visible = tokens
+    let visible = staged
+        .tokens
         .iter()
         .filter(|t| {
             !existing
                 .iter()
                 .any(|e| e.kind == t.kind && e.secret == t.secret)
-                && seen.insert((t.kind.clone(), t.secret.clone()))
+                && seen.insert((t.kind.as_str(), t.secret.as_slice()))
         })
         .collect::<Vec<_>>();
-    let metadata_changes = tokens.iter().any(|t| {
+    let metadata_changes = staged.tokens.iter().any(|t| {
         existing.iter().any(|e| {
             e.kind == t.kind
                 && e.secret == t.secret
@@ -603,7 +626,8 @@ async fn import_preview(
                     || t.kind == "hotp" && t.counter > e.counter)
         })
     });
-    let new_groups = imported_groups
+    let new_groups = staged
+        .groups
         .iter()
         .any(|g| !v.data.as_ref().is_some_and(|d| d.group_names().contains(g)));
     let result = ImportPreview {
@@ -613,38 +637,92 @@ async fn import_preview(
             .map(|t| serde_json::json!({"name":t.name,"issuer":t.issuer,"kind":t.kind}))
             .collect(),
         duplicates: count - visible.len(),
-        group_count: imported_groups.len(),
+        group_count: staged.groups.len(),
         can_commit: !visible.is_empty() || metadata_changes || new_groups,
     };
     drop(visible);
+    drop(seen);
     let mut previews = s.previews.lock().map_err(|_| "导入缓存不可用")?;
-    previews.retain(|_, p| models::now().saturating_sub(p.created) < 300);
     previews.clear();
-    previews.insert(
-        result.preview_id.clone(),
-        Preview {
-            groups: imported_groups,
-            tokens,
-            created: models::now(),
-        },
-    );
+    previews.insert(result.preview_id.clone(), staged);
     v.touch();
     Ok(result)
 }
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct QrImportPreview {
+    #[serde(flatten)]
+    progress: import::qr::Progress,
+    preview: Option<ImportPreview>,
+}
+#[tauri::command]
+fn import_qr_preview(s: State<AppState>, payloads: Vec<String>) -> Result<QrImportPreview, String> {
+    qr_import_preview(&s, payloads)
+}
+fn qr_import_preview(s: &AppState, payloads: Vec<String>) -> Result<QrImportPreview, String> {
+    s.unlocked()?;
+    let epoch = s.epoch.load(Ordering::SeqCst);
+    let payloads = Zeroizing::new(payloads);
+    let mut collection = import::qr::collect(&payloads)?;
+    let preview = if collection.progress.complete {
+        Some(prepare_import_preview(
+            s,
+            std::mem::take(&mut collection.tokens),
+            vec![],
+            epoch,
+        )?)
+    } else {
+        let mut v = s.vault()?;
+        v.ensure()?;
+        if epoch != s.epoch.load(Ordering::SeqCst) {
+            return Err("保险库状态已变化，请重新导入".into());
+        }
+        v.touch();
+        None
+    };
+    // Progress has no secrets; token data stays in the expiring native preview.
+    Ok(QrImportPreview {
+        progress: import::qr::Progress {
+            source: collection.progress.source,
+            received: collection.progress.received,
+            expected: collection.progress.expected,
+            missing: std::mem::take(&mut collection.progress.missing),
+            duplicate_codes: collection.progress.duplicate_codes,
+            token_count: collection.progress.token_count,
+            complete: collection.progress.complete,
+        },
+        preview,
+    })
+}
+#[tauri::command]
+fn import_discard(s: State<AppState>, preview_id: String) -> Result<(), String> {
+    s.previews
+        .lock()
+        .map_err(|_| "导入缓存不可用")?
+        .remove(&preview_id);
+    Ok(())
+}
+#[tauri::command]
+fn import_camera_supported() -> bool {
+    cfg!(mobile)
+}
 #[tauri::command]
 fn import_commit(s: State<AppState>, preview_id: String) -> Result<usize, String> {
+    commit_import_preview(&s, &preview_id)
+}
+fn commit_import_preview(s: &AppState, preview_id: &str) -> Result<usize, String> {
     let mut v = s.vault()?;
     v.ensure()?;
-    let p = s
+    let mut p = s
         .previews
         .lock()
         .map_err(|_| "导入缓存不可用")?
-        .remove(&preview_id)
+        .remove(preview_id)
         .ok_or("预览已过期，请重新导入")?;
     if models::now().saturating_sub(p.created) > 300 {
         return Err("预览已过期，请重新导入".into());
     }
-    v.update(|d| Ok(d.merge_import(p.tokens, p.groups)))
+    v.update(|d| Ok(d.merge_import(std::mem::take(&mut p.tokens), std::mem::take(&mut p.groups))))
 }
 #[tauri::command]
 fn token_groups(s: State<AppState>) -> Result<Vec<String>, String> {
@@ -1399,11 +1477,14 @@ fn open_external(app: tauri::AppHandle, url: String) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_quick_access::init())
+        .plugin(tauri_plugin_quick_access::init());
+    #[cfg(mobile)]
+    let builder = builder.plugin(tauri_plugin_barcode_scanner::init());
+    builder
         .setup(|app| {
             let path = app.path().app_data_dir()?.join("vault.sgvault");
             std::fs::create_dir_all(path.parent().ok_or("存储目录无效")?.join("device-only"))?;
@@ -1454,6 +1535,9 @@ pub fn run() {
             vault_touch,
             list_tokens,
             import_preview,
+            import_qr_preview,
+            import_discard,
+            import_camera_supported,
             import_commit,
             token_groups,
             token_group_manage,
@@ -1495,4 +1579,53 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("SteamGuard runtime failed");
+}
+
+#[cfg(test)]
+mod qr_import_tests {
+    use super::*;
+    #[test]
+    fn incomplete_batches_cannot_commit_and_completed_batch_is_atomic_and_deduplicated() {
+        let dir = std::env::temp_dir().join(format!("steamguard-qr-test-{}", uuid::Uuid::new_v4()));
+        let mut vault = vault::Vault::new(dir.join("vault.sgvault"));
+        vault.create("synthetic-password").unwrap();
+        let s = AppState {
+            vault: Mutex::new(vault),
+            previews: Mutex::new(HashMap::new()),
+            steam: steam::SteamService::new().unwrap(),
+            epoch: AtomicU64::new(0),
+            time_offset: std::sync::atomic::AtomicI64::new(0),
+            sync: sync::Controller::default(),
+        };
+        let first = import::qr::tests::uri(42, 2, 0, "Synthetic first");
+        let second = import::qr::tests::uri(42, 2, 1, "Synthetic second");
+        let progress = qr_import_preview(&s, vec![second.clone()]).unwrap();
+        assert!(!progress.progress.complete && progress.preview.is_none());
+        assert!(s.previews.lock().unwrap().is_empty());
+        assert!(commit_import_preview(&s, "missing").is_err());
+        assert!(s.vault().unwrap().ensure().unwrap().tokens.is_empty());
+        let result = qr_import_preview(&s, vec![second.clone(), first.clone(), second]).unwrap();
+        let preview = result.preview.unwrap();
+        // Both pages carry the same synthetic secret: show one new token, count one duplicate.
+        assert_eq!(preview.tokens.len(), 1);
+        assert_eq!(preview.duplicates, 1);
+        let serialized = serde_json::to_string(&preview).unwrap();
+        assert!(!serialized.contains("1234567890") && !serialized.contains("otpauth-migration"));
+        assert!(s.vault().unwrap().ensure().unwrap().tokens.is_empty());
+        commit_import_preview(&s, &preview.preview_id).unwrap();
+        assert_eq!(s.vault().unwrap().ensure().unwrap().tokens.len(), 1);
+        assert!(s.previews.lock().unwrap().is_empty());
+        assert!(qr_import_preview(&s, vec![first])
+            .unwrap()
+            .preview
+            .is_none());
+        s.epoch.fetch_add(1, Ordering::SeqCst);
+        s.vault().unwrap().lock();
+        assert!(qr_import_preview(
+            &s,
+            vec!["otpauth://totp/Example?secret=GEZDGNBVGY3TQOJQ".into()]
+        )
+        .is_err());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 }

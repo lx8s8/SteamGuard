@@ -981,3 +981,28 @@
     margin-top: 3px;
   }
 }
+
+@media (max-width: 700px), (pointer: coarse) {
+  .import-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .app-shell .import-tabs button {
+    min-width: 0;
+    padding: 12px 4px;
+    font-size: 13px;
+    gap: 5px;
+    flex-direction: column;
+  }
+  .qr-import-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .app-shell .qr-import .modal-actions {
+    flex-wrap: wrap;
+  }
+  .app-shell .qr-import .modal-actions .button {
+    flex: 1 1 140px;
+    white-space: normal;
+  }
+}

@@ -1,4 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
+import QRCode from "qrcode";
+import { readFileSync } from "node:fs";
+import {
+  googlePages,
+  otherBatchPage,
+  qrPages,
+  ordinaryQr,
+} from "./qr-fixtures";
 
 // Synthetic data only. These UI tests do not contact Steam or load private exports.
 async function nativeFixture(page: Page) {
@@ -174,7 +182,10 @@ async function nativeFixture(page: Page) {
             case "sync_claim_hotp":
               if (!args.acknowledged)
                 throw new Error("请确认旧设备已停止使用此 HOTP 令牌");
-              Object.assign(tokens[2], { hotpReadOnly: false, code: "123456" });
+              Object.assign(tokens[2], {
+                hotpReadOnly: false,
+                code: "123456",
+              });
               return { ...syncState };
             case "vault_status":
               return {
@@ -313,6 +324,71 @@ async function nativeFixture(page: Page) {
                   },
                 ],
               };
+            case "import_camera_supported":
+              return (
+                new URLSearchParams(location.search).get("camera") === "native"
+              );
+            case "import_discard":
+              return;
+            case "plugin:barcode-scanner|check_permissions":
+            case "plugin:barcode-scanner|request_permissions":
+              return { camera: "granted" };
+            case "plugin:barcode-scanner|scan":
+              return new Promise((resolve, reject) => {
+                Object.assign(window, {
+                  __qrNativeResolve: resolve,
+                  __qrNativeReject: reject,
+                });
+              });
+            case "plugin:barcode-scanner|cancel":
+              (window as any).__qrNativeReject?.(new Error("cancelled"));
+              return;
+            case "import_qr_preview": {
+              const qrPages = (window as any).__qrTestPages as Record<
+                string,
+                { batch: number; index: number; size: number }
+              >;
+              const payloads = [...new Set(args.payloads as string[])];
+              const pages = payloads.map(
+                (uri) => qrPages[uri as keyof typeof qrPages],
+              );
+              if (
+                pages.some((p) => !p) &&
+                payloads.some((p) => !p.startsWith("otpauth://"))
+              )
+                throw new Error("二维码不是支持的验证器格式");
+              const google = pages.every(Boolean);
+              if (google && pages.some((p) => p.batch !== pages[0].batch))
+                throw new Error(
+                  "二维码来自不同的 Google 导出批次，请继续扫描同一次导出的二维码",
+                );
+              const missing = google
+                ? Array.from({ length: pages[0].size }, (_, i) => i)
+                    .filter((i) => !pages.some((p) => p.index === i))
+                    .map((i) => i + 1)
+                : [];
+              return {
+                source: google ? "google" : "otp",
+                received: payloads.length,
+                expected: google ? pages[0].size : payloads.length,
+                missing,
+                duplicateCodes: 0,
+                tokenCount: payloads.length,
+                complete: !missing.length,
+                preview: missing.length
+                  ? null
+                  : {
+                      previewId: "qr-fixture",
+                      tokens: payloads.map((_, i) => ({
+                        name: `Synthetic ${i + 1}`,
+                        issuer: "Example",
+                        kind: "totp",
+                      })),
+                      duplicates: 0,
+                      canCommit: true,
+                    },
+              };
+            }
             case "import_preview":
               if (
                 (window as unknown as { __importGroupOnly?: boolean })
@@ -328,7 +404,11 @@ async function nativeFixture(page: Page) {
               return {
                 previewId: "fixture-preview",
                 tokens: [
-                  { name: "测试 · 导入令牌", issuer: "Example", kind: "totp" },
+                  {
+                    name: "测试 · 导入令牌",
+                    issuer: "Example",
+                    kind: "totp",
+                  },
                 ],
                 duplicates: 0,
               };
@@ -457,6 +537,10 @@ async function nativeFixture(page: Page) {
       },
     });
   });
+  await page.addInitScript(
+    (pages) => Object.assign(window, { __qrTestPages: pages }),
+    qrPages,
+  );
 }
 
 async function commandCount(page: Page, command: string) {
@@ -1241,4 +1325,228 @@ test("encrypted sync settings fit a narrow phone and preview never starts cloud 
   await expect(page.getByText("免密码预览", { exact: true })).toBeVisible();
   await page.waitForTimeout(2300);
   expect(await commandCount(page, "sync_run")).toBe(0);
+});
+
+async function openQrImport(page: Page) {
+  await page
+    .getByRole("button", { name: "添加令牌", exact: true })
+    .first()
+    .click();
+  await page.getByRole("button", { name: "扫码 / 图片", exact: true }).click();
+  return page.getByRole("region", { name: "扫码导入令牌" });
+}
+async function qrImage(text: string) {
+  return {
+    name: "synthetic-qr.png",
+    mimeType: "image/png",
+    buffer: await QRCode.toBuffer(text, { width: 512, margin: 4 }),
+  };
+}
+test("Google multi-QR images collect out of order, deduplicate and reject another batch before one atomic import", async ({
+  page,
+}) => {
+  const panel = await openQrImport(page);
+  const images = panel.getByLabel("选择二维码图片", { exact: true });
+  await images.setInputFiles(await qrImage(googlePages[2]));
+  await expect(panel).toContainText("已收集 1/3 张");
+  await expect(panel).toContainText("还缺第 1、2 张");
+  await expect(
+    panel.getByRole("button", { name: "预览令牌", exact: true }),
+  ).toBeDisabled();
+  expect(await commandCount(page, "import_commit")).toBe(0);
+  await images.setInputFiles(await qrImage(googlePages[2]));
+  await expect(panel).toContainText("这张二维码已经收集");
+  await images.setInputFiles(await qrImage(otherBatchPage));
+  await expect(panel.getByRole("alert")).toContainText(
+    "不同的 Google 导出批次",
+  );
+  await expect(panel).toContainText("已收集 1/3 张");
+  await images.setInputFiles([
+    await qrImage(googlePages[1]),
+    await qrImage(googlePages[0]),
+  ]);
+  await expect(panel).toContainText("已收集 3/3 张");
+  await panel.getByRole("button", { name: "预览令牌", exact: true }).click();
+  await expect(page.getByRole("dialog")).toContainText("识别到 3 个令牌");
+  expect(await commandCount(page, "import_commit")).toBe(0);
+  await page.getByRole("button", { name: "确认导入", exact: true }).click();
+  expect(await commandCount(page, "import_commit")).toBe(1);
+});
+test("one image can contain several QR codes and incomplete collection is cleared on exit", async ({
+  page,
+}) => {
+  const panel = await openQrImport(page);
+  const data = await Promise.all(
+    [googlePages[0], googlePages[2]].map((text) =>
+      QRCode.toDataURL(text, { width: 512, margin: 4 }),
+    ),
+  );
+  const combined = await page.evaluate(async (data) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1024;
+    canvas.height = 512;
+    const context = canvas.getContext("2d")!;
+    for (let i = 0; i < data.length; i++) {
+      const image = new Image();
+      image.src = data[i];
+      await image.decode();
+      context.drawImage(image, i * 512, 0);
+    }
+    return canvas.toDataURL("image/png");
+  }, data);
+  await panel.getByLabel("选择二维码图片", { exact: true }).setInputFiles({
+    name: "two-qr.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(combined.split(",")[1], "base64"),
+  });
+  await expect(panel).toContainText("已收集 2/3 张");
+  await expect(panel).toContainText("还缺第 2 张");
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  const reopened = await openQrImport(page);
+  await expect(
+    reopened.getByRole("button", { name: "预览令牌", exact: true }),
+  ).toBeDisabled();
+  await expect(reopened).not.toContainText("已收集 2/3 张");
+});
+test("native camera can collect several Google pages and cancellation preserves collected progress", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.goto("/?camera=native");
+  const panel = await openQrImport(page);
+  await panel
+    .getByRole("button", { name: "打开相机扫码", exact: true })
+    .click();
+  await expect(
+    page.getByRole("dialog", { name: "相机扫码", exact: true }),
+  ).toBeVisible();
+  await page.evaluate(
+    (content) =>
+      (window as any).__qrNativeResolve({ content, format: "QR_CODE" }),
+    googlePages[1],
+  );
+  await expect(panel).toContainText("已收集 1/3 张");
+  await panel.getByRole("button", { name: "继续扫码", exact: true }).click();
+  await page.getByRole("button", { name: "停止扫描", exact: true }).click();
+  await expect(
+    page.getByRole("dialog", { name: "相机扫码", exact: true }),
+  ).toHaveCount(0);
+  await expect(panel).toContainText("已收集 1/3 张");
+  expect(
+    await page.evaluate(() =>
+      document.body.classList.contains("qr-camera-active"),
+    ),
+  ).toBe(false);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({ path: "artifacts/mobile-google-import-1.4.0.png" });
+});
+test("camera permission failure and invalid images keep import recoverable", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: async () => {
+          throw new DOMException("Denied", "NotAllowedError");
+        },
+      },
+    }),
+  );
+  await page.reload();
+  const panel = await openQrImport(page);
+  await panel
+    .getByRole("button", { name: "打开相机扫码", exact: true })
+    .click();
+  await expect(panel.getByRole("alert")).toContainText("相机权限被拒绝");
+  await panel.getByLabel("选择二维码图片", { exact: true }).setInputFiles({
+    name: "invalid.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("not-an-image"),
+  });
+  await expect(panel.getByRole("alert")).toContainText("无法打开图片");
+  await panel
+    .getByLabel("选择二维码图片", { exact: true })
+    .setInputFiles(await qrImage(ordinaryQr));
+  await expect(panel).toContainText("已收集 1 张 OTP 二维码");
+  await expect(
+    panel.getByRole("button", { name: "预览令牌", exact: true }),
+  ).toBeEnabled();
+});
+
+test("production QR decoding works offline under the packaged CSP without CDN requests", async ({
+  page,
+}) => {
+  const csp = JSON.parse(readFileSync("src-tauri/tauri.conf.json", "utf8")).app
+    .security.csp;
+  const external: string[] = [];
+  await page.route("**/*", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.protocol.startsWith("http") && url.hostname !== "127.0.0.1") {
+      external.push(url.origin);
+      await route.abort();
+      return;
+    }
+    if (route.request().resourceType() === "document") {
+      const response = await route.fetch();
+      await route.fulfill({
+        response,
+        headers: { ...response.headers(), "content-security-policy": csp },
+      });
+    } else await route.continue();
+  });
+  await page.goto("http://127.0.0.1:1422/");
+  const panel = await openQrImport(page);
+  await panel
+    .getByLabel("选择二维码图片", { exact: true })
+    .setInputFiles(await qrImage(ordinaryQr));
+  await expect(
+    panel.getByRole("button", { name: "预览令牌", exact: true }),
+  ).toBeEnabled();
+  expect(external).toEqual([]);
+});
+
+test("desktop camera cancellation returns immediately and stops a late permission grant", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: () =>
+          new Promise((resolve) =>
+            Object.assign(window, { __qrMediaResolve: resolve }),
+          ),
+      },
+    }),
+  );
+  await page.reload();
+  const panel = await openQrImport(page);
+  await panel
+    .getByRole("button", { name: "打开相机扫码", exact: true })
+    .click();
+  await panel.getByRole("button", { name: "停止扫描", exact: true }).click();
+  await expect(
+    panel.getByRole("button", { name: "打开相机扫码", exact: true }),
+  ).toBeEnabled();
+  await page.evaluate(() =>
+    (window as any).__qrMediaResolve({
+      getTracks: () => [
+        { stop: () => Object.assign(window, { __qrLateTrackStopped: true }) },
+      ],
+    }),
+  );
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__qrLateTrackStopped))
+    .toBe(true);
+  await panel
+    .getByLabel("选择二维码图片", { exact: true })
+    .setInputFiles(await qrImage(ordinaryQr));
+  await expect(
+    panel.getByRole("button", { name: "预览令牌", exact: true }),
+  ).toBeEnabled();
 });
