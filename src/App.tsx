@@ -1029,7 +1029,7 @@ export default function App() {
                     </span>
                     <div>
                       <h2>
-                        SteamGuard <span>1.5.0</span>
+                        SteamGuard <span>1.5.1</span>
                       </h2>
                       <p>
                         {hasSteam

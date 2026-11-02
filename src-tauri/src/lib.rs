@@ -1639,6 +1639,106 @@ pub fn run() {
 #[cfg(test)]
 mod qr_import_tests {
     use super::*;
+    fn state(path: std::path::PathBuf, password: &str) -> AppState {
+        let mut vault = vault::Vault::new(path);
+        vault.create(password).unwrap();
+        AppState {
+            vault: Mutex::new(vault),
+            previews: Mutex::new(HashMap::new()),
+            steam: steam::SteamService::new().unwrap(),
+            epoch: AtomicU64::new(0),
+            time_offset: std::sync::atomic::AtomicI64::new(0),
+            sync: sync::Controller::default(),
+        }
+    }
+    #[test]
+    fn version_two_zero_id_pages_import_twenty_two_tokens_in_one_commit() {
+        let dir =
+            std::env::temp_dir().join(format!("steamguard-qr-v2-test-{}", uuid::Uuid::new_v4()));
+        let s = state(dir.join("vault.sgvault"), "synthetic-password");
+        let first = import::qr::tests::v2_uri(0, 10, 0);
+        let middle = import::qr::tests::v2_uri(1, 10, 10);
+        let last = import::qr::tests::v2_uri(2, 2, 20);
+        let partial = qr_import_preview(&s, vec![middle.clone(), last.clone()]).unwrap();
+        assert!(!partial.progress.complete && partial.preview.is_none());
+        assert!(s.previews.lock().unwrap().is_empty());
+        assert!(s.vault().unwrap().ensure().unwrap().tokens.is_empty());
+        let all = qr_import_preview(&s, vec![middle, last, first]).unwrap();
+        let preview = all.preview.unwrap();
+        assert!(all.progress.complete && preview.can_commit);
+        assert_eq!(preview.tokens.len(), 22);
+        assert!(s.vault().unwrap().ensure().unwrap().tokens.is_empty());
+        commit_import_preview(&s, &preview.preview_id).unwrap();
+        assert!(commit_import_preview(&s, &preview.preview_id).is_err());
+        let mut vault = s.vault().unwrap();
+        vault.lock();
+        vault.unlock("synthetic-password").unwrap();
+        assert_eq!(vault.ensure().unwrap().tokens.len(), 22);
+        vault.lock();
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    #[ignore = "private local QR payload validation; requires STEAMGUARD_GOOGLE_QR_FILE"]
+    fn private_google_image_batch_probe() {
+        struct Cleanup(std::path::PathBuf);
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+        let input =
+            std::env::var("STEAMGUARD_GOOGLE_QR_FILE").expect("private input path required");
+        let bytes = Zeroizing::new(std::fs::read(input).expect("cannot read private input"));
+        let payloads: Zeroizing<Vec<String>> = Zeroizing::new(
+            serde_json::from_slice(&bytes).expect("invalid private input container"),
+        );
+        let collection = import::qr::collect(&payloads).expect("private batch must decode");
+        assert!(collection.progress.complete);
+        let unique = collection
+            .tokens
+            .iter()
+            .map(|t| (&t.kind, &t.secret))
+            .collect::<std::collections::HashSet<_>>()
+            .len();
+        let dir = Cleanup(
+            std::env::temp_dir().join(format!("steamguard-private-qr-{}", uuid::Uuid::new_v4())),
+        );
+        std::fs::create_dir(&dir.0).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&dir.0, std::fs::Permissions::from_mode(0o700)).unwrap();
+        }
+        let password = Zeroizing::new(uuid::Uuid::new_v4().to_string());
+        let s = state(dir.0.join("vault.sgvault"), &password);
+        if payloads.len() > 1 {
+            let partial = qr_import_preview(&s, payloads[..payloads.len() - 1].to_vec()).unwrap();
+            assert!(!partial.progress.complete && partial.preview.is_none());
+            assert!(s.vault().unwrap().ensure().unwrap().tokens.is_empty());
+        }
+        let preview = qr_import_preview(&s, payloads.to_vec())
+            .unwrap()
+            .preview
+            .expect("complete preview required");
+        assert!(preview.tokens.len() == unique);
+        commit_import_preview(&s, &preview.preview_id).unwrap();
+        let mut vault = s.vault().unwrap();
+        vault.lock();
+        vault.unlock(&password).unwrap();
+        let data = vault.ensure().unwrap();
+        assert!(data.tokens.len() == unique);
+        for expected in &collection.tokens {
+            assert!(data.tokens.iter().any(|t| t.kind == expected.kind
+                && t.secret == expected.secret
+                && t.algorithm == expected.algorithm
+                && t.digits == expected.digits
+                && t.name == expected.name
+                && t.issuer == expected.issuer));
+        }
+        vault.lock();
+        println!("Private local Google batch: {} pages, {} entries; complete collection, encrypted import and unlock verified", payloads.len(), collection.tokens.len());
+    }
+
     #[test]
     fn incomplete_batches_cannot_commit_and_completed_batch_is_atomic_and_deduplicated() {
         let dir = std::env::temp_dir().join(format!("steamguard-qr-test-{}", uuid::Uuid::new_v4()));

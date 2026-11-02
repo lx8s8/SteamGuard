@@ -3,9 +3,11 @@ import QRCode from "qrcode";
 import { readFileSync } from "node:fs";
 import {
   googlePages,
+  googleV2Pages,
   otherBatchPage,
   qrPages,
   ordinaryQr,
+  type QrPageFixture,
 } from "./qr-fixtures";
 
 // Synthetic data only. These UI tests do not contact Steam or load private exports.
@@ -129,6 +131,10 @@ async function nativeFixture(page: Page) {
     if (params.has("generic")) tokens.splice(0, 2);
     let resident = true;
     const commands: { command: string; args: Record<string, unknown> }[] = [];
+    const qrPreviews = new Map<
+      string,
+      { name: string; issuer: string; kind: string }[]
+    >();
     Object.assign(window, {
       isTauri: true,
       __testCommands: commands,
@@ -364,6 +370,7 @@ async function nativeFixture(page: Page) {
                 new URLSearchParams(location.search).get("camera") === "native"
               );
             case "import_discard":
+              qrPreviews.delete(String(args.previewId));
               return;
             case "plugin:barcode-scanner|check_permissions":
             case "plugin:barcode-scanner|request_permissions":
@@ -381,7 +388,7 @@ async function nativeFixture(page: Page) {
             case "import_qr_preview": {
               const qrPages = (window as any).__qrTestPages as Record<
                 string,
-                { batch: number; index: number; size: number }
+                QrPageFixture
               >;
               const payloads = [...new Set(args.payloads as string[])];
               const pages = payloads.map(
@@ -393,7 +400,15 @@ async function nativeFixture(page: Page) {
               )
                 throw new Error("二维码不是支持的验证器格式");
               const google = pages.every(Boolean);
-              if (google && pages.some((p) => p.batch !== pages[0].batch))
+              if (
+                google &&
+                pages.some(
+                  (p) =>
+                    p.version !== pages[0].version ||
+                    p.batch !== pages[0].batch ||
+                    p.size !== pages[0].size,
+                )
+              )
                 throw new Error(
                   "二维码来自不同的 Google 导出批次，请继续扫描同一次导出的二维码",
                 );
@@ -402,23 +417,28 @@ async function nativeFixture(page: Page) {
                     .filter((i) => !pages.some((p) => p.index === i))
                     .map((i) => i + 1)
                 : [];
+              // The bridge is mocked: metadata drives UI progress, not Rust parsing.
+              const previewTokens = (
+                google
+                  ? [...pages]
+                      .sort((a, b) => a.index - b.index)
+                      .flatMap((p) => p.names)
+                  : payloads.map((_, i) => `Synthetic ${i + 1}`)
+              ).map((name) => ({ name, issuer: "Example", kind: "totp" }));
+              if (!missing.length) qrPreviews.set("qr-fixture", previewTokens);
               return {
                 source: google ? "google" : "otp",
                 received: payloads.length,
                 expected: google ? pages[0].size : payloads.length,
                 missing,
                 duplicateCodes: 0,
-                tokenCount: payloads.length,
+                tokenCount: previewTokens.length,
                 complete: !missing.length,
                 preview: missing.length
                   ? null
                   : {
                       previewId: "qr-fixture",
-                      tokens: payloads.map((_, i) => ({
-                        name: `Synthetic ${i + 1}`,
-                        issuer: "Example",
-                        kind: "totp",
-                      })),
+                      tokens: previewTokens,
                       duplicates: 0,
                       canCommit: true,
                     },
@@ -451,7 +471,23 @@ async function nativeFixture(page: Page) {
                 ],
                 duplicates: 0,
               };
-            case "import_commit":
+            case "import_commit": {
+              const qrTokens = qrPreviews.get(String(args.previewId));
+              if (qrTokens) {
+                for (const [index, token] of qrTokens.entries())
+                  tokens.push({
+                    ...token,
+                    icon: null,
+                    group: null,
+                    id: `imported-qr-${index}`,
+                    code: "654321",
+                    period: 30,
+                    remaining: 24,
+                    loggedIn: false,
+                  });
+                qrPreviews.delete(String(args.previewId));
+                return qrTokens.length;
+              }
               if (args.previewId === "fixture-groups") {
                 groups.push("恢复分组");
                 tokens[2].group = "恢复分组";
@@ -470,6 +506,7 @@ async function nativeFixture(page: Page) {
                 loggedIn: false,
               });
               return 1;
+            }
             case "steam_confirmations":
               return [
                 {
@@ -1416,6 +1453,74 @@ test("Google multi-QR images collect out of order, deduplicate and reject anothe
   expect(await commandCount(page, "import_commit")).toBe(0);
   await page.getByRole("button", { name: "确认导入", exact: true }).click();
   expect(await commandCount(page, "import_commit")).toBe(1);
+});
+// The native bridge is mocked here; Rust tests cover V2 payload compatibility.
+test("Google V2 synthetic images without batch_id collect out of order and commit all 22 tokens once", async ({
+  page,
+}) => {
+  const panel = await openQrImport(page);
+  const images = panel.getByLabel("选择二维码图片", { exact: true });
+  const preview = panel.getByRole("button", { name: "预览令牌", exact: true });
+  await images.setInputFiles(await qrImage(googleV2Pages[2]));
+  await expect(panel).toContainText("已收集 1/3 张");
+  await expect(panel).toContainText("识别到 2 个令牌");
+  await expect(panel).toContainText("还缺第 1、2 张");
+  await expect(preview).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "确认导入", exact: true }),
+  ).toHaveCount(0);
+  expect(await commandCount(page, "import_commit")).toBe(0);
+
+  await images.setInputFiles(await qrImage(googleV2Pages[2]));
+  await expect(panel).toContainText("这张二维码已经收集");
+  await expect(panel).toContainText("已收集 1/3 张");
+  await expect(panel).toContainText("识别到 2 个令牌");
+  expect(await commandCount(page, "import_qr_preview")).toBe(1);
+
+  await images.setInputFiles(await qrImage(googleV2Pages[0]));
+  await expect(panel).toContainText("已收集 2/3 张");
+  await expect(panel).toContainText("识别到 12 个令牌");
+  await expect(panel).toContainText("还缺第 2 张");
+  await expect(preview).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "确认导入", exact: true }),
+  ).toHaveCount(0);
+  expect(await commandCount(page, "import_commit")).toBe(0);
+
+  await images.setInputFiles(await qrImage(googleV2Pages[1]));
+  await expect(panel).toContainText("已收集 3/3 张");
+  await expect(panel).toContainText("识别到 22 个令牌");
+  await expect(preview).toBeEnabled();
+  await expect(panel).not.toContainText("还缺第");
+  expect(await commandCount(page, "import_commit")).toBe(0);
+  await preview.click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("识别到 22 个令牌");
+  await expect(dialog.locator(".import-token-list > div")).toHaveCount(22);
+  expect(
+    await dialog.locator(".import-token-list strong").allTextContents(),
+  ).toEqual(
+    Array.from({ length: 22 }, (_, index) => `Synthetic V2 ${index + 1}`),
+  );
+  expect(await commandCount(page, "import_commit")).toBe(0);
+  await dialog.getByRole("button", { name: "确认导入", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(
+    page.locator(".token-card").filter({ hasText: /Synthetic V2 / }),
+  ).toHaveCount(22);
+  expect(await commandCount(page, "import_commit")).toBe(1);
+  expect(
+    await page.evaluate(() =>
+      (window as any).__testCommands
+        .filter((entry: any) => entry.command === "import_qr_preview")
+        .map((entry: any) => entry.args.payloads),
+    ),
+  ).toEqual([
+    [googleV2Pages[2]],
+    [googleV2Pages[2], googleV2Pages[0]],
+    [googleV2Pages[2], googleV2Pages[0], googleV2Pages[1]],
+  ]);
 });
 test("one image can contain several QR codes and incomplete collection is cleared on exit", async ({
   page,
