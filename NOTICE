@@ -23,3 +23,19 @@ Copyright The Apache Software Foundation and contributors.
 Collaborative document merge: Automerge, MIT License.
 https://github.com/automerge/automerge
 Copyright Automerge contributors.
+
+QR image decoder: zxing-wasm (MIT), embedding ZXing-C++ (Apache License 2.0).
+https://github.com/Sec-ant/zxing-wasm
+https://github.com/zxing-cpp/zxing-cpp
+
+Mobile camera integration: official Tauri barcode-scanner plugin (Apache-2.0 / MIT).
+https://github.com/tauri-apps/plugins-workspace/tree/v2/plugins/barcode-scanner
+Android builds select Google's bundled ML Kit barcode model.
+https://developers.google.com/ml-kit/vision/barcode-scanning/android
+
+Google migration field definitions and Aegis plaintext vault compatibility were
+checked against the Aegis project (GPL-3.0). No private account exports are included.
+https://github.com/beemdevelopment/Aegis/blob/master/app/src/main/proto/google_auth.proto
+https://github.com/beemdevelopment/Aegis/blob/master/docs/vault.md
+2FAS backup compatibility was checked against its published BackupContent / BackupService schema.
+https://github.com/twofas/2fas-android

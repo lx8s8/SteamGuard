@@ -34,6 +34,16 @@ export interface ImportPreview {
   groupCount?: number;
   canCommit?: boolean;
 }
+export interface QrImportProgress {
+  source: "google" | "otp";
+  received: number;
+  expected: number;
+  missing: number[];
+  duplicateCodes: number;
+  tokenCount: number;
+  complete: boolean;
+  preview: ImportPreview | null;
+}
 export interface LoginResult {
   status: "guard" | "pending" | "authenticated";
   steamId?: string;

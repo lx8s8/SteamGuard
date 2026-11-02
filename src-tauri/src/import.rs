@@ -8,6 +8,9 @@ use serde_json::Value as Json;
 use sha1::Digest;
 use std::io::Cursor;
 
+mod foreign;
+pub mod qr;
+
 const MAX_IMPORT_BYTES: usize = 16 * 1024 * 1024;
 const MAX_RECORDS: usize = 10_000;
 // Original application format parameter, distributed in WattToolkit's public client SDK resource.
@@ -28,7 +31,12 @@ pub fn parse_import(
     }
     let result = if let Ok(text) = std::str::from_utf8(data) {
         let text = text.trim_start_matches('\u{feff}').trim();
-        if text.starts_with("otpauth://") || text.starts_with("otpauth-migration://") {
+        let first = text
+            .lines()
+            .map(str::trim)
+            .find(|line| !line.is_empty() && !line.starts_with('#'))
+            .unwrap_or("");
+        if first.starts_with("otpauth://") || first.starts_with("otpauth-migration://") {
             import_uris(text)
         } else if text.starts_with('{') || text.starts_with('[') {
             import_json(text, filename)
@@ -577,6 +585,9 @@ fn apply_steam_data(token: &mut Token, steam: &Json) {
 
 fn import_json(text: &str, filename: &str) -> Result<Vec<Token>, String> {
     let value: Json = serde_json::from_str(text).map_err(|_| "JSON 文件格式错误")?;
+    if let Some(result) = foreign::detect(&value) {
+        return result;
+    }
     let values = if let Some(array) = value.as_array() {
         array.clone()
     } else if let Some(array) = value.get("tokens").and_then(Json::as_array) {
@@ -654,19 +665,29 @@ fn decode_base32(secret: &str) -> Result<Vec<u8>, String> {
 }
 
 fn import_uris(text: &str) -> Result<Vec<Token>, String> {
-    let mut result = Vec::new();
-    for line in text
-        .lines()
-        .map(str::trim)
-        .filter(|s| !s.is_empty() && !s.starts_with('#'))
-    {
-        if line.starts_with("otpauth-migration://") {
-            result.extend(import_migration(line)?);
-        } else {
-            result.push(import_uri(line)?);
-        }
+    let lines = zeroize::Zeroizing::new(
+        text.lines()
+            .map(str::trim)
+            .filter(|s| !s.is_empty() && !s.starts_with('#'))
+            .map(str::to_owned)
+            .collect::<Vec<_>>(),
+    );
+    let mut collection = qr::collect_text(&lines)?;
+    if !collection.progress.complete {
+        return Err(format!(
+            "Google 导出尚未收齐：已收到 {}/{} 张，还缺第 {} 张。请扫描完整批次后再导入",
+            collection.progress.received,
+            collection.progress.expected,
+            collection
+                .progress
+                .missing
+                .iter()
+                .map(usize::to_string)
+                .collect::<Vec<_>>()
+                .join("、")
+        ));
     }
-    Ok(result)
+    Ok(std::mem::take(&mut collection.tokens))
 }
 
 fn import_uri(text: &str) -> Result<Token, String> {
@@ -747,116 +768,22 @@ fn percent_decode(text: &str) -> Result<String, String> {
     String::from_utf8(bytes).map_err(|_| "URI 标签不是有效 UTF-8".into())
 }
 
-// Minimal bounded protobuf reader for Google Authenticator's public MigrationPayload.
-fn read_varint(data: &[u8], offset: &mut usize) -> Result<u64, String> {
-    let mut value = 0u64;
-    for shift in (0..70).step_by(7) {
-        let byte = *data.get(*offset).ok_or("Google 迁移数据被截断")?;
-        *offset += 1;
-        if shift == 63 && byte > 1 {
-            return Err("Google 迁移整数溢出".into());
-        }
-        value |= ((byte & 127) as u64) << shift;
-        if byte & 128 == 0 {
-            return Ok(value);
-        }
-    }
-    Err("Google 迁移整数溢出".into())
-}
-
-fn proto_fields(data: &[u8]) -> Result<Vec<(u64, Vec<u8>, u64)>, String> {
-    let mut offset = 0;
-    let mut result = Vec::new();
-    while offset < data.len() {
-        let tag = read_varint(data, &mut offset)?;
-        let (bytes, number) = match tag & 7 {
-            0 => (Vec::new(), read_varint(data, &mut offset)?),
-            2 => {
-                let length = read_varint(data, &mut offset)? as usize;
-                let end = offset
-                    .checked_add(length)
-                    .filter(|n| *n <= data.len())
-                    .ok_or("Google 迁移字段长度无效")?;
-                let bytes = data[offset..end].to_vec();
-                offset = end;
-                (bytes, 0)
-            }
-            _ => return Err("不支持的 Google 迁移字段编码".into()),
-        };
-        if tag >> 3 == 0 {
-            return Err("Google 迁移字段编号无效".into());
-        }
-        result.push((tag >> 3, bytes, number));
-    }
-    Ok(result)
-}
-
-fn import_migration(text: &str) -> Result<Vec<Token>, String> {
-    let url = url::Url::parse(text).map_err(|_| "Google 迁移 URI 无效")?;
-    let data = url
-        .query_pairs()
-        .find(|(key, _)| key == "data")
-        .map(|(_, v)| v.into_owned())
-        .ok_or("Google 迁移缺少 data")?;
-    let decoded = STANDARD
-        .decode(data.replace(' ', "+"))
-        .map_err(|_| "Google 迁移 Base64 无效")?;
-    let fields = proto_fields(&decoded)?;
-    let version = fields
-        .iter()
-        .find(|(n, _, _)| *n == 2)
-        .map(|(_, _, v)| *v)
-        .unwrap_or(1);
-    if version > 1 {
-        return Err("不支持的 Google 迁移版本".into());
-    }
-    let mut result = Vec::new();
-    for (_, message, _) in fields.iter().filter(|(n, _, _)| *n == 1) {
-        let values = proto_fields(message)?;
-        let bytes = |n| {
-            values
-                .iter()
-                .find(|(i, _, _)| *i == n)
-                .map(|(_, v, _)| v.as_slice())
-                .unwrap_or(&[])
-        };
-        let number = |n| {
-            values
-                .iter()
-                .find(|(i, _, _)| *i == n)
-                .map(|(_, _, v)| *v)
-                .unwrap_or(0)
-        };
-        let name = String::from_utf8(bytes(2).to_vec()).map_err(|_| "Google 迁移名称无效")?;
-        let kind = match number(6) {
-            1 => "hotp",
-            2 => "totp",
-            _ => return Err("Google 迁移包含未知 OTP 类型".into()),
-        };
-        let mut token = Token::new(name, kind.into(), bytes(1).to_vec());
-        token.issuer =
-            String::from_utf8(bytes(3).to_vec()).map_err(|_| "Google 迁移 issuer 无效")?;
-        token.algorithm = match number(4) {
-            0 | 1 => "SHA1",
-            2 => "SHA256",
-            3 => "SHA512",
-            _ => return Err("Google 迁移包含不支持的算法".into()),
-        }
-        .into();
-        token.digits = match number(5) {
-            0 | 1 => 6,
-            2 => 8,
-            _ => return Err("Google 迁移位数无效".into()),
-        };
-        token.counter = number(7);
-        result.push(token);
-    }
-    Ok(result)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn uri_text_files_keep_large_imports_and_leading_comments_compatible() {
+        let mut text = String::from("# Synthetic URI backup\n\n");
+        for index in 0..150 {
+            text.push_str(&format!(
+                "otpauth://totp/Example:{index}?secret=GEZDGNBVGY3TQOJQ\n"
+            ));
+        }
+        let tokens = parse_import(text.as_bytes(), None, "otp.txt").unwrap();
+        assert_eq!(tokens.len(), 150);
+        assert_eq!(tokens[149].name, "149");
+    }
 
     #[test]
     fn import_uri_preserves_parameters_and_decodes_label() {

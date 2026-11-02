@@ -85,6 +85,9 @@ rust {
 }
 
 dependencies {
+    // The official scanner plugin uses the same API. Include its bundled model
+    // so the app can scan without Google Play Services or a first-run download.
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
     implementation("androidx.webkit:webkit:1.14.0")
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("androidx.activity:activity-ktx:1.10.1")

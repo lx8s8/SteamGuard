@@ -3666,3 +3666,100 @@ main {
     grid-template-columns: 70px minmax(0, 1fr);
   }
 }
+
+.import-tabs {
+  flex-wrap: wrap;
+}
+.qr-import {
+  min-width: 0;
+}
+.qr-import-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.qr-import-progress {
+  padding: 16px;
+  border: 1px solid #376254;
+  border-radius: 12px;
+  background: #17332e;
+  margin-top: 18px;
+}
+.qr-import-progress strong {
+  font-size: 15px;
+  color: #9de0c4;
+}
+.qr-import-progress p {
+  font-size: 14px;
+  line-height: 1.7;
+  margin: 8px 0;
+}
+.qr-import-progress progress {
+  width: 100%;
+  height: 10px;
+  accent-color: #68c8a5;
+}
+.qr-camera-preview {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+}
+.qr-camera-preview video {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 12px;
+  background: #000;
+}
+html.qr-camera-active,
+body.qr-camera-active {
+  background: transparent !important;
+}
+body.qr-camera-active #root {
+  visibility: hidden;
+}
+.qr-camera-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: max(24px, env(safe-area-inset-top)) 20px
+    max(32px, env(safe-area-inset-bottom));
+  color: #fff;
+  gap: 20px;
+}
+.qr-camera-overlay > div:first-child {
+  position: relative;
+  z-index: 1;
+  background: #091421e8;
+  padding: 16px;
+  border-radius: 14px;
+  max-width: 100%;
+}
+.qr-camera-overlay h2 {
+  font-size: 21px;
+  margin: 0 0 8px;
+}
+.qr-camera-overlay p {
+  font-size: 15px;
+  line-height: 1.6;
+}
+.qr-camera-frame {
+  width: min(75vw, 340px);
+  aspect-ratio: 1;
+  border: 3px solid #7acbfa;
+  border-radius: 24px;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 0 100vmax #0005;
+  clip-path: inset(-100vmax);
+}
+.qr-camera-overlay .button {
+  position: relative;
+  min-height: 48px;
+  font-size: 16px;
+}
