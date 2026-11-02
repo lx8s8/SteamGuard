@@ -1600,16 +1600,23 @@ function ImportDialog({
   const [error, setError] = useState("");
   const picker = useRef<HTMLInputElement>(null);
   const lastPreview = useRef<string | null>(null);
+  const live = useRef(true);
   useEffect(() => {
-    lastPreview.current = preview?.previewId ?? lastPreview.current;
-  }, [preview]);
-  useEffect(
-    () => () => {
+    live.current = true;
+    return () => {
+      live.current = false;
       if (lastPreview.current)
         void api.discardPreview(lastPreview.current).catch(() => {});
-    },
-    [],
-  );
+    };
+  }, []);
+  const acceptPreview = (next: ImportPreview) => {
+    if (!live.current) {
+      void api.discardPreview(next.previewId).catch(() => {});
+      return;
+    }
+    lastPreview.current = next.previewId;
+    setPreview(next);
+  };
   const check = async () => {
     setError("");
     setBusy(true);
@@ -1625,7 +1632,7 @@ function ImportDialog({
           ? { data, filename: file?.name, password: password || undefined }
           : { text, password: password || undefined },
       );
-      setPreview(result);
+      acceptPreview(result);
     } catch (e) {
       setError(errorText(e));
     } finally {
@@ -1764,7 +1771,7 @@ function ImportDialog({
             </button>
           </div>
           {mode === "qr" ? (
-            <QrImportPanel onPreview={setPreview} />
+            <QrImportPanel onPreview={acceptPreview} />
           ) : (
             <>
               {mode === "file" ? (

@@ -390,6 +390,10 @@ async function nativeFixture(page: Page) {
               };
             }
             case "import_preview":
+              if ((window as any).__deferImportPreview)
+                return new Promise((resolve) =>
+                  Object.assign(window, { __resolveImportPreview: resolve }),
+                );
               if (
                 (window as unknown as { __importGroupOnly?: boolean })
                   .__importGroupOnly
@@ -1549,4 +1553,39 @@ test("desktop camera cancellation returns immediately and stops a late permissio
   await expect(
     panel.getByRole("button", { name: "预览令牌", exact: true }),
   ).toBeEnabled();
+});
+
+test("a file preview arriving after the import dialog closes is immediately discarded", async ({
+  page,
+}) => {
+  await page.evaluate(() =>
+    Object.assign(window, { __deferImportPreview: true }),
+  );
+  await page.getByRole("button", { name: "添加令牌", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog
+    .getByRole("button", { name: "粘贴密钥 / 链接", exact: true })
+    .click();
+  await dialog.getByLabel("OTP 链接或令牌 JSON").fill(ordinaryQr);
+  await dialog.getByRole("button", { name: "预览令牌", exact: true }).click();
+  await dialog.getByRole("button", { name: "关闭", exact: true }).click();
+  await page.evaluate(() =>
+    (window as any).__resolveImportPreview({
+      previewId: "late-preview-fixture",
+      tokens: [{ name: "Synthetic", issuer: "Example", kind: "totp" }],
+      duplicates: 0,
+    }),
+  );
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        (window as any).__testCommands.some(
+          (c: any) =>
+            c.command === "import_discard" &&
+            c.args.previewId === "late-preview-fixture",
+        ),
+      ),
+    )
+    .toBe(true);
+  expect(await commandCount(page, "import_commit")).toBe(0);
 });
