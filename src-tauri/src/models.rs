@@ -5,6 +5,10 @@ use serde::{Deserialize, Serialize};
 pub struct Token {
     pub id: String,
     pub name: String,
+    #[serde(default)]
+    pub pinned: bool,
+    #[serde(default)]
+    pub sort_order: u64,
     pub issuer: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
@@ -30,6 +34,8 @@ impl Token {
         Self {
             id: uuid::Uuid::new_v4().to_string(),
             name,
+            pinned: false,
+            sort_order: 0,
             issuer: if steam { "Steam".into() } else { String::new() },
             kind,
             secret,
@@ -58,6 +64,11 @@ impl Token {
         {
             return Err("分组名称需为 1–40 个字符".into());
         }
+        self.validate_otp()
+    }
+    /// Authentication on the timer path validates only the OTP parameters.
+    /// Artwork and grouping were validated on load and transaction commit.
+    pub fn validate_otp(&self) -> Result<(), String> {
         if self.secret.is_empty() || self.secret.len() > 4096 {
             return Err("令牌密钥为空或过长".into());
         }
@@ -94,6 +105,7 @@ impl Token {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TokenView {
+    pub pinned: bool,
     pub hotp_read_only: bool,
     pub group: Option<String>,
     pub id: String,

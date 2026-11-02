@@ -4,7 +4,7 @@ use sha1::Sha1;
 use sha2::{Sha256, Sha512};
 
 pub fn code(token: &Token, timestamp: u64) -> Result<String, String> {
-    token.validate()?;
+    token.validate_otp()?;
     let counter = if token.kind == "hotp" {
         token.counter
     } else {

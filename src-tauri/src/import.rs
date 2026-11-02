@@ -8,6 +8,7 @@ use serde_json::Value as Json;
 use sha1::Digest;
 use std::io::Cursor;
 
+mod encrypted;
 mod foreign;
 pub mod qr;
 
@@ -29,7 +30,7 @@ pub fn parse_import(
     if data.is_empty() || data.len() > MAX_IMPORT_BYTES {
         return Err("导入文件为空或超过 16 MiB 限制".into());
     }
-    let result = if let Ok(text) = std::str::from_utf8(data) {
+    let mut result = if let Ok(text) = std::str::from_utf8(data) {
         let text = text.trim_start_matches('\u{feff}').trim();
         let first = text
             .lines()
@@ -39,7 +40,7 @@ pub fn parse_import(
         if first.starts_with("otpauth://") || first.starts_with("otpauth-migration://") {
             import_uris(text)
         } else if text.starts_with('{') || text.starts_with('[') {
-            import_json(text, filename)
+            import_json(text, password, filename)
         } else if text.starts_with('<') {
             import_winauth_xml(text)
         } else {
@@ -49,10 +50,14 @@ pub fn parse_import(
         import_watt(data, password)
     }?;
     if result.is_empty() || result.len() > MAX_RECORDS {
+        result.iter_mut().for_each(Token::erase);
         return Err("文件中没有有效令牌，或令牌数量超过限制".into());
     }
     for token in &result {
-        validate_token(token)?;
+        if let Err(error) = validate_token(token) {
+            result.iter_mut().for_each(Token::erase);
+            return Err(error);
+        }
     }
     Ok(result)
 }
@@ -583,21 +588,27 @@ fn apply_steam_data(token: &mut Token, steam: &Json) {
     token.device_id = json_string(steam, &["device_id", "deviceId"]).or(token.device_id.take());
 }
 
-fn import_json(text: &str, filename: &str) -> Result<Vec<Token>, String> {
-    let value: Json = serde_json::from_str(text).map_err(|_| "JSON 文件格式错误")?;
-    if let Some(result) = foreign::detect(&value) {
+fn import_json(text: &str, password: Option<&str>, filename: &str) -> Result<Vec<Token>, String> {
+    let source =
+        encrypted::SecretJson(serde_json::from_str(text).map_err(|_| "JSON 文件格式错误")?);
+    let value = &source.0;
+    if let Some(result) = encrypted::detect(value, password) {
+        let decoded = result?;
+        return foreign::detect(&decoded.0).ok_or("不支持的加密备份类型")?;
+    }
+    if let Some(result) = foreign::detect(value) {
         return result;
     }
     let values = if let Some(array) = value.as_array() {
-        array.clone()
+        array.as_slice()
     } else if let Some(array) = value.get("tokens").and_then(Json::as_array) {
-        array.clone()
+        array.as_slice()
     } else {
-        vec![value]
+        std::slice::from_ref(value)
     };
-    values
-        .iter()
-        .map(|value| {
+    let mut tokens = vec![];
+    for value in values {
+        let parsed = (|| {
             if let Some(uri) = value
                 .get("uri")
                 .and_then(Json::as_str)
@@ -606,6 +617,7 @@ fn import_json(text: &str, filename: &str) -> Result<Vec<Token>, String> {
                 return import_uri(uri);
             }
             if let Some(secret) = json_string(value, &["shared_secret", "sharedSecret"]) {
+                let secret = zeroize::Zeroizing::new(secret);
                 let name = json_string(value, &["account_name", "accountName", "name"])
                     .unwrap_or_else(|| {
                         filename
@@ -625,40 +637,60 @@ fn import_json(text: &str, filename: &str) -> Result<Vec<Token>, String> {
                 token.steam_data = Some(value.clone());
                 return Ok(token);
             }
-            let secret = json_string(value, &["secret", "secretKey"])
-                .ok_or("JSON 缺少 shared_secret、secret 或 otpauth uri")?;
+            let secret = zeroize::Zeroizing::new(
+                json_string(value, &["secret", "secretKey"])
+                    .ok_or("JSON 缺少 shared_secret、secret 或 otpauth uri")?,
+            );
             let kind = json_string(value, &["kind", "type"])
                 .unwrap_or("totp".into())
                 .to_lowercase();
             if !matches!(kind.as_str(), "steam" | "totp" | "hotp" | "battlenet") {
                 return Err("JSON 令牌类型无效".into());
             }
+            let number = |field: &str, default| -> Result<u64, String> {
+                value
+                    .get(field)
+                    .map(|v| v.as_u64().ok_or_else(|| "JSON 令牌数字参数无效".into()))
+                    .transpose()
+                    .map(|n| n.unwrap_or(default))
+            };
+            let digits = u32::try_from(number("digits", if kind == "steam" { 5 } else { 6 })?)
+                .map_err(|_| "JSON 令牌位数无效")?;
+            let period = number("period", 30)?;
+            let counter = number("counter", 0)?;
             let mut token = Token::new(
                 json_string(value, &["name", "label"]).unwrap_or("Authenticator".into()),
-                kind.clone(),
+                kind,
                 decode_base32(&secret)?,
             );
             token.issuer = json_string(value, &["issuer"]).unwrap_or_default();
             token.algorithm = json_string(value, &["algorithm"])
                 .unwrap_or("SHA1".into())
                 .to_uppercase();
-            token.digits = value
-                .get("digits")
-                .and_then(Json::as_u64)
-                .unwrap_or(if kind == "steam" { 5 } else { 6 }) as u32;
-            token.period = value.get("period").and_then(Json::as_u64).unwrap_or(30);
-            token.counter = value.get("counter").and_then(Json::as_u64).unwrap_or(0);
-            Ok(token)
-        })
-        .collect()
+            token.digits = digits;
+            token.period = period;
+            token.counter = counter;
+            Ok::<Token, String>(token)
+        })();
+        match parsed {
+            Ok(token) => tokens.push(token),
+            Err(error) => {
+                tokens.iter_mut().for_each(Token::erase);
+                return Err(error);
+            }
+        }
+    }
+    Ok(tokens)
 }
 
 fn decode_base32(secret: &str) -> Result<Vec<u8>, String> {
-    let normalized: String = secret
-        .chars()
-        .filter(|c| !c.is_whitespace() && *c != '=' && *c != '-')
-        .flat_map(char::to_uppercase)
-        .collect();
+    let normalized = zeroize::Zeroizing::new(
+        secret
+            .chars()
+            .filter(|c| !c.is_whitespace() && *c != '=' && *c != '-')
+            .flat_map(char::to_uppercase)
+            .collect::<String>(),
+    );
     data_encoding::BASE32_NOPAD
         .decode(normalized.as_bytes())
         .map_err(|_| "令牌密钥不是有效 Base32".into())

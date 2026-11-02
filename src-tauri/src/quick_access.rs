@@ -94,6 +94,49 @@ impl QuickAccess {
         *self.preview.lock().map_err(|_| "预览不可用")? = Some(snapshot);
         Ok(())
     }
+    pub fn codes(
+        &self,
+        vault_path: &Path,
+        now: u64,
+    ) -> Result<crate::token_commands::CodeSnapshot, String> {
+        let mut preview = self.preview.lock().map_err(|_| "预览不可用")?;
+        let snapshot = preview.as_ref().ok_or("请先进入令牌预览")?;
+        if !self.preferences()?.preview_enabled || snapshot.vault_hash != vault_hash(vault_path)? {
+            *preview = None;
+            return Err("令牌库已更新，请解锁后刷新预览".into());
+        }
+        let codes = snapshot
+            .tokens
+            .iter()
+            .map(|t| {
+                let mut token = Token::new(t.name.clone(), t.kind.clone(), t.secret.clone());
+                token.algorithm = t.algorithm.clone();
+                token.digits = t.digits;
+                token.period = t.period;
+                token.counter = t.counter;
+                let result = if t.hotp_read_only {
+                    Ok(String::new())
+                } else {
+                    otp::code(&token, now)
+                };
+                token.erase();
+                Ok(crate::token_commands::Code {
+                    id: t.id.clone(),
+                    code: result?,
+                    period: t.period,
+                    remaining: if t.kind == "hotp" {
+                        0
+                    } else {
+                        t.period - now % t.period
+                    },
+                })
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        Ok(crate::token_commands::CodeSnapshot {
+            revision: snapshot.vault_hash.clone(),
+            codes,
+        })
+    }
     pub fn tokens(&self, vault_path: &Path, now: u64) -> Result<Vec<TokenView>, String> {
         let mut preview = self.preview.lock().map_err(|_| "预览不可用")?;
         let snapshot = preview.as_ref().ok_or("请先进入令牌预览")?;
@@ -109,6 +152,7 @@ impl QuickAccess {
                 let code = otp::code(&token, now);
                 token.erase();
                 Ok(TokenView {
+                    pinned: t.pinned,
                     group: t.group.clone(),
                     id: t.id.clone(),
                     name: t.name.clone(),
@@ -144,6 +188,8 @@ impl QuickAccess {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct PreviewToken {
     #[serde(default)]
+    pinned: bool,
+    #[serde(default)]
     icon: Option<String>,
     id: String,
     name: String,
@@ -162,6 +208,7 @@ struct PreviewToken {
 impl PreviewToken {
     fn from(t: &Token) -> Self {
         Self {
+            pinned: t.pinned,
             icon: t.icon.clone(),
             id: t.id.clone(),
             name: t.name.clone(),
@@ -178,6 +225,7 @@ impl PreviewToken {
     }
     fn token(&self) -> Token {
         let mut t = Token::new(self.name.clone(), self.kind.clone(), self.secret.clone());
+        t.pinned = self.pinned;
         t.id = self.id.clone();
         t.issuer = self.issuer.clone();
         t.icon = self.icon.clone();

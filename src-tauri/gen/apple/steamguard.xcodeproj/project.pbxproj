@@ -11,6 +11,7 @@
 		02B76E34825EA74E48F1A792 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB34D19413C564EBDBD7B3EE /* MetalKit.framework */; };
 		4F7B75D01627ED60286B4B2F /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7B2ED91A17150B3CC9AF1B34 /* Metal.framework */; };
 		51E65A4D6B1844B8561BD8DA /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3724307503CA23CC07215493 /* WebKit.framework */; };
+		5E484823048A0C0E103FB7F7 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 33AFAD0091E525B43C8949A5 /* InfoPlist.strings */; };
 		656CF3BA70C347CBFF4E60EB /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5691485DE921062A0EDA2C94 /* Security.framework */; };
 		80B628F2A5A8E0CB3AA519BD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 88FF31CA08D47711A24A5EFA /* Assets.xcassets */; };
 		82004ED01930C9530403C82C /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 79A772885CEC51CBE50763D5 /* LaunchScreen.storyboard */; };
@@ -24,25 +25,58 @@
 /* Begin PBXFileReference section */
 		0D10DB31B6DF13F60D6787E7 /* otp.rs */ = {isa = PBXFileReference; path = otp.rs; sourceTree = "<group>"; };
 		1599A30335C7A659E9092CE6 /* main.rs */ = {isa = PBXFileReference; path = main.rs; sourceTree = "<group>"; };
+		1FEAB2D785C813BF7FCCC360 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
 		2338EB4E7A0D17FCE1D87273 /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
 		237C4C65A57A5A76059ABB07 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
+		2390A1682FDF2F35CB20391A /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		23D6A96700EA4DE14A8B55F1 /* sync.rs */ = {isa = PBXFileReference; path = sync.rs; sourceTree = "<group>"; };
+		260E4DDEBA5538010FAA5211 /* foreign.rs */ = {isa = PBXFileReference; path = foreign.rs; sourceTree = "<group>"; };
+		29178D8CF5D415D4C7DA0103 /* storage.rs */ = {isa = PBXFileReference; path = storage.rs; sourceTree = "<group>"; };
+		2C96E912F71C9C7337967AEA /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		2E065F8316790840EF1C4D1E /* it */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = it; path = it.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		3198E54CD665DEF44DE1675A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		3724307503CA23CC07215493 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
+		3C2860C6F617424E0B7D6E42 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		421C381D9C04ABF36A68756F /* desktop.rs */ = {isa = PBXFileReference; path = desktop.rs; sourceTree = "<group>"; };
 		477E4295954135194379612A /* vault.rs */ = {isa = PBXFileReference; path = vault.rs; sourceTree = "<group>"; };
+		48BF949918DFDBD2AB3C8C10 /* updates.rs */ = {isa = PBXFileReference; path = updates.rs; sourceTree = "<group>"; };
+		503D01880653F6990142C865 /* ko */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ko; path = ko.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		5512DABEC2BC1491A6078F53 /* commands.rs */ = {isa = PBXFileReference; path = commands.rs; sourceTree = "<group>"; };
 		5691485DE921062A0EDA2C94 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		56B38E214BAE2398523CA62F /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
 		5A8DDCA91393CACA5C89EBCD /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
+		5C79DFB6DEC30F8C31B84B18 /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "zh-Hant.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
+		6BAE829FD77540FB6158C677 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		6C5DAA4F6B9F7CDBDC16C677 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		6CD3A23DECDFD37918A69AD3 /* tr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = tr; path = tr.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		79A772885CEC51CBE50763D5 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		7B2ED91A17150B3CC9AF1B34 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		823500E668180526497CCEF6 /* backup_commands.rs */ = {isa = PBXFileReference; path = backup_commands.rs; sourceTree = "<group>"; };
 		85CE6E0ACCAE9E426C9EA2D5 /* models.rs */ = {isa = PBXFileReference; path = models.rs; sourceTree = "<group>"; };
 		88FF31CA08D47711A24A5EFA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		8A8801852228AD2CFBF00A22 /* token_commands.rs */ = {isa = PBXFileReference; path = token_commands.rs; sourceTree = "<group>"; };
 		9002B8AF9B8E23953181BD7A /* steamguard_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = steamguard_iOS.entitlements; sourceTree = "<group>"; };
+		97D9991A7A4843126070878F /* backup_external.rs */ = {isa = PBXFileReference; path = backup_external.rs; sourceTree = "<group>"; };
 		9879DCF46B11FA0130DE4A7B /* steamguard_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = steamguard_iOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		9A83A58082ADABF5189F6AC3 /* qr.rs */ = {isa = PBXFileReference; path = qr.rs; sourceTree = "<group>"; };
+		9E50521EC069D192E7732095 /* avatar.rs */ = {isa = PBXFileReference; path = avatar.rs; sourceTree = "<group>"; };
+		A00F4F6669F3D7975038A10C /* ru */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ru; path = ru.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		A1EB1137DB95EBB7ED55FAA2 /* steam.rs */ = {isa = PBXFileReference; path = steam.rs; sourceTree = "<group>"; };
+		A8C171A44F0D9118AD1C0337 /* hi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = hi; path = hi.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		ACFFDAC804592F65093D46F0 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
+		BA931B45B3DC690573DF6AF1 /* network.rs */ = {isa = PBXFileReference; path = network.rs; sourceTree = "<group>"; };
+		BCA6346174669BBE8871EB44 /* id */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = id; path = id.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		BCF1DF4A6D57BAFB8F73CB9E /* ar */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ar; path = ar.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		C14A14D2901FD4477CCE7155 /* encrypted.rs */ = {isa = PBXFileReference; path = encrypted.rs; sourceTree = "<group>"; };
+		C3E6F3B250BA20DC421B9F26 /* vi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = vi; path = vi.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		CB19033B45C2D0A44A1FC3DE /* backup.rs */ = {isa = PBXFileReference; path = backup.rs; sourceTree = "<group>"; };
+		CDBD17A4B11C9303B5F3E161 /* migration.rs */ = {isa = PBXFileReference; path = migration.rs; sourceTree = "<group>"; };
+		D5F149385EED6F4B2B12C8C9 /* quick_access.rs */ = {isa = PBXFileReference; path = quick_access.rs; sourceTree = "<group>"; };
 		E2C3FB91D281BCA11BA1EAFF /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
 		E74C86C7F6D1DA0416D59D68 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		EB34D19413C564EBDBD7B3EE /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
+		F2D226877D6E62677045F527 /* pt-BR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
+		F55F8069CC36E4958A01F078 /* android_proxy.rs */ = {isa = PBXFileReference; path = android_proxy.rs; sourceTree = "<group>"; };
 		F9475544FF6C6647E1C9667F /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
 		FAF098470FAFE01D451F7C07 /* import.rs */ = {isa = PBXFileReference; path = import.rs; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -83,6 +117,15 @@
 			path = steamguard_iOS;
 			sourceTree = "<group>";
 		};
+		1B454C5297970D8771F7D342 /* locales */ = {
+			isa = PBXGroup;
+			children = (
+				33AFAD0091E525B43C8949A5 /* InfoPlist.strings */,
+			);
+			name = locales;
+			path = ../../locales;
+			sourceTree = "<group>";
+		};
 		2676B582BAA3438AD6C40616 = {
 			isa = PBXGroup;
 			children = (
@@ -90,6 +133,7 @@
 				88FF31CA08D47711A24A5EFA /* Assets.xcassets */,
 				79A772885CEC51CBE50763D5 /* LaunchScreen.storyboard */,
 				2975C0D1CA9AD8CED56B96D9 /* Externals */,
+				1B454C5297970D8771F7D342 /* locales */,
 				09E5498F62C79D00912AAF7B /* Sources */,
 				58C15663BCA2AA91194F0F83 /* src */,
 				0E7B72E6D0B1ECA268BEA004 /* steamguard_iOS */,
@@ -105,16 +149,49 @@
 			path = Externals;
 			sourceTree = "<group>";
 		};
+		4767DED8145BC1024F57D42E /* sync */ = {
+			isa = PBXGroup;
+			children = (
+				5512DABEC2BC1491A6078F53 /* commands.rs */,
+				29178D8CF5D415D4C7DA0103 /* storage.rs */,
+			);
+			path = sync;
+			sourceTree = "<group>";
+		};
+		4E4B4DD6ADAB9D2ABB9FEE16 /* import */ = {
+			isa = PBXGroup;
+			children = (
+				C14A14D2901FD4477CCE7155 /* encrypted.rs */,
+				260E4DDEBA5538010FAA5211 /* foreign.rs */,
+				9A83A58082ADABF5189F6AC3 /* qr.rs */,
+			);
+			path = import;
+			sourceTree = "<group>";
+		};
 		58C15663BCA2AA91194F0F83 /* src */ = {
 			isa = PBXGroup;
 			children = (
+				F55F8069CC36E4958A01F078 /* android_proxy.rs */,
+				9E50521EC069D192E7732095 /* avatar.rs */,
+				823500E668180526497CCEF6 /* backup_commands.rs */,
+				97D9991A7A4843126070878F /* backup_external.rs */,
+				CB19033B45C2D0A44A1FC3DE /* backup.rs */,
+				421C381D9C04ABF36A68756F /* desktop.rs */,
 				FAF098470FAFE01D451F7C07 /* import.rs */,
 				56B38E214BAE2398523CA62F /* lib.rs */,
 				1599A30335C7A659E9092CE6 /* main.rs */,
+				CDBD17A4B11C9303B5F3E161 /* migration.rs */,
 				85CE6E0ACCAE9E426C9EA2D5 /* models.rs */,
+				BA931B45B3DC690573DF6AF1 /* network.rs */,
 				0D10DB31B6DF13F60D6787E7 /* otp.rs */,
+				D5F149385EED6F4B2B12C8C9 /* quick_access.rs */,
 				A1EB1137DB95EBB7ED55FAA2 /* steam.rs */,
+				23D6A96700EA4DE14A8B55F1 /* sync.rs */,
+				8A8801852228AD2CFBF00A22 /* token_commands.rs */,
+				48BF949918DFDBD2AB3C8C10 /* updates.rs */,
 				477E4295954135194379612A /* vault.rs */,
+				4E4B4DD6ADAB9D2ABB9FEE16 /* import */,
+				4767DED8145BC1024F57D42E /* sync */,
 			);
 			name = src;
 			path = ../../src;
@@ -160,6 +237,20 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		"TEMP_65CD0F24-10F7-4021-BC14-358A91E0DEB1" /* x86_64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = x86_64;
+			sourceTree = "<group>";
+		};
+		"TEMP_E01CE1B0-CEE9-45A9-A1FE-00FBB1C61FE0" /* arm64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = arm64;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -199,7 +290,22 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				Base,
+				ar,
+				de,
 				en,
+				es,
+				fr,
+				hi,
+				id,
+				it,
+				ja,
+				ko,
+				"pt-BR",
+				ru,
+				tr,
+				vi,
+				"zh-Hans",
+				"zh-Hant",
 			);
 			mainGroup = 2676B582BAA3438AD6C40616;
 			minimizedProjectReferenceProxies = 1;
@@ -219,6 +325,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				80B628F2A5A8E0CB3AA519BD /* Assets.xcassets in Resources */,
+				5E484823048A0C0E103FB7F7 /* InfoPlist.strings in Resources */,
 				82004ED01930C9530403C82C /* LaunchScreen.storyboard in Resources */,
 				AD63C8D3A8F9B3593A3849D2 /* assets in Resources */,
 			);
@@ -261,6 +368,32 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXVariantGroup section */
+		33AFAD0091E525B43C8949A5 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				BCF1DF4A6D57BAFB8F73CB9E /* ar */,
+				6BAE829FD77540FB6158C677 /* de */,
+				2C96E912F71C9C7337967AEA /* en */,
+				3C2860C6F617424E0B7D6E42 /* es */,
+				6C5DAA4F6B9F7CDBDC16C677 /* fr */,
+				A8C171A44F0D9118AD1C0337 /* hi */,
+				BCA6346174669BBE8871EB44 /* id */,
+				2E065F8316790840EF1C4D1E /* it */,
+				2390A1682FDF2F35CB20391A /* ja */,
+				503D01880653F6990142C865 /* ko */,
+				F2D226877D6E62677045F527 /* pt-BR */,
+				A00F4F6669F3D7975038A10C /* ru */,
+				6CD3A23DECDFD37918A69AD3 /* tr */,
+				C3E6F3B250BA20DC421B9F26 /* vi */,
+				1FEAB2D785C813BF7FCCC360 /* zh-Hans */,
+				5C79DFB6DEC30F8C31B84B18 /* zh-Hant */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
 /* Begin XCBuildConfiguration section */
 		0018C35B440E0FB49A8644AF /* release */ = {
 			isa = XCBuildConfiguration;
@@ -286,7 +419,7 @@
 				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.kasen.steamguard;
-				PRODUCT_NAME = "SteamGuard";
+				PRODUCT_NAME = SteamGuard;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;
@@ -373,7 +506,7 @@
 				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.kasen.steamguard;
-				PRODUCT_NAME = "SteamGuard";
+				PRODUCT_NAME = SteamGuard;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;

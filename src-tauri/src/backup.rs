@@ -17,9 +17,56 @@ pub struct BackupEntry {
     #[serde(skip)]
     order: u128,
 }
-pub fn directory(vault: &Path) -> Result<PathBuf, String> {
-    Ok(vault.parent().ok_or("备份目录无效")?.join("backups"))
+fn configuration(vault: &Path) -> Result<PathBuf, String> {
+    Ok(vault
+        .parent()
+        .ok_or("备份目录无效")?
+        .join("device-only/backup-directory.json"))
 }
+pub fn directory(vault: &Path) -> Result<PathBuf, String> {
+    let config = configuration(vault)?;
+    match fs::read(config) {
+        Ok(bytes) => {
+            let value: String = serde_json::from_slice(&bytes).map_err(|_| "备份目录设置无效")?;
+            let path = PathBuf::from(value);
+            if !path.is_absolute() {
+                return Err("备份目录必须是绝对路径".into());
+            }
+            Ok(path)
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            Ok(vault.parent().ok_or("备份目录无效")?.join("backups"))
+        }
+        Err(_) => Err("无法读取备份目录设置".into()),
+    }
+}
+pub fn configure_directory(vault: &Path, path: Option<&str>) -> Result<(), String> {
+    #[cfg(mobile)]
+    if path.is_some() {
+        return Err("移动端外部目录需要系统文件授权，请先使用导出备份".into());
+    }
+    let config = configuration(vault)?;
+    if let Some(value) = path {
+        let directory = PathBuf::from(value);
+        if !directory.is_absolute() || !directory.is_dir() {
+            return Err("请选择存在的绝对目录路径".into());
+        }
+        let probe = directory.join(format!(".steamguard-write-check-{}", uuid::Uuid::new_v4()));
+        atomic(&probe, b"SteamGuard encrypted backup directory")?;
+        fs::remove_file(&probe).map_err(|_| "无法清理目录写入检查")?;
+        atomic(
+            &config,
+            &serde_json::to_vec(&directory.to_string_lossy()).map_err(|_| "无法编码备份目录")?,
+        )
+    } else {
+        match fs::remove_file(config) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(_) => Err("无法重置备份目录".into()),
+        }
+    }
+}
+
 fn atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
     crate::quick_access::write_private(path, bytes)
 }
@@ -122,6 +169,7 @@ pub fn record(
             fs::remove_file(dir.join(&old.name)).map_err(|_| "备份已保存，但旧快照清理失败")?;
         }
     }
+    crate::backup_external::queue(vault);
     Ok(())
 }
 #[cfg(test)]

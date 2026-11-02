@@ -6,6 +6,7 @@ links = "tauri-plugin-quick-access"
 license = "GPL-3.0-only"
 
 [dependencies]
+base64 = "0.22"
 tauri = "2"
 serde = { version = "1", features = ["derive"] }
 
