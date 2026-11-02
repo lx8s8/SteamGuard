@@ -24,6 +24,9 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-quick-access = { path = "plugins/quick-access" }
 tauri-plugin-cloud-auth = { path = "plugins/cloud-auth" }
+tauri-plugin-private-clipboard = { path = "plugins/private-clipboard" }
+tauri-plugin-system-entry = { path = "plugins/system-entry" }
+tauri-plugin-icloud-sync = { path = "plugins/icloud-sync" }
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 serde = { version = "1", features = ["derive"] }

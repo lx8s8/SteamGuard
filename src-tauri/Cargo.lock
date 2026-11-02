@@ -4862,8 +4862,11 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-fs",
  "tauri-plugin-global-shortcut",
+ "tauri-plugin-icloud-sync",
  "tauri-plugin-opener",
+ "tauri-plugin-private-clipboard",
  "tauri-plugin-quick-access",
+ "tauri-plugin-system-entry",
  "tauri-plugin-updater",
  "tokio",
  "tokio-util",
@@ -5318,6 +5321,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-plugin-icloud-sync"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "cc",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+]
+
+[[package]]
 name = "tauri-plugin-opener"
 version = "2.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5340,6 +5355,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-plugin-private-clipboard"
+version = "0.1.0"
+dependencies = [
+ "cc",
+ "serde",
+ "tauri",
+ "tauri-plugin",
+ "windows",
+ "zeroize",
+]
+
+[[package]]
 name = "tauri-plugin-quick-access"
 version = "0.1.0"
 dependencies = [
@@ -5354,6 +5381,16 @@ dependencies = [
  "tauri-plugin",
  "windows",
  "zeroize",
+]
+
+[[package]]
+name = "tauri-plugin-system-entry"
+version = "0.1.0"
+dependencies = [
+ "plist",
+ "serde",
+ "tauri",
+ "tauri-plugin",
 ]
 
 [[package]]

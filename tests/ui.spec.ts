@@ -72,7 +72,7 @@ async function nativeFixture(page: Page) {
       configured: !!syncScenario,
       active: true,
       busy: false,
-      endpoint: "https://dav.example.test/very/long/webdav/path/",
+      endpoint: syncScenario === "icloud" ? "steamguard-icloud://default/" : "https://dav.example.test/very/long/webdav/path/",
       username: "synthetic@example.test",
       libraryId: "2971a71b-042c-4f28-b8ae-3c02b713f0f0",
       dirty: false,
@@ -135,7 +135,15 @@ async function nativeFixture(page: Page) {
     const externalBackupStatus = () => ({ supported: params.has("externalBackup"), configured: externalBackup, label: externalBackup ? "DeviceBackups" : "" });
     if (params.has("generic")) tokens.splice(0, 2);
     let resident = true;
+    let entriesEnabled = params.has("entryRequest");
+    let entryIds: string[] = entriesEnabled ? ["totp-test"] : [];
+    let entryRequest: { action: string; id: string | null } | null = entriesEnabled ? { action: "copy", id: "totp-test" } : null;
     const commands: { command: string; args: Record<string, unknown> }[] = [];
+    const privateDetailsStore = new Map<string, { revision: string; notes: string; recoveryCodes: {id:string;code:string;used:boolean}[] }>();
+    const privateDetails = (id: string) => {
+      if (!privateDetailsStore.has(id)) privateDetailsStore.set(id,{revision:"1",notes:"",recoveryCodes:[]});
+      return privateDetailsStore.get(id)!;
+    };
     const qrPreviews = new Map<
       string,
       { name: string; issuer: string; kind: string }[]
@@ -149,6 +157,20 @@ async function nativeFixture(page: Page) {
           args = JSON.parse(JSON.stringify(args));
           commands.push({ command, args });
           switch (command) {
+            case "system_entries_status":
+              return { supported: params.has("systemEntries"), sharedAvailable: params.get("systemEntries") !== "noGroup", enabled: entriesEnabled, selectedIds: entryIds };
+            case "system_entries_configure":
+              if (locked || previewActive) throw new Error("请先解锁保险库");
+              entriesEnabled = !!args.enabled;
+              entryIds = args.selectedIds as string[];
+              return { supported: true, sharedAvailable: params.get("systemEntries") !== "noGroup", enabled: entriesEnabled, selectedIds: entryIds };
+            case "system_entries_refresh": return;
+            case "system_entry_take": {
+              if (locked || previewActive) throw new Error("请先解锁保险库");
+              const result = entryRequest;
+              entryRequest = null;
+              return result;
+            }
             case "desktop_settings":
               return { supported: params.has("desktop"), resident };
             case "desktop_configure":
@@ -182,12 +204,54 @@ async function nativeFixture(page: Page) {
               return;
             }
             case "token_codes": return { revision: "fixture-revision", codes: tokens.map(t => ({ id: t.id, code: t.code, remaining: t.remaining, period: t.period })) };
-            case "token_current_code": {
+            case "clipboard_settings": return { clearAfter: (window as any).__clipboardAfter ?? 30 };
+            case "clipboard_configure": {
+              if (locked) throw new Error("请先解锁保险库");
+              if (![0, 15, 30, 60, 120].includes(Number(args.clearAfter))) throw new Error("剪贴板清除时间无效");
+              (window as any).__clipboardAfter = args.clearAfter;
+              return { clearAfter: args.clearAfter };
+            }
+            case "clipboard_housekeeping": return;
+            case "token_current_code":
+            case "token_copy": {
               if (locked && !previewActive) throw new Error("保险库已锁定");
               const token = tokens.find(t => t.id === args.id);
               if (!token || (token as any).hotpReadOnly) throw new Error("无法读取验证码");
-              if ((window as any).__deferCurrentCode) return new Promise(resolve => Object.assign(window, { __resolveCurrentCode: () => resolve({ code: "654321", remaining: 28, period: token.period }) }));
-              return { code: "654321", remaining: 28, period: token.period };
+              const finish = async () => {
+                if (locked && !previewActive) throw new Error("保险库已锁定");
+                if (command === "token_copy") await navigator.clipboard.writeText("654321");
+                return { code: "654321", remaining: 28, period: token.period };
+              };
+              if ((window as any).__deferCurrentCode) return new Promise((resolve, reject) => Object.assign(window, { __resolveCurrentCode: () => { void finish().then(resolve, reject); } }));
+              return finish();
+            }
+            case "token_private_details": {
+              if (locked || previewActive) throw new Error("请先解锁保险库");
+              return JSON.parse(JSON.stringify(privateDetails(String(args.id))));
+            }
+            case "token_private_details_update": {
+              if (locked || previewActive) throw new Error("请先解锁保险库");
+              const current=privateDetails(String(args.id)), input=args.input as any;
+              if (input.revision!==current.revision || params.has("staleDetails")) throw new Error("备注或备用恢复码已更新，请重新打开后编辑");
+              if(new Set(input.recoveryCodes.map((item:any)=>item.code)).size!==input.recoveryCodes.length)throw new Error("备用恢复码为空、重复或格式无效");
+              current.notes=input.notes;
+              current.recoveryCodes=input.recoveryCodes.map((item:any,index:number)=>({...item,id:item.id??`recovery-${index}`}));
+              current.revision=String(Number(current.revision)+1);
+              return JSON.parse(JSON.stringify(current));
+            }
+            case "token_recovery_mark": {
+              if (locked || previewActive) throw new Error("请先解锁保险库");
+              const current=privateDetails(String(args.id));
+              if(args.revision!==current.revision)throw new Error("备注或备用恢复码已更新，请重新打开后编辑");
+              current.recoveryCodes.find(item=>item.id===args.recoveryId)!.used=!!args.used;
+              current.revision=String(Number(current.revision)+1);
+              return JSON.parse(JSON.stringify(current));
+            }
+            case "token_recovery_copy": {
+              if (locked || previewActive) throw new Error("请先解锁保险库");
+              const code=privateDetails(String(args.id)).recoveryCodes.find(item=>item.id===args.recoveryId&&!item.used);
+              if(!code)throw new Error("备用恢复码不存在或已标记使用");
+              return;
             }
             case "token_create": {
               const input = args.input as Record<string, any>;
@@ -233,8 +297,10 @@ async function nativeFixture(page: Page) {
               if (params.has("deferCloudAuth")) return new Promise(resolve => Object.assign(window, { __resolveCloudAuth: () => resolve(result) }));
               return result;
             }
+            case "icloud_status": return { supported: params.has("icloud"), configured: params.get("icloud") === "ready", available: params.get("icloud") === "ready", revision: (window as any).__icloudRevision ?? 1 };
+            case "icloud_watch": return;
             case "sync_status":
-              return { ...syncState };
+              return { ...syncState, busy: (window as any).__syncBusy ?? syncState.busy };
             case "sync_discover": {
               const connection = args.connection as
                 | Record<string, unknown>
@@ -2072,7 +2138,7 @@ test("copy obtains the current native code and lightweight polling avoids full t
   const before = await commandCount(page, "list_tokens");
   await page.getByRole("button", { name: "复制 测试 · 通用 OTP 验证码", exact: true }).click();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("654321");
-  expect(await commandCount(page, "token_current_code")).toBe(1);
+  expect(await commandCount(page, "token_copy")).toBe(1);
   await page.waitForTimeout(1200);
   expect(await commandCount(page, "token_codes")).toBeGreaterThan(0);
   expect(await commandCount(page, "list_tokens")).toBeLessThanOrEqual(before + 1); // one initial automatic sync may finish
@@ -2488,4 +2554,160 @@ test("restarting cloud login invalidates an earlier pending result", async ({ pa
   await expect(panel.getByRole("button", { name: "查找已有同步库", exact: true })).toBeDisabled();
   const cancelled = await page.evaluate(() => (window as any).__testCommands.filter((c: any) => c.command === "cloud_auth_cancel"));
   expect(cancelled.some((c: any) => c.args.handle === "synthetic-google-2")).toBe(false);
+});
+
+test("private notes and recovery codes load only on demand and copy through opaque native identifiers", async ({page}) => {
+  await page.getByRole("button",{name:"管理 测试 · 通用 OTP",exact:true}).click();
+  const dialog=page.getByRole("dialog");
+  expect(await commandCount(page,"token_private_details")).toBe(0);
+  await dialog.locator("summary").filter({hasText:"备注与备用恢复码"}).click();
+  await dialog.getByLabel("备注",{exact:true}).fill("Synthetic private note");
+  await dialog.getByLabel("添加恢复码，每行一个",{exact:true}).fill("FIXTURE-CODE-A\nFIXTURE-CODE-B");
+  await dialog.getByRole("button",{name:"保存备注与恢复码",exact:true}).click();
+  await expect(dialog.getByRole("status")).toHaveText("备注与恢复码已保存");
+  await expect(dialog.getByLabel("备用恢复码 1",{exact:true})).toHaveAttribute("type","password");
+  await dialog.getByLabel("恢复码 1 已使用",{exact:true}).check();
+  await expect(dialog.getByLabel("复制恢复码 1",{exact:true})).toBeDisabled();
+  await dialog.getByLabel("复制恢复码 2",{exact:true}).click();
+  expect(await page.evaluate(() => (window as any).__testCommands.find((item:any)=>item.command==="token_recovery_copy").args)).toEqual({id:"totp-test",recoveryId:"recovery-1"});
+  await dialog.getByRole("button",{name:"显示恢复码",exact:true}).click();
+  await expect(dialog.getByLabel("备用恢复码 2",{exact:true})).toHaveAttribute("type","text");
+  await dialog.locator("summary").filter({hasText:"备注与备用恢复码"}).click();
+  await expect(dialog.getByLabel("备注",{exact:true})).toHaveCount(0);
+  await dialog.locator("summary").filter({hasText:"备注与备用恢复码"}).click();
+  await expect(dialog.getByLabel("备注",{exact:true})).toHaveValue("Synthetic private note");
+  await expect(dialog.getByLabel("恢复码 1 已使用",{exact:true})).toBeChecked();
+  await expect(dialog.getByLabel("备用恢复码 2",{exact:true})).toHaveAttribute("type","password");
+});
+
+test("stale private details cannot overwrite a newer value and the editor fits a narrow phone", async ({page}) => {
+  await page.setViewportSize({width:320,height:780});
+  await page.goto('/?staleDetails=1');
+  await page.getByRole("button",{name:"管理 测试 · 通用 OTP",exact:true}).click();
+  const dialog=page.getByRole("dialog");
+  await dialog.locator("summary").filter({hasText:"备注与备用恢复码"}).click();
+  await dialog.getByLabel("备注",{exact:true}).fill("Unsaved local note");
+  await dialog.getByRole("button",{name:"保存备注与恢复码",exact:true}).click();
+  await expect(dialog.getByRole("alert")).toContainText("备注或备用恢复码已更新");
+  await expect(dialog.getByLabel("备注",{exact:true})).toHaveValue("Unsaved local note");
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+});
+
+test("clipboard cleanup preferences save immediately and survive reopening settings", async ({page}) => {
+  await openSettings(page);
+  const timing = page.getByLabel("复制后清除", {exact:true});
+  await expect(timing).toHaveValue("30");
+  await timing.selectOption("60");
+  await expect(timing).toHaveValue("60");
+  expect(await commandCount(page,"clipboard_configure")).toBe(1);
+  await page.getByRole("navigation", {name:"主导航",exact:true}).getByRole("button", {name:"令牌",exact:true}).click();
+  await openSettings(page);
+  await expect(page.getByLabel("复制后清除", {exact:true})).toHaveValue("60");
+  await page.getByLabel("复制后清除", {exact:true}).selectOption("0");
+  await expect(page.getByLabel("复制后清除", {exact:true})).toHaveValue("0");
+});
+
+test("mobile system entries save only selected IDs and limit visible token names to four", async ({page}) => {
+  await page.setViewportSize({width:320,height:780});
+  await page.goto("/?systemEntries=noGroup&manyTokens=1");
+  await openSettings(page);
+  const panel = page.locator(".settings-panel").filter({has:page.getByRole("heading",{name:"手机快捷入口",exact:true})});
+  await panel.getByLabel("在系统快捷入口显示所选令牌",{exact:true}).check();
+  const choices = panel.locator(".token-selection-list input");
+  for(let index=0;index<4;index++) await choices.nth(index).check();
+  await expect(choices.nth(4)).toBeDisabled();
+  await expect(panel).toContainText("未配置时仍可打开应用");
+  await panel.getByRole("button",{name:"保存",exact:true}).click();
+  const request = await page.evaluate(()=>(window as any).__testCommands.find((item:any)=>item.command==="system_entries_configure").args);
+  expect(request).toEqual({enabled:true,selectedIds:["steam-test","steam-offline","totp-test","extra-0"]});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+  await page.getByRole("button",{name:"令牌",exact:true}).first().click();
+  await openSettings(page);
+  await expect(panel.getByLabel("在系统快捷入口显示所选令牌",{exact:true})).toBeChecked();
+  await expect(panel.locator(".token-selection-list input:checked")).toHaveCount(4);
+  await panel.getByLabel("在系统快捷入口显示所选令牌",{exact:true}).uncheck();
+  await panel.getByRole("button",{name:"保存",exact:true}).click();
+  expect(await page.evaluate(()=>(window as any).__testCommands.filter((item:any)=>item.command==="system_entries_configure").at(-1).args.enabled)).toBe(false);
+});
+
+test("a system copy entry focuses the requested token and waits for an explicit Copy click", async ({page,context}) => {
+  await context.grantPermissions(["clipboard-read","clipboard-write"]);
+  await page.evaluate(()=>navigator.clipboard.writeText("system-entry-sentinel"));
+  await page.goto("/?systemEntries=1&entryRequest=copy");
+  await expect(page.locator(".token-card")).toHaveCount(1);
+  await expect(page.locator(".token-card")).toContainText("测试 · 通用 OTP");
+  expect(await commandCount(page,"token_copy")).toBe(0);
+  expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe("system-entry-sentinel");
+  await page.getByRole("button",{name:"复制 测试 · 通用 OTP 验证码",exact:true}).click();
+  expect(await commandCount(page,"token_copy")).toBe(1);
+  expect(await page.evaluate(()=>navigator.clipboard.readText())).toBe("654321");
+});
+
+test("locked and preview sessions preserve system-entry requests until full unlock", async ({page}) => {
+  await page.goto("/?systemEntries=1&entryRequest=copy&quick=preview");
+  await expect(page.getByText("只读预览",{exact:true})).toBeVisible();
+  expect(await commandCount(page,"system_entry_take")).toBe(0);
+  await page.getByRole("button",{name:"交易确认",exact:true}).first().click();
+  await page.getByLabel("解锁密码",{exact:true}).fill("synthetic-vault-password");
+  await page.getByRole("button",{name:"解锁保险库",exact:true}).click();
+  await expect(page.locator(".token-card")).toHaveCount(1);
+  await expect(page.locator(".token-card")).toContainText("测试 · 通用 OTP");
+  expect(await commandCount(page,"token_copy")).toBe(0);
+  expect(await commandCount(page,"steam_confirmation_action")).toBe(0);
+});
+
+
+test("iCloud configuration is gated and never requests a provider password", async ({page}) => {
+  await page.goto("/?icloud=unconfigured");await openSettings(page);const panel=page.locator(".sync-panel");
+  await panel.getByLabel("网盘服务",{exact:true}).selectOption("icloud");
+  await expect(panel.getByText("此安装包尚未配置 iCloud 授权。",{exact:true})).toBeVisible();
+  await expect(panel.getByLabel("网盘应用密码",{exact:true})).toHaveCount(0);
+  await expect(panel.getByRole("button",{name:"查找已有同步库",exact:true})).toBeDisabled();
+  expect(await commandCount(page,"sync_discover")).toBe(0);
+});
+
+test("iCloud joins an existing encrypted library using only its independent sync password", async ({page}) => {
+  await page.goto("/?icloud=ready");await openSettings(page);const panel=page.locator(".sync-panel");
+  await panel.getByText("从另一台设备的配置二维码加入",{exact:true}).click();
+  await panel.getByLabel("或粘贴同步配置",{exact:true}).fill(JSON.stringify({version:1,endpoint:"steamguard-icloud://default/",username:"iCloud Drive",libraryId:"2971a71b-042c-4f28-b8ae-3c02b713f0f0"}));
+  await panel.getByRole("button",{name:"读取配置",exact:true}).click();
+  await expect(panel.getByLabel("网盘服务",{exact:true})).toHaveValue("icloud");
+  await expect(panel.getByLabel("网盘应用密码",{exact:true})).toHaveCount(0);
+  await panel.getByLabel("独立同步密码",{exact:true}).fill("synthetic-sync-password");
+  await panel.getByRole("button",{name:"加入并同步",exact:true}).click();
+  const request=await page.evaluate(()=>(window as any).__testCommands.find((c:any)=>c.command==="sync_connect").args.connection);
+  expect(request).toMatchObject({endpoint:"steamguard-icloud://default/",username:"iCloud Drive",password:"",libraryId:"2971a71b-042c-4f28-b8ae-3c02b713f0f0"});
+  await panel.getByText("同步库名称与连接设置",{exact:true}).click();
+  await expect(panel.getByRole("button",{name:"更新网盘应用密码",exact:true})).toHaveCount(0);
+  await expect(panel.getByText("系统 iCloud 账号",{exact:true})).toBeVisible();
+});
+
+test("iCloud metadata changes trigger foreground sync and locking stops its native watch", async ({page}) => {
+  await page.goto("/?icloud=ready&sync=icloud");
+  await expect.poll(async()=>page.evaluate(()=>(window as any).__testCommands.filter((c:any)=>c.command==="icloud_watch"&&c.args.enabled).length)).toBeGreaterThan(0);
+  await expect.poll(()=>commandCount(page,"sync_run")).toBeGreaterThan(0);
+  const before=await commandCount(page,"sync_run");
+  await page.evaluate(()=>{(window as any).__icloudRevision=2;});
+  await expect.poll(()=>commandCount(page,"sync_run"),{timeout:7000}).toBeGreaterThan(before);
+  await openSettings(page);
+  await page.getByRole("button",{name:"锁定保险库",exact:true}).click();
+  await expect.poll(async()=>page.evaluate(()=>(window as any).__testCommands.filter((c:any)=>c.command==="icloud_watch").at(-1)?.args.enabled)).toBe(false);
+  const stopped=await commandCount(page,"sync_run");await page.waitForTimeout(3300);expect(await commandCount(page,"sync_run")).toBe(stopped);
+});
+
+test("iCloud retries a metadata change skipped while busy and stops watching when hidden", async ({page}) => {
+  await page.goto("/?icloud=ready&sync=icloud");
+  await expect.poll(async()=>page.evaluate(()=>(window as any).__testCommands.filter((c:any)=>c.command==="icloud_watch"&&c.args.enabled).length)).toBeGreaterThan(0);
+  await page.waitForTimeout(2300); // Let the independent startup sync finish.
+  const before=await commandCount(page,"sync_run");
+  await page.evaluate(()=>{Object.assign(window,{__syncBusy:true,__icloudRevision:2});});
+  await page.waitForTimeout(3300);
+  expect(await commandCount(page,"sync_run")).toBe(before);
+  await page.evaluate(()=>{(window as any).__syncBusy=false;});
+  await expect.poll(()=>commandCount(page,"sync_run"),{timeout:7000}).toBeGreaterThan(before);
+  await page.evaluate(()=>{
+    Object.defineProperty(document,"hidden",{configurable:true,get:()=>true});
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  await expect.poll(async()=>page.evaluate(()=>(window as any).__testCommands.filter((c:any)=>c.command==="icloud_watch").at(-1)?.args.enabled)).toBe(false);
 });

@@ -243,6 +243,9 @@ fn cloud_download_request(
 fn error(e: opendal::Error) -> String {
     let mut cause: Option<&(dyn std::error::Error + 'static)> = Some(&e);
     while let Some(current) = cause {
+        if let Some(f) = current.downcast_ref::<tauri_plugin_icloud_sync::Failure>() {
+            return f.to_string();
+        }
         if let Some(f) = current.downcast_ref::<HttpFailure>() {
             let reason = match f.status {
                 401 | 403 => "网盘拒绝访问，请检查登录凭据和目录权限",
@@ -274,6 +277,9 @@ fn error(e: opendal::Error) -> String {
     .into()
 }
 pub fn validate_endpoint(endpoint: &str) -> Result<String, String> {
+    if super::icloud::matches(endpoint) {
+        return Ok(endpoint.into());
+    }
     if super::cloud::provider(endpoint).is_some() {
         return Ok(endpoint.into());
     }

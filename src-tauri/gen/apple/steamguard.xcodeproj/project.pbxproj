@@ -7,66 +7,126 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		00D1EFB28285E192C35FA18B /* SystemEntryIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3990BAC5C8C9440023A35B67 /* SystemEntryIntents.swift */; };
 		0156C4749127F16430A57A9E /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = ACFFDAC804592F65093D46F0 /* CoreGraphics.framework */; };
 		02B76E34825EA74E48F1A792 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB34D19413C564EBDBD7B3EE /* MetalKit.framework */; };
+		0BC934377E6EBAD9DF3BE0B2 /* TokenWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5104B277AB8AAF1C1AD62F10 /* TokenWidget.swift */; };
+		33E714B8CFE2AA3A5CA2964A /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 3D15B62DAB380060F66F0DBF /* Localizable.strings */; };
 		4F7B75D01627ED60286B4B2F /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7B2ED91A17150B3CC9AF1B34 /* Metal.framework */; };
 		51E65A4D6B1844B8561BD8DA /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3724307503CA23CC07215493 /* WebKit.framework */; };
 		5E484823048A0C0E103FB7F7 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 33AFAD0091E525B43C8949A5 /* InfoPlist.strings */; };
 		656CF3BA70C347CBFF4E60EB /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5691485DE921062A0EDA2C94 /* Security.framework */; };
+		6662D7C171CBB54438CB1366 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 3D15B62DAB380060F66F0DBF /* Localizable.strings */; };
+		6DA50A114CFDE1114A849C52 /* SystemEntryIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3990BAC5C8C9440023A35B67 /* SystemEntryIntents.swift */; };
 		80B628F2A5A8E0CB3AA519BD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 88FF31CA08D47711A24A5EFA /* Assets.xcassets */; };
 		82004ED01930C9530403C82C /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 79A772885CEC51CBE50763D5 /* LaunchScreen.storyboard */; };
+		849C83E8A55482D8C0A15E54 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C0F69822A49D5C11042679FD /* SwiftUI.framework */; };
 		8EB760EA6310858C99C1FBFC /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = F9475544FF6C6647E1C9667F /* main.mm */; };
 		AD63C8D3A8F9B3593A3849D2 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 237C4C65A57A5A76059ABB07 /* assets */; };
+		C1C76AA087F32D3F042FD59E /* AppShortcuts.strings in Resources */ = {isa = PBXBuildFile; fileRef = E7F090C9882717CF75619EDE /* AppShortcuts.strings */; };
 		D2D0ED74F917FFEE5D7D58AA /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E74C86C7F6D1DA0416D59D68 /* UIKit.framework */; };
 		DBB7CCB959E71139D3D23D5E /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5A8DDCA91393CACA5C89EBCD /* QuartzCore.framework */; };
+		EA2B6B16E3B392FD1F343186 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 49F4FBADCD0C11C45D0F0ADD /* WidgetKit.framework */; };
+		EC1CE4C6C4BE5D2CBAD8630A /* AppShortcuts.strings in Resources */ = {isa = PBXBuildFile; fileRef = E7F090C9882717CF75619EDE /* AppShortcuts.strings */; };
 		F1C91D25282B1A2C8912E28E /* libapp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E2C3FB91D281BCA11BA1EAFF /* libapp.a */; };
+		FB6E3B6B0F3A253D53FDD089 /* SteamGuardWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7F627F4C57C88498576B0BED /* SteamGuardWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		1EE20AD417ED46A22E8DE840 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 26E19A586BF7D57D804E87F3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3B62321FC102CED3D89E19F6;
+			remoteInfo = SteamGuardWidgets;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		055E29665E2BF7DAFD307634 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				FB6E3B6B0F3A253D53FDD089 /* SteamGuardWidgets.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		04D5C4BD0A800F5E5266710D /* memorypack.rs */ = {isa = PBXFileReference; path = memorypack.rs; sourceTree = "<group>"; };
+		0777969D4C80359511E1BF4B /* pt-BR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		08E3CF0A3C34C3B0DB7AE820 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		0A3469152261CF5241D07C97 /* ru */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ru; path = ru.lproj/Localizable.strings; sourceTree = "<group>"; };
 		0D10DB31B6DF13F60D6787E7 /* otp.rs */ = {isa = PBXFileReference; path = otp.rs; sourceTree = "<group>"; };
 		110B9164A3A93FAE6199AC62 /* MemoryPackFixture.csproj */ = {isa = PBXFileReference; path = MemoryPackFixture.csproj; sourceTree = "<group>"; };
+		14A81D06A73E3C8BE0A6D736 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/Localizable.strings; sourceTree = "<group>"; };
 		1599A30335C7A659E9092CE6 /* main.rs */ = {isa = PBXFileReference; path = main.rs; sourceTree = "<group>"; };
+		19825379A3DDF43CA64310C9 /* tr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = tr; path = tr.lproj/Localizable.strings; sourceTree = "<group>"; };
 		1A203E1DDA61115EA89D98F4 /* winauth-password.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = "winauth-password.xml"; sourceTree = "<group>"; };
 		1FEAB2D785C813BF7FCCC360 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
+		22AC6667D919E30C09822BF2 /* vi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = vi; path = vi.lproj/Localizable.strings; sourceTree = "<group>"; };
 		2338EB4E7A0D17FCE1D87273 /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
 		237C4C65A57A5A76059ABB07 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
 		2390A1682FDF2F35CB20391A /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		23D6A96700EA4DE14A8B55F1 /* sync.rs */ = {isa = PBXFileReference; path = sync.rs; sourceTree = "<group>"; };
 		260E4DDEBA5538010FAA5211 /* foreign.rs */ = {isa = PBXFileReference; path = foreign.rs; sourceTree = "<group>"; };
 		29178D8CF5D415D4C7DA0103 /* storage.rs */ = {isa = PBXFileReference; path = storage.rs; sourceTree = "<group>"; };
+		2A792D1EC20AC8C2DFBC7A35 /* id */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = id; path = id.lproj/Localizable.strings; sourceTree = "<group>"; };
 		2C96E912F71C9C7337967AEA /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		2DAB6857768C4619F54CBD80 /* hi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = hi; path = hi.lproj/Localizable.strings; sourceTree = "<group>"; };
 		2E065F8316790840EF1C4D1E /* it */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = it; path = it.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		3198E54CD665DEF44DE1675A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		31DE1BA812BE1328F5C32409 /* it */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = it; path = it.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		34765ED3B2577E6E09CA0078 /* ru */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ru; path = ru.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
 		3724307503CA23CC07215493 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
 		38AD1D483E9B7B1558AF67F5 /* memorypack-dto-list.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "memorypack-dto-list.bin"; sourceTree = "<group>"; };
+		3990BAC5C8C9440023A35B67 /* SystemEntryIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemEntryIntents.swift; sourceTree = "<group>"; };
 		39B775D721475FFFB18B09FC /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		3C2860C6F617424E0B7D6E42 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		3FBB4481492C4931332F4F79 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		3FD6224D5BDEC6BAE1D4C305 /* it */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = it; path = it.lproj/Localizable.strings; sourceTree = "<group>"; };
 		421C381D9C04ABF36A68756F /* desktop.rs */ = {isa = PBXFileReference; path = desktop.rs; sourceTree = "<group>"; };
+		43BF3F0DE4318B366B1D5B08 /* id */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = id; path = id.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		461A3D157CC6F3C2EEE5C087 /* winauth-v2-unverified.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = "winauth-v2-unverified.xml"; sourceTree = "<group>"; };
 		477E4295954135194379612A /* vault.rs */ = {isa = PBXFileReference; path = vault.rs; sourceTree = "<group>"; };
 		48BF949918DFDBD2AB3C8C10 /* updates.rs */ = {isa = PBXFileReference; path = updates.rs; sourceTree = "<group>"; };
+		49F4FBADCD0C11C45D0F0ADD /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		4EB6B94F0B1B9ACBE02047D1 /* MemoryPackFixture.cs */ = {isa = PBXFileReference; path = MemoryPackFixture.cs; sourceTree = "<group>"; };
 		4EBC0D1C147B0A6783804953 /* watt-v1.dat.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "watt-v1.dat.txt"; sourceTree = "<group>"; };
 		503D01880653F6990142C865 /* ko */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ko; path = ko.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		5104B277AB8AAF1C1AD62F10 /* TokenWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenWidget.swift; sourceTree = "<group>"; };
+		5206FFFD16EF9B0B59138703 /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "zh-Hant.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		5512DABEC2BC1491A6078F53 /* commands.rs */ = {isa = PBXFileReference; path = commands.rs; sourceTree = "<group>"; };
 		5691485DE921062A0EDA2C94 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		56B38E214BAE2398523CA62F /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
 		591D2B56B055CCEE2FD66F4F /* LegacyFixture.java */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.java; path = LegacyFixture.java; sourceTree = "<group>"; };
+		5923CB31F72ED32CCD02B2DC /* system_entries.rs */ = {isa = PBXFileReference; path = system_entries.rs; sourceTree = "<group>"; };
 		5A8DDCA91393CACA5C89EBCD /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 		5C79DFB6DEC30F8C31B84B18 /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "zh-Hant.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
+		5D914565C133E8B70391FEF0 /* ko */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ko; path = ko.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
 		6BAE829FD77540FB6158C677 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		6C5DAA4F6B9F7CDBDC16C677 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		6CD3A23DECDFD37918A69AD3 /* tr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = tr; path = tr.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		6FB66FD1067ADBF0D2777C11 /* cloud.rs */ = {isa = PBXFileReference; path = cloud.rs; sourceTree = "<group>"; };
+		749FC3E8F72AED97E581D874 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
 		77895C0A954A7C36CCD41202 /* memorypack-dto.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "memorypack-dto.bin"; sourceTree = "<group>"; };
 		79A772885CEC51CBE50763D5 /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		7B2ED91A17150B3CC9AF1B34 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		7F627F4C57C88498576B0BED /* SteamGuardWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = SteamGuardWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		823500E668180526497CCEF6 /* backup_commands.rs */ = {isa = PBXFileReference; path = backup_commands.rs; sourceTree = "<group>"; };
 		85CE6E0ACCAE9E426C9EA2D5 /* models.rs */ = {isa = PBXFileReference; path = models.rs; sourceTree = "<group>"; };
+		8602F92219A08E64160416B1 /* de */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = de; path = de.lproj/Localizable.strings; sourceTree = "<group>"; };
+		88EBD46CBA2C7599DD417DB4 /* ko */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ko; path = ko.lproj/Localizable.strings; sourceTree = "<group>"; };
 		88FF31CA08D47711A24A5EFA /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		8A8801852228AD2CFBF00A22 /* token_commands.rs */ = {isa = PBXFileReference; path = token_commands.rs; sourceTree = "<group>"; };
 		8AA5B628B1EF07EEF8C9F63C /* memorypack-account.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "memorypack-account.bin"; sourceTree = "<group>"; };
+		8DF1AD6F266D5B1C53481747 /* hi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = hi; path = hi.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
 		8ED28250856FF4D2B095F47F /* legacy.rs */ = {isa = PBXFileReference; path = legacy.rs; sourceTree = "<group>"; };
+		8F163B98253D0073F511F93C /* vi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = vi; path = vi.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
 		9002B8AF9B8E23953181BD7A /* steamguard_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = steamguard_iOS.entitlements; sourceTree = "<group>"; };
 		911402B6FA76BF5B56A1F518 /* memorypack-accounts.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "memorypack-accounts.bin"; sourceTree = "<group>"; };
 		97D9991A7A4843126070878F /* backup_external.rs */ = {isa = PBXFileReference; path = backup_external.rs; sourceTree = "<group>"; };
@@ -76,24 +136,40 @@
 		A00F4F6669F3D7975038A10C /* ru */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ru; path = ru.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		A1EB1137DB95EBB7ED55FAA2 /* steam.rs */ = {isa = PBXFileReference; path = steam.rs; sourceTree = "<group>"; };
 		A8C171A44F0D9118AD1C0337 /* hi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = hi; path = hi.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		ABA1E3827CCCB319A5D0564C /* zh-Hant */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hant"; path = "zh-Hant.lproj/AppShortcuts.strings"; sourceTree = "<group>"; };
 		ACFFDAC804592F65093D46F0 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
+		B0449E483AFC132DBF442FEC /* clipboard.rs */ = {isa = PBXFileReference; path = clipboard.rs; sourceTree = "<group>"; };
+		B1DCAE96EB94B5D77F0B8BAC /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		B7F7C46654E593EF43CD17E8 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/AppShortcuts.strings"; sourceTree = "<group>"; };
+		B87784133368E4A61ED41A78 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
 		B9A2027E346C4DF48B980705 /* winauth-record-password.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = "winauth-record-password.xml"; sourceTree = "<group>"; };
 		BA931B45B3DC690573DF6AF1 /* network.rs */ = {isa = PBXFileReference; path = network.rs; sourceTree = "<group>"; };
+		BAE86ABD3611460B0BBD4AB7 /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/Localizable.strings; sourceTree = "<group>"; };
 		BCA6346174669BBE8871EB44 /* id */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = id; path = id.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		BCF1DF4A6D57BAFB8F73CB9E /* ar */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ar; path = ar.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		BF870CF0D1BBD64CFDAE7DE7 /* winauth-v2-password.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = "winauth-v2-password.xml"; sourceTree = "<group>"; };
+		BFCB57911C4137733AD4B9AE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		C0F69822A49D5C11042679FD /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		C132E33EDE8AD9376C524C25 /* ja */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ja; path = ja.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
 		C14A14D2901FD4477CCE7155 /* encrypted.rs */ = {isa = PBXFileReference; path = encrypted.rs; sourceTree = "<group>"; };
 		C3E6F3B250BA20DC421B9F26 /* vi */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = vi; path = vi.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		C7BAF6890958B99D033DF1EB /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		C9826C08A818BB0B79318B32 /* ar */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ar; path = ar.lproj/Localizable.strings; sourceTree = "<group>"; };
 		CB19033B45C2D0A44A1FC3DE /* backup.rs */ = {isa = PBXFileReference; path = backup.rs; sourceTree = "<group>"; };
 		CDBD17A4B11C9303B5F3E161 /* migration.rs */ = {isa = PBXFileReference; path = migration.rs; sourceTree = "<group>"; };
+		D4C5491799B9FF59A4A6461B /* ar */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = ar; path = ar.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
+		D522A9CF82F0948BE02990A6 /* tr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = tr; path = tr.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
 		D5F149385EED6F4B2B12C8C9 /* quick_access.rs */ = {isa = PBXFileReference; path = quick_access.rs; sourceTree = "<group>"; };
 		E2C3FB91D281BCA11BA1EAFF /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
 		E74C86C7F6D1DA0416D59D68 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		E7E7DCAACC5A1007E2D8D3E3 /* icloud.rs */ = {isa = PBXFileReference; path = icloud.rs; sourceTree = "<group>"; };
 		EB34D19413C564EBDBD7B3EE /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
+		EE52E374AECE2740177F8655 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
 		F2D226877D6E62677045F527 /* pt-BR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/InfoPlist.strings"; sourceTree = "<group>"; };
 		F55F8069CC36E4958A01F078 /* android_proxy.rs */ = {isa = PBXFileReference; path = android_proxy.rs; sourceTree = "<group>"; };
 		F9475544FF6C6647E1C9667F /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
 		FAF098470FAFE01D451F7C07 /* import.rs */ = {isa = PBXFileReference; path = import.rs; sourceTree = "<group>"; };
+		FBBF966C8B6101E166F49A08 /* pt-BR */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "pt-BR"; path = "pt-BR.lproj/AppShortcuts.strings"; sourceTree = "<group>"; };
 		FD83DB4511108E38F4B54983 /* memorypack-dto-utf16.bin */ = {isa = PBXFileReference; lastKnownFileType = archive.macbinary; path = "memorypack-dto-utf16.bin"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -110,6 +186,15 @@
 				656CF3BA70C347CBFF4E60EB /* Security.framework in Frameworks */,
 				D2D0ED74F917FFEE5D7D58AA /* UIKit.framework in Frameworks */,
 				51E65A4D6B1844B8561BD8DA /* WebKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B3D6CA42A5B7A28C6ECDD078 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				849C83E8A55482D8C0A15E54 /* SwiftUI.framework in Frameworks */,
+				EA2B6B16E3B392FD1F343186 /* WidgetKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -132,6 +217,7 @@
 				1A203E1DDA61115EA89D98F4 /* winauth-password.xml */,
 				B9A2027E346C4DF48B980705 /* winauth-record-password.xml */,
 				BF870CF0D1BBD64CFDAE7DE7 /* winauth-v2-password.xml */,
+				461A3D157CC6F3C2EEE5C087 /* winauth-v2-unverified.xml */,
 			);
 			path = fixtures;
 			sourceTree = "<group>";
@@ -173,6 +259,8 @@
 				09E5498F62C79D00912AAF7B /* Sources */,
 				58C15663BCA2AA91194F0F83 /* src */,
 				0E7B72E6D0B1ECA268BEA004 /* steamguard_iOS */,
+				57D2AD89AD10DD14C288BFA2 /* SystemEntriesShared */,
+				B3B681835867251C08F4166F /* SystemEntriesWidget */,
 				B7D6863F060A04013D3331C3 /* Frameworks */,
 				99F3BE21A6740DCE8B3ACC23 /* Products */,
 			);
@@ -190,6 +278,7 @@
 			children = (
 				6FB66FD1067ADBF0D2777C11 /* cloud.rs */,
 				5512DABEC2BC1491A6078F53 /* commands.rs */,
+				E7E7DCAACC5A1007E2D8D3E3 /* icloud.rs */,
 				29178D8CF5D415D4C7DA0103 /* storage.rs */,
 			);
 			path = sync;
@@ -208,6 +297,16 @@
 			path = import;
 			sourceTree = "<group>";
 		};
+		57D2AD89AD10DD14C288BFA2 /* SystemEntriesShared */ = {
+			isa = PBXGroup;
+			children = (
+				3990BAC5C8C9440023A35B67 /* SystemEntryIntents.swift */,
+				E7F090C9882717CF75619EDE /* AppShortcuts.strings */,
+				3D15B62DAB380060F66F0DBF /* Localizable.strings */,
+			);
+			path = SystemEntriesShared;
+			sourceTree = "<group>";
+		};
 		58C15663BCA2AA91194F0F83 /* src */ = {
 			isa = PBXGroup;
 			children = (
@@ -216,6 +315,7 @@
 				823500E668180526497CCEF6 /* backup_commands.rs */,
 				97D9991A7A4843126070878F /* backup_external.rs */,
 				CB19033B45C2D0A44A1FC3DE /* backup.rs */,
+				B0449E483AFC132DBF442FEC /* clipboard.rs */,
 				421C381D9C04ABF36A68756F /* desktop.rs */,
 				FAF098470FAFE01D451F7C07 /* import.rs */,
 				56B38E214BAE2398523CA62F /* lib.rs */,
@@ -227,6 +327,7 @@
 				D5F149385EED6F4B2B12C8C9 /* quick_access.rs */,
 				A1EB1137DB95EBB7ED55FAA2 /* steam.rs */,
 				23D6A96700EA4DE14A8B55F1 /* sync.rs */,
+				5923CB31F72ED32CCD02B2DC /* system_entries.rs */,
 				8A8801852228AD2CFBF00A22 /* token_commands.rs */,
 				48BF949918DFDBD2AB3C8C10 /* updates.rs */,
 				477E4295954135194379612A /* vault.rs */,
@@ -258,8 +359,18 @@
 			isa = PBXGroup;
 			children = (
 				9879DCF46B11FA0130DE4A7B /* steamguard_iOS.app */,
+				7F627F4C57C88498576B0BED /* SteamGuardWidgets.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		B3B681835867251C08F4166F /* SystemEntriesWidget */ = {
+			isa = PBXGroup;
+			children = (
+				BFCB57911C4137733AD4B9AE /* Info.plist */,
+				5104B277AB8AAF1C1AD62F10 /* TokenWidget.swift */,
+			);
+			path = SystemEntriesWidget;
 			sourceTree = "<group>";
 		};
 		B7D6863F060A04013D3331C3 /* Frameworks */ = {
@@ -271,20 +382,22 @@
 				EB34D19413C564EBDBD7B3EE /* MetalKit.framework */,
 				5A8DDCA91393CACA5C89EBCD /* QuartzCore.framework */,
 				5691485DE921062A0EDA2C94 /* Security.framework */,
+				C0F69822A49D5C11042679FD /* SwiftUI.framework */,
 				E74C86C7F6D1DA0416D59D68 /* UIKit.framework */,
 				3724307503CA23CC07215493 /* WebKit.framework */,
+				49F4FBADCD0C11C45D0F0ADD /* WidgetKit.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		"TEMP_E01CE1B0-CEE9-45A9-A1FE-00FBB1C61FE0" /* arm64 */ = {
+		"TEMP_23239BE7-ADF7-4AF7-915F-A245EA951C74" /* arm64 */ = {
 			isa = PBXGroup;
 			children = (
 			);
 			path = arm64;
 			sourceTree = "<group>";
 		};
-		"TEMP_65CD0F24-10F7-4021-BC14-358A91E0DEB1" /* x86_64 */ = {
+		"TEMP_B5177C0D-C435-449F-AF71-8212FC71CEB1" /* x86_64 */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -294,6 +407,25 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		3B62321FC102CED3D89E19F6 /* SteamGuardWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C14F1440019AD7639A4C76BD /* Build configuration list for PBXNativeTarget "SteamGuardWidgets" */;
+			buildPhases = (
+				C301D2966F57562E1C609201 /* Sources */,
+				F065EAE518562048B4EDB941 /* Resources */,
+				B3D6CA42A5B7A28C6ECDD078 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SteamGuardWidgets;
+			packageProductDependencies = (
+			);
+			productName = SteamGuardWidgets;
+			productReference = 7F627F4C57C88498576B0BED /* SteamGuardWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		AD39B18823BBCE0DC679D227 /* steamguard_iOS */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 20D972F10750B0B7F2EE0D99 /* Build configuration list for PBXNativeTarget "steamguard_iOS" */;
@@ -302,11 +434,13 @@
 				45F3D918789D12E6B298DE69 /* Sources */,
 				79A5CBD4C406918E359A412C /* Resources */,
 				3FB4D449348D39F9F43A81ED /* Frameworks */,
+				055E29665E2BF7DAFD307634 /* Embed Foundation Extensions */,
 				72B7B5AEF11C1BE5D48E314A /* Copy Google SDK resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				F31F18E2759CA12A5FA73F1B /* PBXTargetDependency */,
 			);
 			name = steamguard_iOS;
 			packageProductDependencies = (
@@ -356,6 +490,7 @@
 			projectRoot = "";
 			targets = (
 				AD39B18823BBCE0DC679D227 /* steamguard_iOS */,
+				3B62321FC102CED3D89E19F6 /* SteamGuardWidgets */,
 			);
 		};
 /* End PBXProject section */
@@ -365,10 +500,21 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				C1C76AA087F32D3F042FD59E /* AppShortcuts.strings in Resources */,
 				80B628F2A5A8E0CB3AA519BD /* Assets.xcassets in Resources */,
 				5E484823048A0C0E103FB7F7 /* InfoPlist.strings in Resources */,
 				82004ED01930C9530403C82C /* LaunchScreen.storyboard in Resources */,
+				6662D7C171CBB54438CB1366 /* Localizable.strings in Resources */,
 				AD63C8D3A8F9B3593A3849D2 /* assets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F065EAE518562048B4EDB941 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EC1CE4C6C4BE5D2CBAD8630A /* AppShortcuts.strings in Resources */,
+				33E714B8CFE2AA3A5CA2964A /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -422,11 +568,29 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				00D1EFB28285E192C35FA18B /* SystemEntryIntents.swift in Sources */,
 				8EB760EA6310858C99C1FBFC /* main.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C301D2966F57562E1C609201 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6DA50A114CFDE1114A849C52 /* SystemEntryIntents.swift in Sources */,
+				0BC934377E6EBAD9DF3BE0B2 /* TokenWidget.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		F31F18E2759CA12A5FA73F1B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3B62321FC102CED3D89E19F6 /* SteamGuardWidgets */;
+			targetProxy = 1EE20AD417ED46A22E8DE840 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		33AFAD0091E525B43C8949A5 /* InfoPlist.strings */ = {
@@ -450,6 +614,52 @@
 				5C79DFB6DEC30F8C31B84B18 /* zh-Hant */,
 			);
 			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+		3D15B62DAB380060F66F0DBF /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				C9826C08A818BB0B79318B32 /* ar */,
+				8602F92219A08E64160416B1 /* de */,
+				08E3CF0A3C34C3B0DB7AE820 /* en */,
+				749FC3E8F72AED97E581D874 /* es */,
+				BAE86ABD3611460B0BBD4AB7 /* fr */,
+				2DAB6857768C4619F54CBD80 /* hi */,
+				2A792D1EC20AC8C2DFBC7A35 /* id */,
+				3FD6224D5BDEC6BAE1D4C305 /* it */,
+				14A81D06A73E3C8BE0A6D736 /* ja */,
+				88EBD46CBA2C7599DD417DB4 /* ko */,
+				0777969D4C80359511E1BF4B /* pt-BR */,
+				0A3469152261CF5241D07C97 /* ru */,
+				19825379A3DDF43CA64310C9 /* tr */,
+				22AC6667D919E30C09822BF2 /* vi */,
+				B1DCAE96EB94B5D77F0B8BAC /* zh-Hans */,
+				5206FFFD16EF9B0B59138703 /* zh-Hant */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+		E7F090C9882717CF75619EDE /* AppShortcuts.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				D4C5491799B9FF59A4A6461B /* ar */,
+				3FBB4481492C4931332F4F79 /* de */,
+				C7BAF6890958B99D033DF1EB /* en */,
+				EE52E374AECE2740177F8655 /* es */,
+				B87784133368E4A61ED41A78 /* fr */,
+				8DF1AD6F266D5B1C53481747 /* hi */,
+				43BF3F0DE4318B366B1D5B08 /* id */,
+				31DE1BA812BE1328F5C32409 /* it */,
+				C132E33EDE8AD9376C524C25 /* ja */,
+				5D914565C133E8B70391FEF0 /* ko */,
+				FBBF966C8B6101E166F49A08 /* pt-BR */,
+				34765ED3B2577E6E09CA0078 /* ru */,
+				D522A9CF82F0948BE02990A6 /* tr */,
+				8F163B98253D0073F511F93C /* vi */,
+				B7F7C46654E593EF43CD17E8 /* zh-Hans */,
+				ABA1E3827CCCB319A5D0564C /* zh-Hant */,
+			);
+			name = AppShortcuts.strings;
 			sourceTree = "<group>";
 		};
 /* End PBXVariantGroup section */
@@ -481,10 +691,53 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.kasen.steamguard;
 				PRODUCT_NAME = SteamGuard;
 				SDKROOT = iphoneos;
+				STEAMGUARD_APP_GROUP = "";
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;
 			};
 			name = release;
+		};
+		1203F1E0961B89FF25EBD83D /* release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				INFOPLIST_FILE = SystemEntriesWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kasen.steamguard.widgets;
+				PRODUCT_NAME = SteamGuardWidgets;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STEAMGUARD_APP_GROUP = "";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = release;
+		};
+		5B6E1578E0444EDDAE138A37 /* debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				INFOPLIST_FILE = SystemEntriesWidget/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kasen.steamguard.widgets;
+				PRODUCT_NAME = SteamGuardWidgets;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STEAMGUARD_APP_GROUP = "";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = debug;
 		};
 		6E01531327FD12B0CE82E044 /* release */ = {
 			isa = XCBuildConfiguration;
@@ -568,6 +821,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.kasen.steamguard;
 				PRODUCT_NAME = SteamGuard;
 				SDKROOT = iphoneos;
+				STEAMGUARD_APP_GROUP = "";
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;
 			};
@@ -653,6 +907,15 @@
 			buildConfigurations = (
 				BD00213C212E8468187C18EE /* debug */,
 				6E01531327FD12B0CE82E044 /* release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = debug;
+		};
+		C14F1440019AD7639A4C76BD /* Build configuration list for PBXNativeTarget "SteamGuardWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5B6E1578E0444EDDAE138A37 /* debug */,
+				1203F1E0961B89FF25EBD83D /* release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = debug;

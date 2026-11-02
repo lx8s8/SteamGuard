@@ -22,6 +22,7 @@ use zeroize::{Zeroize, Zeroizing};
 
 pub mod cloud;
 pub mod commands;
+pub mod icloud;
 pub mod storage;
 const MAX_DOCUMENT: usize = 16 * 1024 * 1024;
 const MAX_KEYS: usize = 80_000;
@@ -306,6 +307,13 @@ fn put(doc: &mut AutoCommit, key: &str, value: &str) -> Result<(), String> {
 fn group_key(key: &[u8; 32], name: &str) -> String {
     format!("g/{}", mac(key, "group", name.as_bytes()))
 }
+fn recovery_field(field: &str) -> bool {
+    field.strip_prefix("recovery-").is_some_and(|id| {
+        uuid::Uuid::parse_str(id)
+            .ok()
+            .is_some_and(|value| value.to_string() == id)
+    })
+}
 fn load(state: &State, actor: &str) -> Result<AutoCommit, String> {
     let bytes = Zeroizing::new(
         STANDARD
@@ -358,6 +366,17 @@ fn project(
         {
             current.insert(format!("{prefix}avatar"), json(&token.icon)?);
         }
+        if !token.notes.is_empty()
+            || doc
+                .get(ROOT, format!("{prefix}notes"))
+                .map_err(|_| "无法读取备注")?
+                .is_some()
+        {
+            current.insert(format!("{prefix}notes"), json(&token.notes)?);
+        }
+        for item in &token.recovery_codes {
+            current.insert(format!("{prefix}recovery-{}", item.id), json(&Some(item))?);
+        }
         current.insert(format!("{prefix}counter"), json(&token.counter)?);
         if token.kind == "hotp" {
             let owner = one(doc, &format!("{prefix}owner"))?.unwrap_or(json(&state.device)?);
@@ -401,6 +420,8 @@ pub fn record_local(data: &mut VaultData, actor: &str) -> Result<(), String> {
                 put(&mut doc, key, "null")?;
             } else if key.ends_with("/alive") {
                 put(&mut doc, key, "false")?;
+            } else if key.rsplit('/').next().is_some_and(recovery_field) {
+                put(&mut doc, key, "null")?;
             }
         }
         state.baseline = current;
@@ -426,7 +447,19 @@ pub struct Conflict {
     pub choices: Vec<Choice>,
 }
 fn safe_label(field: &str, value: &str) -> String {
+    if recovery_field(field) {
+        return match serde_json::from_str::<Option<crate::models::RecoveryCode>>(value) {
+            Ok(Some(item)) => if item.used {
+                "已使用的备用恢复码"
+            } else {
+                "未使用的备用恢复码"
+            }
+            .into(),
+            _ => "删除备用恢复码".into(),
+        };
+    }
     match field {
+        "notes" => "备注版本".into(),
         "alive" => {
             if value == "true" {
                 "保留令牌".into()
@@ -502,6 +535,7 @@ fn inspect(doc: &AutoCommit, baseline: &BTreeMap<String, String>) -> Result<Vec<
                 "分组状态"
             } else {
                 match field {
+                    "notes" => "备注",
                     "name" => "显示名称",
                     "pinned" => "置顶状态",
                     "order" => "排列顺序",
@@ -510,6 +544,7 @@ fn inspect(doc: &AutoCommit, baseline: &BTreeMap<String, String>) -> Result<Vec<
                     "core" => "令牌数据",
                     "alive" => "保留或删除",
                     "owner" => "HOTP 主设备",
+                    _ if recovery_field(field) => "备用恢复码",
                     _ => return Err("同步字段无效".into()),
                 }
             };
@@ -546,11 +581,12 @@ fn validate_document(doc: &AutoCommit) -> Result<(), String> {
             || parts.len() == 3
                 && parts[0] == "t"
                 && valid_id(parts[1])
-                && [
+                && ([
                     "alive", "core", "name", "group", "counter", "owner", "avatar", "pinned",
-                    "order",
+                    "order", "notes",
                 ]
-                .contains(&parts[2]))
+                .contains(&parts[2])
+                    || recovery_field(parts[2])))
         {
             return Err("同步库含不支持的字段".into());
         }
@@ -675,6 +711,42 @@ fn materialize(
             .map(|value| serde_json::from_str(&value).map_err(|_| "同步头像格式无效"))
             .transpose()?
             .flatten();
+        token.notes = one(doc, &format!("{prefix}/notes"))?
+            .map(|value| serde_json::from_str(&value).map_err(|_| "同步备注格式无效"))
+            .transpose()?
+            .unwrap_or_default();
+        for property in doc.keys(ROOT).filter(|property| {
+            property
+                .strip_prefix(&format!("{prefix}/"))
+                .is_some_and(recovery_field)
+        }) {
+            let value = one(doc, &property)?.ok_or("备用恢复码存在未处理冲突")?;
+            let item: Option<crate::models::RecoveryCode> =
+                serde_json::from_str(&value).map_err(|_| "同步备用恢复码格式无效")?;
+            if let Some(item) = item {
+                if property != format!("{prefix}/recovery-{}", item.id) {
+                    token.erase();
+                    return Err("同步备用恢复码编号无效".into());
+                }
+                token.recovery_codes.push(item);
+            }
+        }
+        token.recovery_codes.sort_by(|a, b| a.id.cmp(&b.id));
+        let mut unique: Vec<crate::models::RecoveryCode> = vec![];
+        for item in std::mem::take(&mut token.recovery_codes) {
+            if let Some(existing) = unique.iter_mut().find(|old| old.code == item.code) {
+                existing.used |= item.used;
+                put(doc, &format!("{prefix}/recovery-{}", item.id), "null")?;
+                put(
+                    doc,
+                    &format!("{prefix}/recovery-{}", existing.id),
+                    &json(&Some(&*existing))?,
+                )?;
+            } else {
+                unique.push(item);
+            }
+        }
+        token.recovery_codes = unique;
         token.counter = values(doc, &format!("{prefix}/counter"))?
             .iter()
             .map(|(_, v)| v.parse::<u64>().map_err(|_| "同步计数无效"))
@@ -945,6 +1017,7 @@ impl Controller {
         self.busy.load(Ordering::SeqCst)
     }
     pub fn cancel(&self) {
+        icloud::stop();
         self.cloud.clear();
         if let Ok(t) = self.token.lock() {
             if let Some(t) = t.as_ref() {
@@ -1021,6 +1094,152 @@ mod tests {
         let bytes = a.sync.as_ref().unwrap().checkpoint("sender").unwrap();
         b.sync.as_mut().unwrap().merge_bytes(&bytes, actor).unwrap();
         apply(b, actor).unwrap();
+    }
+    fn recovery(code: &str) -> crate::models::RecoveryCode {
+        crate::models::RecoveryCode {
+            id: uuid::Uuid::new_v4().to_string(),
+            code: code.into(),
+            used: false,
+        }
+    }
+    #[test]
+    fn private_details_sync_independently_and_old_documents_remain_compatible() {
+        let mut a = first();
+        let doc = load(a.sync.as_ref().unwrap(), "reader").unwrap();
+        assert!(!doc
+            .keys(ROOT)
+            .any(|key| key.ends_with("/notes") || key.contains("/recovery-")));
+        a.tokens[0].recovery_codes = vec![recovery("SYNTHETIC-A"), recovery("SYNTHETIC-B")];
+        record_local(&mut a, "actor-a").unwrap();
+        let mut b = copy(&a);
+        a.tokens[0].notes = "synthetic confidential note".into();
+        a.tokens[0]
+            .recovery_codes
+            .iter_mut()
+            .find(|item| item.code == "SYNTHETIC-A")
+            .unwrap()
+            .used = true;
+        b.tokens[0].name = "Other device title".into();
+        b.tokens[0]
+            .recovery_codes
+            .iter_mut()
+            .find(|item| item.code == "SYNTHETIC-B")
+            .unwrap()
+            .used = true;
+        record_local(&mut a, "actor-a").unwrap();
+        record_local(&mut b, "actor-b").unwrap();
+        receive(&a, &mut b, "actor-b");
+        receive(&b, &mut a, "actor-a");
+        for data in [&a, &b] {
+            assert!(data.sync.as_ref().unwrap().conflicts().unwrap().is_empty());
+            assert_eq!(data.tokens[0].notes, "synthetic confidential note");
+            assert_eq!(data.tokens[0].name, "Other device title");
+            assert_eq!(data.tokens[0].recovery_codes.len(), 2);
+            assert!(data.tokens[0].recovery_codes.iter().all(|item| item.used));
+        }
+        a.tokens[0].notes.clear();
+        record_local(&mut a, "actor-a").unwrap();
+        receive(&a, &mut b, "actor-b");
+        assert!(b.tokens[0].notes.is_empty());
+    }
+    #[test]
+    fn recovery_deletion_does_not_return_after_an_unrelated_offline_change() {
+        let mut a = first();
+        a.tokens[0]
+            .recovery_codes
+            .push(recovery("SYNTHETIC-REMOVED"));
+        record_local(&mut a, "actor-a").unwrap();
+        let mut b = copy(&a);
+        a.tokens[0].recovery_codes.clear();
+        b.tokens[0].notes = "an offline note".into();
+        record_local(&mut a, "actor-a").unwrap();
+        record_local(&mut b, "actor-b").unwrap();
+        receive(&a, &mut b, "actor-b");
+        receive(&b, &mut a, "actor-a");
+        for data in [&a, &b] {
+            assert!(data.tokens[0].recovery_codes.is_empty());
+            assert_eq!(data.tokens[0].notes, "an offline note");
+            assert!(data.sync.as_ref().unwrap().conflicts().unwrap().is_empty());
+        }
+        record_local(&mut b, "actor-b").unwrap();
+        let c = copy(&b);
+        assert!(c.tokens[0].recovery_codes.is_empty());
+    }
+    #[test]
+    fn duplicate_recovery_values_added_offline_converge_with_used_state_preserved() {
+        let mut a = first();
+        let mut b = copy(&a);
+        a.tokens[0]
+            .recovery_codes
+            .push(recovery("SYNTHETIC-DUPLICATE"));
+        let mut used = recovery("SYNTHETIC-DUPLICATE");
+        used.used = true;
+        b.tokens[0].recovery_codes.push(used);
+        record_local(&mut a, "actor-a").unwrap();
+        record_local(&mut b, "actor-b").unwrap();
+        receive(&a, &mut b, "actor-b");
+        receive(&b, &mut a, "actor-a");
+        for data in [&a, &b] {
+            assert_eq!(data.tokens[0].recovery_codes.len(), 1);
+            assert!(data.tokens[0].recovery_codes[0].used);
+            assert!(data.sync.as_ref().unwrap().conflicts().unwrap().is_empty());
+        }
+        assert_eq!(
+            a.tokens[0].recovery_codes[0].id,
+            b.tokens[0].recovery_codes[0].id
+        );
+    }
+    #[test]
+    fn private_conflict_labels_never_expose_notes_or_recovery_values() {
+        let mut a = first();
+        a.tokens[0].notes = "initial private text".into();
+        a.tokens[0]
+            .recovery_codes
+            .push(recovery("SYNTHETIC-PRIVATE-CODE"));
+        record_local(&mut a, "actor-a").unwrap();
+        let mut b = copy(&a);
+        a.tokens[0].notes = "confidential alpha".into();
+        b.tokens[0].notes = "confidential beta".into();
+        a.tokens[0].recovery_codes.clear();
+        b.tokens[0].recovery_codes[0].used = true;
+        record_local(&mut a, "actor-a").unwrap();
+        record_local(&mut b, "actor-b").unwrap();
+        receive(&a, &mut b, "actor-b");
+        let conflicts = b.sync.as_ref().unwrap().conflicts().unwrap();
+        assert_eq!(conflicts.len(), 2);
+        let visible = serde_json::to_string(&conflicts).unwrap();
+        for private in [
+            "confidential",
+            "SYNTHETIC-PRIVATE-CODE",
+            "initial private text",
+        ] {
+            assert!(!visible.contains(private));
+        }
+        let recovery = conflicts
+            .iter()
+            .find(|item| item.field == "备用恢复码")
+            .unwrap();
+        let deleted = recovery
+            .choices
+            .iter()
+            .find(|choice| choice.label == "删除备用恢复码")
+            .unwrap();
+        resolve(&mut b, "actor-b", &recovery.id, &deleted.id).unwrap();
+        let notes = b
+            .sync
+            .as_ref()
+            .unwrap()
+            .conflicts()
+            .unwrap()
+            .into_iter()
+            .find(|item| item.field == "备注")
+            .unwrap();
+        let local = notes.choices.iter().find(|choice| choice.local).unwrap();
+        resolve(&mut b, "actor-b", &notes.id, &local.id).unwrap();
+        receive(&b, &mut a, "actor-a");
+        assert_eq!(a.tokens[0].notes, "confidential beta");
+        assert!(a.tokens[0].recovery_codes.is_empty());
+        assert!(a.sync.as_ref().unwrap().conflicts().unwrap().is_empty());
     }
     #[test]
     fn independent_offline_edits_merge_and_preserve_local_ids() {

@@ -37,7 +37,7 @@ pub struct Labels {
     tokens: String,
     quick: String,
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn desktop_localize(app: AppHandle, labels: Labels) -> Result<(), String> {
     if [
         &labels.open,
@@ -157,18 +157,18 @@ fn snapshot(s: &AppState, q: &QuickAccess) -> Result<Snapshot, String> {
         tokens,
     })
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn desktop_codes(
     s: State<AppState>,
     q: State<QuickAccess>,
 ) -> Result<crate::token_commands::CodeSnapshot, String> {
     crate::token_commands::codes(&s, &q)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn desktop_snapshot(s: State<AppState>, q: State<QuickAccess>) -> Result<Snapshot, String> {
     snapshot(&s, &q)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn desktop_settings(app: AppHandle) -> Settings {
     #[cfg(desktop)]
     if let Some(controller) = app.try_state::<platform::Controller>() {
@@ -204,7 +204,7 @@ pub fn desktop_settings(app: AppHandle) -> Settings {
         autostart_supported: false,
     }
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn desktop_configure(
     app: AppHandle,
     s: State<AppState>,
@@ -224,7 +224,7 @@ pub fn desktop_configure(
         Err("此设置仅适用于桌面端".into())
     }
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn desktop_copy(
     app: AppHandle,
     s: State<AppState>,
@@ -233,7 +233,6 @@ pub fn desktop_copy(
 ) -> Result<(), String> {
     #[cfg(desktop)]
     {
-        use tauri_plugin_clipboard_manager::ClipboardExt;
         let epoch = s.epoch.load(std::sync::atomic::Ordering::SeqCst);
         let mut v = s.vault()?;
         let code = if let Some(data) = &v.data {
@@ -261,9 +260,7 @@ pub fn desktop_copy(
         if epoch != s.epoch.load(std::sync::atomic::Ordering::SeqCst) {
             return Err("已锁定，请先解锁".into());
         }
-        app.clipboard()
-            .write_text(code.as_str())
-            .map_err(|_| "无法复制验证码")?;
+        crate::clipboard::write(&app, code.as_str(), epoch)?;
         v.touch();
         Ok(())
     }
@@ -273,7 +270,7 @@ pub fn desktop_copy(
         Err("此功能仅适用于桌面端".into())
     }
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn desktop_open_main(app: AppHandle) -> Result<(), String> {
     #[cfg(desktop)]
     {
@@ -282,7 +279,7 @@ pub fn desktop_open_main(app: AppHandle) -> Result<(), String> {
     let _ = app;
     Ok(())
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn desktop_hide(app: AppHandle) -> Result<(), String> {
     #[cfg(desktop)]
     if let Some(window) = app.get_webview_window(POPUP) {
@@ -539,7 +536,11 @@ mod platform {
                     let _ = open_main(app);
                 }
                 "lock-vault" => {
-                    let _ = crate::vault_lock(app.state::<AppState>(), app.state::<QuickAccess>());
+                    let app = app.clone();
+                    tauri::async_runtime::spawn_blocking(move || {
+                        let _ =
+                            crate::vault_lock(app.state::<AppState>(), app.state::<QuickAccess>());
+                    });
                 }
                 "quit" => app.exit(0),
                 _ => {}
@@ -598,7 +599,8 @@ mod platform {
         let scale = monitor.scale_factor();
         let count = app
             .state::<AppState>()
-            .vault()
+            .vault
+            .try_lock()
             .ok()
             .and_then(|v| v.data.as_ref().map(|d| d.tokens.len()))
             .unwrap_or(0);

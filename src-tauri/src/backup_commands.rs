@@ -122,6 +122,12 @@ pub fn preview(s: &AppState, name: &str, password: &str) -> Result<BackupPreview
             if old.pinned != candidate.pinned {
                 fields.push("置顶状态");
             }
+            if old.notes != candidate.notes {
+                fields.push("备注");
+            }
+            if old.recovery_codes != candidate.recovery_codes {
+                fields.push("备用恢复码");
+            }
             if old.counter != candidate.counter {
                 fields.push("HOTP 计数");
             }
@@ -173,7 +179,7 @@ pub fn preview(s: &AppState, name: &str, password: &str) -> Result<BackupPreview
     v.touch();
     Ok(result)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn backup_preview(
     s: State<AppState>,
     name: String,
@@ -244,7 +250,7 @@ pub fn restore_selected(s: &AppState, preview_id: &str, ids: &[String]) -> Resul
     // Rechecking after a conflict or disk error is explicit and avoids stale merges.
     result
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn backup_restore_selected(
     s: State<AppState>,
     preview_id: String,
@@ -261,7 +267,7 @@ mod tests {
         Mutex,
     };
     #[test]
-    fn decrypted_preview_is_safe_selective_and_preserves_newer_hotp_counter() {
+    fn decrypted_preview_is_safe_selective_and_preserves_newer_hotp_and_private_details() {
         let dir = std::env::temp_dir().join(format!(
             "steamguard-restore-preview-{}",
             uuid::Uuid::new_v4()
@@ -274,6 +280,15 @@ mod tests {
             b"synthetic backup secret".to_vec(),
         );
         original.counter = 50;
+        original.notes = "synthetic older private note".into();
+        original.recovery_codes = ["SYNTHETIC-CONSUMED", "SYNTHETIC-RESTORED"]
+            .into_iter()
+            .map(|code| models::RecoveryCode {
+                id: uuid::Uuid::new_v4().to_string(),
+                code: code.into(),
+                used: false,
+            })
+            .collect();
         vault
             .update(|d| {
                 d.tokens.push(original);
@@ -290,6 +305,14 @@ mod tests {
             .update(|d| {
                 d.tokens[0].name = "current label".into();
                 d.tokens[0].counter = 100;
+                d.tokens[0].notes = "synthetic current private note".into();
+                d.tokens[0].recovery_codes[0].used = true;
+                d.tokens[0].recovery_codes.pop();
+                d.tokens[0].recovery_codes.push(models::RecoveryCode {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    code: "SYNTHETIC-CURRENT".into(),
+                    used: false,
+                });
                 d.tokens.push(Token::new(
                     "unselected current".into(),
                     "totp".into(),
@@ -312,6 +335,13 @@ mod tests {
         let visible = serde_json::to_string(&p).unwrap();
         assert!(!visible.contains("synthetic backup secret"));
         assert!(!visible.contains("secret"));
+        assert!(!visible.contains("synthetic older private note"));
+        assert!(!visible.contains("SYNTHETIC-CONSUMED"));
+        assert!(p.tokens[0]
+            .detail
+            .as_deref()
+            .unwrap()
+            .contains("备用恢复码"));
         let ids = vec![p.tokens[0].id.clone()];
         assert_eq!(restore_selected(&s, &p.preview_id, &ids).unwrap(), 1);
         assert!(restore_selected(&s, &p.preview_id, &ids).is_err());
@@ -320,6 +350,24 @@ mod tests {
         assert_eq!(d.tokens.len(), 2);
         assert_eq!(d.tokens[0].name, "backup label");
         assert_eq!(d.tokens[0].counter, 100);
+        assert_eq!(d.tokens[0].notes, "synthetic current private note");
+        assert_eq!(d.tokens[0].recovery_codes.len(), 3);
+        assert!(
+            d.tokens[0]
+                .recovery_codes
+                .iter()
+                .find(|item| item.code == "SYNTHETIC-CONSUMED")
+                .unwrap()
+                .used
+        );
+        assert!(d.tokens[0]
+            .recovery_codes
+            .iter()
+            .any(|item| item.code == "SYNTHETIC-RESTORED"));
+        assert!(d.tokens[0]
+            .recovery_codes
+            .iter()
+            .any(|item| item.code == "SYNTHETIC-CURRENT"));
         assert_eq!(d.tokens[1].name, "unselected current");
         v.lock();
         std::fs::remove_dir_all(dir).unwrap();

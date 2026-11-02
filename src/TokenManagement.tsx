@@ -1,9 +1,10 @@
 import { t as translate, formatDateTime } from "./i18n";
-import { useEffect, useState } from "react";
-import { Check, KeyRound, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, Copy, Eye, EyeOff, KeyRound, Trash2 } from "lucide-react";
 import { api, errorText } from "./api";
 import { Modal } from "./Modal";
-import type { TokenParameters, TrashEntry } from "./types";
+import type { RecoveryCodeInput, TokenPrivateDetails, TokenParameters, TrashEntry } from "./types";
+import "./token-private.css";
 
 export function OtpParameters({ kind, value, onChange, disabled = false, counterReadOnly = false }: { kind: "totp" | "hotp"; value: TokenParameters; onChange: (value: TokenParameters) => void; disabled?: boolean; counterReadOnly?: boolean }) {
   const update = (next: TokenParameters) => onChange({ ...value, ...next });
@@ -74,4 +75,64 @@ export function PasswordSettings({ onChange }: { onChange: () => Promise<void> }
     <label className="field-label" htmlFor="password-confirm">{translate("再次输入新主密码")}</label><input id="password-confirm" type="password" autoComplete="new-password" required disabled={busy} value={confirmation} onChange={e => setConfirmation(e.target.value)}/>
     <p className="form-hint">{translate("至少 8 个字符。免密码预览和设备认证解锁会被重置。")}</p>{error && <p className="form-error" role="alert">{error}</p>}<div className="modal-actions"><button type="button" className="button secondary" disabled={busy} onClick={close}>{translate("取消")}</button><button className="button primary" disabled={busy || !current || password.length < 8 || !confirmation}>{translate("保存新密码")}</button></div>
   </form></Modal>}</section>;
+}
+
+export function TokenPrivateDetailsEditor({ id, disabled = false, onChanged }: { id: string; disabled?: boolean; onChanged?: () => Promise<void> }) {
+  const [open, setOpen] = useState(false);
+  const [details, setDetails] = useState<TokenPrivateDetails | null>(null);
+  const [notes, setNotes] = useState("");
+  const [codes, setCodes] = useState<RecoveryCodeInput[]>([]);
+  const [added, setAdded] = useState("");
+  const [revealed, setRevealed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const generation = useRef(0);
+  const apply = (next: TokenPrivateDetails) => { setDetails(next); setNotes(next.notes); setCodes(next.recoveryCodes.map(({id,code,used}) => ({id,code,used}))); setAdded(""); };
+  useEffect(() => {
+    const request = ++generation.current;
+    setDetails(null); setNotes(""); setCodes([]); setAdded(""); setRevealed(false); setError(""); setMessage("");
+    if (open) {
+      setBusy(true);
+      void api.tokenPrivateDetails(id).then(next => { if (request === generation.current) apply(next); })
+        .catch(e => { if (request === generation.current) setError(errorText(e)); })
+        .finally(() => { if (request === generation.current) setBusy(false); });
+    } else setBusy(false);
+    return () => { ++generation.current; };
+  }, [id, open]);
+  const act = async (job: () => Promise<TokenPrivateDetails | void>, success?: string) => {
+    const request = generation.current;
+    setBusy(true); setError(""); setMessage("");
+    try {
+      const next = await job();
+      if (request !== generation.current) return;
+      if (next) apply(next);
+      if (success) setMessage(success);
+      if (next) await onChanged?.();
+    } catch (e) { if (request === generation.current) setError(errorText(e)); }
+    finally { if (request === generation.current) setBusy(false); }
+  };
+  const dirty = !!details && (notes !== details.notes || added.trim() !== "" || codes.length !== details.recoveryCodes.length || codes.some((item, index) => { const saved = details.recoveryCodes[index]; return !saved || item.id !== saved.id || item.code !== saved.code || item.used !== saved.used; }));
+  return <details className="token-details token-private-details" onToggle={e => setOpen(e.currentTarget.open)}>
+    <summary>{translate("备注与备用恢复码")}</summary>
+    {open && <div className="private-details-content">
+      {details && <>
+        <label className="field-label" htmlFor="token-private-notes">{translate("备注")}</label>
+        <textarea id="token-private-notes" rows={3} maxLength={4096} autoComplete="off" spellCheck={false} disabled={disabled || busy} value={notes} onChange={e => setNotes(e.target.value)}/>
+        <div className="panel-title"><h3>{translate("备用恢复码")}</h3><button type="button" className="button text" disabled={disabled || busy} onClick={() => setRevealed(!revealed)}>{revealed ? <EyeOff size={15}/> : <Eye size={15}/>}{revealed ? translate("隐藏恢复码") : translate("显示恢复码")}</button></div>
+        {codes.length ? <div className="recovery-code-list">{codes.map((item,index) => <div className="recovery-code-row" key={item.id ?? `draft-${index}`}>
+          <input type={revealed ? "text" : "password"} className="recovery-code-value" aria-label={translate("备用恢复码 {{number}}", {number:index+1})} value={item.code} readOnly autoComplete="off" spellCheck={false} />
+          <label className="sync-choice"><input type="checkbox" aria-label={translate("恢复码 {{number}} 已使用", {number:index+1})} checked={item.used} disabled={disabled || busy || dirty} onChange={e => { if (details && item.id) void act(() => api.tokenRecoveryMark(id,item.id!,e.target.checked,details.revision)); }}/><span>{translate("已使用")}</span></label>
+          <button type="button" className="button text" aria-label={translate("复制恢复码 {{number}}", {number:index+1})} disabled={disabled || busy || item.used || !item.id || dirty} onClick={() => void act(() => api.tokenRecoveryCopy(id,item.id!),translate("恢复码已复制"))}><Copy size={15}/></button>
+          <button type="button" className="button text danger-text" aria-label={translate("删除恢复码 {{number}}", {number:index+1})} disabled={disabled || busy} onClick={() => setCodes(current => current.filter((_,i) => i !== index))}><Trash2 size={15}/></button>
+        </div>)}</div> : <p className="form-hint">{translate("尚未保存备用恢复码")}</p>}
+        <label className="field-label" htmlFor="token-recovery-add">{translate("添加恢复码，每行一个")}</label>
+        <textarea id="token-recovery-add" rows={3} maxLength={25700} autoComplete="off" autoCapitalize="none" spellCheck={false} disabled={disabled || busy} value={added} onChange={e => setAdded(e.target.value)}/>
+        <div className="modal-actions"><button type="button" className="button secondary" disabled={disabled || busy || !dirty} onClick={() => void act(() => api.tokenPrivateUpdate(id,details.revision,notes,[...codes,...added.split(/\r?\n/).map(code => code.trim()).filter(Boolean).map(code => ({code,used:false}))]),translate("备注与恢复码已保存"))}>{translate("保存备注与恢复码")}</button></div>
+      </>}
+      {busy && <p role="status">{translate("正在处理…")}</p>}
+      {message && <p role="status">{message}</p>}
+      {error && <p className="form-error" role="alert">{error}</p>}
+    </div>}
+  </details>;
 }

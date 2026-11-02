@@ -6,6 +6,7 @@ import { Modal } from "./Modal";
 import QRCode from "qrcode";
 import { CloudLogin, cloudProvider } from "./CloudLogin";
 import { SyncSetup } from "./SyncSetup";
+import { icloudStatus, icloudWatch, isICloudEndpoint } from "./ICloudConnection";
 import type { SyncStatus, TokenView } from "./types";
 const CONFIG = "steamguard:sync-config";
 const UPDATED = "steamguard:sync-updated";
@@ -13,6 +14,58 @@ const changed = () => window.dispatchEvent(new Event(CONFIG));
 
 // Foreground only. Password-free preview cannot start network synchronization.
 export function useSyncWatcher(unlocked: boolean, fingerprint: string) {
+  useEffect(() => {
+    if (!native || !unlocked) return;
+    let disposed = false, polling = false, watching = false;
+    let revision: number | undefined;
+    const pulse = async () => {
+      if (disposed || polling) return;
+      polling = true;
+      try {
+        const status = document.hidden ? null : await api.syncStatus();
+        if (disposed) return;
+        if (!status?.active || !isICloudEndpoint(status.endpoint)) {
+          if (watching) { watching = false; revision = undefined; await icloudWatch(false); }
+          return;
+        }
+        if (!watching) {
+          await icloudWatch(true);
+          if (disposed || document.hidden) { await icloudWatch(false); return; }
+          watching = true;
+        }
+        const cloud = await icloudStatus();
+        if (disposed || document.hidden || !cloud?.available) return;
+        const changed = revision !== undefined && revision !== cloud.revision;
+        if (revision === undefined) revision = cloud.revision;
+        if (changed && !status.busy) {
+          const synced = await api.syncRun(true);
+          if (!synced.busy && !synced.error) revision = cloud.revision;
+          if (!disposed) window.dispatchEvent(new Event(UPDATED));
+        }
+      } catch {
+        if (!disposed) window.dispatchEvent(new Event(UPDATED));
+      } finally { polling = false; }
+    };
+    void pulse();
+    const interval = window.setInterval(() => void pulse(), 3000);
+    const foreground = () => {
+      if (document.hidden) {
+        watching = false; revision = undefined;
+        void icloudWatch(false).catch(() => {});
+      } else void pulse();
+    };
+    document.addEventListener("visibilitychange", foreground);
+    window.addEventListener("steamguard:foreground-ready", foreground);
+    window.addEventListener(CONFIG, foreground);
+    return () => {
+      disposed = true;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", foreground);
+      window.removeEventListener("steamguard:foreground-ready", foreground);
+      window.removeEventListener(CONFIG, foreground);
+      void icloudWatch(false).catch(() => {});
+    };
+  }, [unlocked]);
   useEffect(() => {
     if (!native || !unlocked) return;
     let disposed = false;
@@ -139,13 +192,13 @@ export function SyncPanel({
           </div>
           <details className="token-details"><summary>{status.alias || translate("同步库名称与连接设置")}</summary>
             <form onSubmit={e => { e.preventDefault(); void run(() => api.syncSetAlias(alias.trim()), true); }}><label className="field-label" htmlFor="sync-alias">{translate("同步库别名")}</label><input id="sync-alias" value={alias} maxLength={80} placeholder={status.alias || translate("例如 我的手机和电脑")} disabled={working} onChange={e => setAlias(e.target.value)}/><div className="sync-actions"><button className="button secondary" disabled={working || !alias.trim()}>{translate("保存别名")}</button></div></form>
-            <div className="sync-actions"><button className="button secondary" disabled={working} onClick={() => { setBusy(true); setError(""); void api.syncConnectionInfo().then(async info => { setConfigText(info.connectionQr); setConfigImage(await QRCode.toDataURL(info.connectionQr, { width: 280, margin: 2 })); }).catch(e => setError(errorText(e))).finally(() => setBusy(false)); }}>{translate("显示加入配置二维码")}</button><button className="button secondary" disabled={working} onClick={() => { setCredentialEndpoint(status.endpoint); setCredentialUsername(status.username); setCredentialPassword(""); setError(""); setEditingCredentials(true); }}>{cloudProvider(status.endpoint) ? translate("重新登录网盘") : translate("更新网盘应用密码")}</button></div>
+            <div className="sync-actions"><button className="button secondary" disabled={working} onClick={() => { setBusy(true); setError(""); void api.syncConnectionInfo().then(async info => { setConfigText(info.connectionQr); setConfigImage(await QRCode.toDataURL(info.connectionQr, { width: 280, margin: 2 })); }).catch(e => setError(errorText(e))).finally(() => setBusy(false)); }}>{translate("显示加入配置二维码")}</button>{!isICloudEndpoint(status.endpoint) && <button className="button secondary" disabled={working} onClick={() => { setCredentialEndpoint(status.endpoint); setCredentialUsername(status.username); setCredentialPassword(""); setError(""); setEditingCredentials(true); }}>{cloudProvider(status.endpoint) ? translate("重新登录网盘") : translate("更新网盘应用密码")}</button>}</div>
           </details>
           <dl className="sync-details">
-            <dt>{cloudProvider(status.endpoint) ? translate("网盘服务") : "WebDAV"}</dt>
-            <dd>{cloudProvider(status.endpoint) ? status.username : status.endpoint}</dd>
+            <dt>{isICloudEndpoint(status.endpoint) || cloudProvider(status.endpoint) ? translate("网盘服务") : "WebDAV"}</dt>
+            <dd>{isICloudEndpoint(status.endpoint) ? "iCloud Drive" : cloudProvider(status.endpoint) ? status.username : status.endpoint}</dd>
             <dt>{translate("网盘账号")}</dt>
-            <dd>{status.username}</dd>
+            <dd>{isICloudEndpoint(status.endpoint) ? translate("系统 iCloud 账号") : status.username}</dd>
             <dt>{translate("同步库编号")}</dt>
             <dd>
               <code>{status.libraryId}</code>

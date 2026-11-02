@@ -1,0 +1,11 @@
+{
+  "bundle": {
+    "macOS": {
+      "entitlements": "icloud.local/macOS.entitlements.plist",
+      "infoPlist": "icloud.local/Info.plist"
+    },
+    "iOS": {
+      "infoPlist": "icloud.local/Info.plist"
+    }
+  }
+}

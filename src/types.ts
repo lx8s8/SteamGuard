@@ -198,3 +198,7 @@ export interface BackupPreview {
   newCount: number; updateCount: number; unchangedCount: number; conflictCount: number;
 }
 export interface SyncConnectionInfo { endpoint: string; username: string; libraryId: string; alias?: string; connectionQr: string }
+
+export interface RecoveryCode { id: string; code: string; used: boolean }
+export interface RecoveryCodeInput { id?: string; code: string; used: boolean }
+export interface TokenPrivateDetails { revision: string; notes: string; recoveryCodes: RecoveryCode[] }

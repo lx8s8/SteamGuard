@@ -632,7 +632,7 @@ fn callback(target: &str, state: &str) -> Option<String> {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn cloud_auth_cancel(s: tauri::State<AppState>, handle: String) {
     if let Ok(mut m) = s.sync.cloud.inner.lock() {
         m.remove(&handle);

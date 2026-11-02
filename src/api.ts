@@ -1,5 +1,6 @@
 import { t as translate, awaitNativeLocalization } from "./i18n";
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import type { TokenPrivateDetails, RecoveryCodeInput } from "./types";
 import type {
   DesktopSnapshot,
   BackupPreview, ManualTokenInput, TokenParameters, TokenCode, TrashEntry, SyncConnectionInfo,
@@ -33,7 +34,7 @@ export const call = <T>(
   const ready = ["quick_configure", "quick_biometric_unlock"].includes(command) ? awaitNativeLocalization() : Promise.resolve();
   return ready.then(() => invoke<T>(command, args)).then(result => {
     if (command === "sync_time") window.dispatchEvent(new Event("steamguard:clock-synced"));
-    if (["token_create", "token_update", "token_rename", "token_delete", "token_batch", "token_reorder", "token_group_manage", "token_advance", "import_commit", "backup_restore_selected", "trash_restore"].includes(command)) window.dispatchEvent(new Event("steamguard:local-change"));
+    if (["token_create", "token_update", "token_rename", "token_delete", "token_batch", "token_reorder", "token_group_manage", "token_advance", "token_private_details_update", "token_recovery_mark", "import_commit", "backup_restore_selected", "trash_restore"].includes(command)) window.dispatchEvent(new Event("steamguard:local-change"));
     return result;
   });
 };
@@ -91,6 +92,7 @@ export const api = {
   background: (hidden: boolean) => call<void>("vault_background", { hidden }),
   tokenCodes: () => call<{ revision: string; codes: TokenCode[] }>("token_codes"),
   currentCode: (id: string) => call<Omit<TokenCode, "id">>("token_current_code", { id }),
+  copyCode: (id: string) => call<Omit<TokenCode, "id">>("token_copy", { id }),
   createToken: (input: ManualTokenInput) => call<string>("token_create", { input }),
   tokenBatch: (action: "group" | "pin" | "delete", ids: string[], options?: { group?: string; pinned?: boolean }) => call<number>("token_batch", { action, ids, ...options }),
   reorderTokens: (ids: string[]) => call<void>("token_reorder", { ids }),
@@ -125,6 +127,10 @@ export const api = {
     icon?: { value: string | null },
     parameters?: TokenParameters,
   ) => call<void>("token_update", { id, name, group, icon, parameters }),
+  tokenPrivateDetails: (id: string) => call<TokenPrivateDetails>("token_private_details", { id }),
+  tokenPrivateUpdate: (id: string, revision: string, notes: string, recoveryCodes: RecoveryCodeInput[]) => call<TokenPrivateDetails>("token_private_details_update", { id, input: { revision, notes, recoveryCodes } }),
+  tokenRecoveryMark: (id: string, recoveryId: string, used: boolean, revision: string) => call<TokenPrivateDetails>("token_recovery_mark", { id, recoveryId, used, revision }),
+  tokenRecoveryCopy: (id: string, recoveryId: string) => call<void>("token_recovery_copy", { id, recoveryId }),
   backupPreview: (name: string, password: string) => call<BackupPreview>("backup_preview", { name, password }),
   backupRestoreSelected: (previewId: string, ids: string[]) => call<number>("backup_restore_selected", { previewId, ids }),
   backupDirectory: (path?: string) => call<void>("backup_directory_configure", { path }),
@@ -166,6 +172,7 @@ export const api = {
   qrApprove: (id: string, url: string, approve: boolean) =>
     call<void>("steam_qr_approve", { id, url, approve }),
   uri: (id: string) => call<string>("token_uri", { id }),
+  copyUri: (id: string) => call<void>("token_uri_copy", { id }),
   tokenExport: (id: string, format: "mafile" | "otpauth") =>
     call<string | null>("token_export", { id, format }),
   logout: (id: string) => call<void>("steam_logout", { id }),

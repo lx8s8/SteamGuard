@@ -298,12 +298,31 @@ pub fn merge_metadata(existing: &mut Token, incoming: &Token) -> Result<bool, St
     if existing.icon.is_none() {
         existing.icon = incoming.icon.clone();
     }
+    if existing.notes.is_empty() {
+        existing.notes = incoming.notes.clone();
+    }
+    for item in &incoming.recovery_codes {
+        if let Some(old) = existing
+            .recovery_codes
+            .iter_mut()
+            .find(|old| old.code == item.code)
+        {
+            // A historical backup must not reactivate a code already consumed.
+            old.used |= item.used;
+        } else {
+            if existing.recovery_codes.iter().any(|old| old.id == item.id) {
+                return Err("备用恢复码编号冲突".into());
+            }
+            existing.recovery_codes.push(item.clone());
+        }
+    }
     if existing.kind == "hotp" {
         if existing.hotp_read_only && incoming.counter > existing.counter {
             return Err("此 HOTP 的主设备为其他设备，请先切换主设备".into());
         }
         existing.counter = existing.counter.max(incoming.counter);
     }
+    existing.validate_private_details()?;
     Ok(before.as_slice()
         != Zeroizing::new(serde_json::to_vec(existing).map_err(|_| "无法检查令牌差异")?).as_slice())
 }

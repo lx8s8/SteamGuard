@@ -145,7 +145,7 @@ pub fn create(data: &mut VaultData, input: &CreateInput) -> Result<String, Strin
     data.tokens.push(token);
     Ok(id)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn token_create(s: State<AppState>, input: CreateInput) -> Result<String, String> {
     s.vault()?.update(|d| create(d, &input))
 }
@@ -203,11 +203,11 @@ pub fn codes(s: &AppState, q: &QuickAccess) -> Result<CodeSnapshot, String> {
     drop(v);
     q.codes(&path, now)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn token_codes(s: State<AppState>, q: State<QuickAccess>) -> Result<CodeSnapshot, String> {
     codes(&s, &q)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn token_current_code(
     s: State<AppState>,
     q: State<QuickAccess>,
@@ -266,7 +266,7 @@ pub fn delete(data: &mut VaultData, ids: &[String]) -> Result<usize, String> {
     }
     Ok(ids.len())
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn token_batch(
     s: State<AppState>,
     action: String,
@@ -313,7 +313,7 @@ pub struct TrashView {
     kind: String,
     deleted_at: u64,
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn trash_list(s: State<AppState>) -> Result<Vec<TrashView>, String> {
     Ok(s.vault()?
         .ensure()?
@@ -364,11 +364,11 @@ pub fn restore(data: &mut VaultData, ids: &[String]) -> Result<usize, String> {
     data.tokens.sort_by_key(|t| t.sort_order);
     Ok(ids.len())
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn trash_restore(s: State<AppState>, ids: Vec<String>) -> Result<usize, String> {
     s.vault()?.update(|d| restore(d, &ids))
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn trash_delete(s: State<AppState>, ids: Vec<String>) -> Result<usize, String> {
     s.vault()?.update(|d| {
         validate_ids(d, &ids, true)?;
@@ -378,6 +378,172 @@ pub fn trash_delete(s: State<AppState>, ids: Vec<String>) -> Result<usize, Strin
         d.trash.retain(|e| !ids.contains(&e.token.id));
         Ok(ids.len())
     })
+}
+
+// Sensitive optional details are deliberately absent from TokenView and code snapshots.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PrivateDetails {
+    revision: String,
+    notes: String,
+    recovery_codes: Vec<models::RecoveryCode>,
+}
+impl Drop for PrivateDetails {
+    fn drop(&mut self) {
+        use zeroize::Zeroize;
+        self.notes.zeroize();
+        self.recovery_codes
+            .iter_mut()
+            .for_each(models::RecoveryCode::erase);
+    }
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RecoveryInput {
+    id: Option<String>,
+    code: String,
+    #[serde(default)]
+    used: bool,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PrivateInput {
+    revision: String,
+    notes: String,
+    recovery_codes: Vec<RecoveryInput>,
+}
+impl Drop for PrivateInput {
+    fn drop(&mut self) {
+        use zeroize::Zeroize;
+        self.notes.zeroize();
+        self.recovery_codes
+            .iter_mut()
+            .for_each(|item| item.code.zeroize());
+    }
+}
+fn details_revision(token: &Token) -> Result<String, String> {
+    use sha2::{Digest, Sha256};
+    let bytes = Zeroizing::new(
+        serde_json::to_vec(&(&token.notes, &token.recovery_codes))
+            .map_err(|_| "无法读取令牌备注")?,
+    );
+    Ok(format!("{:x}", Sha256::digest(&*bytes)))
+}
+fn private_details(token: &Token) -> Result<PrivateDetails, String> {
+    Ok(PrivateDetails {
+        revision: details_revision(token)?,
+        notes: token.notes.clone(),
+        recovery_codes: token.recovery_codes.clone(),
+    })
+}
+fn private_token<'a>(data: &'a mut VaultData, id: &str) -> Result<&'a mut Token, String> {
+    data.tokens
+        .iter_mut()
+        .find(|token| token.id == id)
+        .ok_or_else(|| "令牌不存在".into())
+}
+fn update_private(
+    data: &mut VaultData,
+    id: &str,
+    input: &PrivateInput,
+) -> Result<PrivateDetails, String> {
+    let token = private_token(data, id)?;
+    if details_revision(token)? != input.revision {
+        return Err("备注或备用恢复码已更新，请重新打开后编辑".into());
+    }
+    if input.recovery_codes.len() > 100 {
+        return Err("每个令牌最多保存 100 个备用恢复码".into());
+    }
+    let mut codes = vec![];
+    for item in &input.recovery_codes {
+        let id = if let Some(id) = &item.id {
+            let old = token
+                .recovery_codes
+                .iter()
+                .find(|old| &old.id == id)
+                .ok_or("备用恢复码已不存在，请重新打开后编辑")?;
+            if old.code != item.code.trim() {
+                return Err("修改备用恢复码时，请删除旧项并添加新项".into());
+            }
+            id.clone()
+        } else {
+            uuid::Uuid::new_v4().to_string()
+        };
+        codes.push(models::RecoveryCode {
+            id,
+            code: item.code.trim().into(),
+            used: item.used,
+        });
+    }
+    // Validate an isolated candidate so direct callers also retain the original
+    // value on rejection, before Vault::update's disk transaction is involved.
+    let mut candidate = token.clone();
+    use zeroize::Zeroize;
+    candidate.notes.zeroize();
+    candidate.notes = input.notes.clone();
+    candidate
+        .recovery_codes
+        .iter_mut()
+        .for_each(models::RecoveryCode::erase);
+    candidate.recovery_codes = codes;
+    if let Err(error) = candidate.validate_private_details() {
+        candidate.erase();
+        return Err(error);
+    }
+    token.notes.zeroize();
+    token.notes = std::mem::take(&mut candidate.notes);
+    token
+        .recovery_codes
+        .iter_mut()
+        .for_each(models::RecoveryCode::erase);
+    token.recovery_codes = std::mem::take(&mut candidate.recovery_codes);
+    candidate.erase();
+    private_details(token)
+}
+#[tauri::command(async)]
+pub fn token_private_details(s: State<AppState>, id: String) -> Result<PrivateDetails, String> {
+    read_private(&s, &id)
+}
+fn read_private(s: &AppState, id: &str) -> Result<PrivateDetails, String> {
+    private_details(private_token(s.vault()?.ensure()?, id)?)
+}
+#[tauri::command(async)]
+pub fn token_private_details_update(
+    s: State<AppState>,
+    id: String,
+    input: PrivateInput,
+) -> Result<PrivateDetails, String> {
+    s.vault()?.update(|data| update_private(data, &id, &input))
+}
+fn mark_recovery(
+    data: &mut VaultData,
+    id: &str,
+    recovery_id: &str,
+    used: bool,
+    revision: &str,
+) -> Result<PrivateDetails, String> {
+    let token = private_token(data, id)?;
+    if details_revision(token)? != revision {
+        return Err("备注或备用恢复码已更新，请重新打开后编辑".into());
+    }
+    token
+        .recovery_codes
+        .iter_mut()
+        .find(|item| item.id == recovery_id)
+        .ok_or("备用恢复码不存在")?
+        .used = used;
+    private_details(token)
+}
+#[tauri::command(async)]
+pub fn token_recovery_mark(
+    s: State<AppState>,
+    id: String,
+    recovery_id: String,
+    used: bool,
+    revision: String,
+) -> Result<PrivateDetails, String> {
+    s.vault()?
+        .update(|data| mark_recovery(data, &id, &recovery_id, used, &revision))
 }
 
 #[cfg(test)]
@@ -476,5 +642,170 @@ mod tests {
         restore(&mut data, &ids[..1]).unwrap();
         assert_eq!(data.tokens.len(), 1);
         assert_eq!(data.trash.len(), 1);
+    }
+}
+
+#[cfg(test)]
+mod private_tests {
+    use super::*;
+    use crate::vault::Vault;
+    fn input(revision: String, notes: &str, codes: &[&str]) -> PrivateInput {
+        PrivateInput {
+            revision,
+            notes: notes.into(),
+            recovery_codes: codes
+                .iter()
+                .map(|code| RecoveryInput {
+                    id: None,
+                    code: (*code).into(),
+                    used: false,
+                })
+                .collect(),
+        }
+    }
+    #[test]
+    fn private_details_are_transactional_encrypted_and_never_part_of_preview() {
+        use std::sync::{
+            atomic::{AtomicI64, AtomicU64},
+            Mutex,
+        };
+        let dir = std::env::temp_dir().join(format!("steamguard-private-{}", uuid::Uuid::new_v4()));
+        let mut vault = Vault::new(dir.join("vault.sgvault"));
+        vault.create("synthetic master password").unwrap();
+        let token = Token::new(
+            "Fixture".into(),
+            "totp".into(),
+            b"12345678901234567890".to_vec(),
+        );
+        let id = token.id.clone();
+        vault
+            .update(|data| {
+                data.tokens.push(token);
+                Ok(())
+            })
+            .unwrap();
+        let before = private_details(&vault.ensure().unwrap().tokens[0]).unwrap();
+        let saved = vault
+            .update(|data| {
+                update_private(
+                    data,
+                    &id,
+                    &input(
+                        before.revision.clone(),
+                        "synthetic private note",
+                        &["SYNTHETIC-RECOVERY-A", "SYNTHETIC-RECOVERY-B"],
+                    ),
+                )
+            })
+            .unwrap();
+        let disk = std::fs::read(&vault.path).unwrap();
+        for text in ["synthetic private note", "SYNTHETIC-RECOVERY-A"] {
+            assert!(!String::from_utf8_lossy(&disk).contains(text));
+        }
+        let key = [7; 32];
+        let preview_path = vault.path.clone();
+        crate::quick_access::save_preview(&preview_path, &vault.ensure().unwrap().tokens, &key)
+            .unwrap();
+        let quick = QuickAccess::new(&dir);
+        quick.set("preview", true).unwrap();
+        quick
+            .enter(crate::quick_access::load_preview(&vault.path, &key).unwrap())
+            .unwrap();
+        let visible = serde_json::to_string(&quick.tokens(&vault.path, 123456).unwrap()).unwrap();
+        for text in [
+            "synthetic private note",
+            "SYNTHETIC-RECOVERY-A",
+            "recoveryCodes",
+            "notes",
+        ] {
+            assert!(!visible.contains(text));
+        }
+        let marked = vault
+            .update(|data| {
+                mark_recovery(
+                    data,
+                    &id,
+                    &saved.recovery_codes[0].id,
+                    true,
+                    &saved.revision,
+                )
+            })
+            .unwrap();
+        assert!(marked.recovery_codes[0].used);
+        assert!(vault
+            .update(|data| update_private(data, &id, &input(saved.revision.clone(), "stale", &[])))
+            .is_err());
+        assert_eq!(
+            vault.ensure().unwrap().tokens[0].notes,
+            "synthetic private note"
+        );
+        let portable = vault.portable_encrypted().unwrap();
+        let restored = crate::vault::decode(&portable, "synthetic master password").unwrap();
+        assert!(restored.tokens[0].recovery_codes[0].used);
+        assert_eq!(restored.tokens[0].notes, "synthetic private note");
+        vault.lock();
+        let s = AppState {
+            vault: Mutex::new(vault),
+            previews: Mutex::new(Default::default()),
+            steam: crate::steam::SteamService::new().unwrap(),
+            epoch: AtomicU64::new(0),
+            time_offset: AtomicI64::new(0),
+            sync: Default::default(),
+        };
+        assert!(read_private(&s, &id).is_err());
+        s.vault()
+            .unwrap()
+            .unlock("synthetic master password")
+            .unwrap();
+        let visible = read_private(&s, &id).unwrap();
+        assert!(visible.recovery_codes[0].used);
+        assert_eq!(visible.recovery_codes[1].code, "SYNTHETIC-RECOVERY-B");
+        s.vault().unwrap().lock();
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn private_validation_and_legacy_tokens_fail_without_mutation_or_losing_used_state() {
+        let mut token = Token::new("Fixture".into(), "totp".into(), vec![1; 20]);
+        let id = token.id.clone();
+        let mut data = VaultData {
+            tokens: vec![token.clone()],
+            ..Default::default()
+        };
+        let revision = details_revision(&token).unwrap();
+        assert!(update_private(
+            &mut data,
+            &id,
+            &input(revision.clone(), "note", &["same", "same"])
+        )
+        .is_err());
+        assert!(data.tokens[0].notes.is_empty());
+        assert!(data.tokens[0].recovery_codes.is_empty());
+        let saved = update_private(
+            &mut data,
+            &id,
+            &input(revision, "synthetic note", &["recovery"]),
+        )
+        .unwrap();
+        token = data.tokens[0].clone();
+        data.tokens[0].recovery_codes[0].used = true;
+        crate::vault::merge_metadata(&mut data.tokens[0], &token).unwrap();
+        assert!(data.tokens[0].recovery_codes[0].used);
+        let mut value = serde_json::to_value(&token).unwrap();
+        value.as_object_mut().unwrap().remove("notes");
+        value.as_object_mut().unwrap().remove("recoveryCodes");
+        let old: Token = serde_json::from_value(value).unwrap();
+        assert!(old.notes.is_empty() && old.recovery_codes.is_empty());
+        let mut excessive = input(details_revision(&data.tokens[0]).unwrap(), "note", &[]);
+        excessive.notes = "a".repeat(4097);
+        assert_eq!(
+            update_private(&mut data, &id, &excessive).err().unwrap(),
+            "备注最多 4096 个字符，不能包含空字符"
+        );
+        assert_eq!(data.tokens[0].notes, "synthetic note");
+        assert_eq!(
+            data.tokens[0].recovery_codes[0].id,
+            saved.recovery_codes[0].id
+        );
+        assert!(data.tokens[0].recovery_codes[0].used);
     }
 }

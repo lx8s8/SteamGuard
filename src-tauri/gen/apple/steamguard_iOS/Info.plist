@@ -2,10 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Select QR code images to import your accounts.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>Scan authenticator QR codes to import your accounts.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleExecutable</key>
@@ -20,12 +16,29 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.5.1</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>steamguard.system-entry</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>steamguard</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>1.5.1</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Scan authenticator QR codes to import your accounts.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Use Face ID to unlock your authenticator vault.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Select QR code images to import your accounts.</string>
+	<key>SteamGuardAppGroup</key>
+	<string>$(STEAMGUARD_APP_GROUP)</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>

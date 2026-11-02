@@ -1,5 +1,25 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RecoveryCode {
+    pub id: String,
+    pub code: String,
+    #[serde(default)]
+    pub used: bool,
+}
+impl RecoveryCode {
+    pub fn erase(&mut self) {
+        use zeroize::Zeroize;
+        self.code.zeroize();
+    }
+}
+impl Drop for RecoveryCode {
+    fn drop(&mut self) {
+        self.erase();
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Token {
@@ -27,6 +47,10 @@ pub struct Token {
     pub identity_secret: Option<String>,
     pub device_id: Option<String>,
     pub steam_data: Option<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub notes: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub recovery_codes: Vec<RecoveryCode>,
 }
 impl Token {
     pub fn new(name: String, kind: String, secret: Vec<u8>) -> Self {
@@ -51,9 +75,12 @@ impl Token {
             identity_secret: None,
             device_id: None,
             steam_data: None,
+            notes: String::new(),
+            recovery_codes: vec![],
         }
     }
     pub fn validate(&self) -> Result<(), String> {
+        self.validate_private_details()?;
         if let Some(icon) = &self.icon {
             crate::avatar::validate(icon)?;
         }
@@ -65,6 +92,31 @@ impl Token {
             return Err("分组名称需为 1–40 个字符".into());
         }
         self.validate_otp()
+    }
+    pub fn validate_private_details(&self) -> Result<(), String> {
+        if self.notes.chars().count() > 4096 || self.notes.contains('\0') {
+            return Err("备注最多 4096 个字符，不能包含空字符".into());
+        }
+        if self.recovery_codes.len() > 100 {
+            return Err("每个令牌最多保存 100 个备用恢复码".into());
+        }
+        let mut ids = std::collections::HashSet::new();
+        let mut codes = std::collections::HashSet::new();
+        for item in &self.recovery_codes {
+            if uuid::Uuid::parse_str(&item.id)
+                .ok()
+                .is_none_or(|id| id.to_string() != item.id)
+                || !ids.insert(&item.id)
+                || !codes.insert(&item.code)
+                || item.code.is_empty()
+                || item.code.trim() != item.code
+                || item.code.chars().count() > 256
+                || item.code.chars().any(char::is_control)
+            {
+                return Err("备用恢复码为空、重复或格式无效".into());
+            }
+        }
+        Ok(())
     }
     /// Authentication on the timer path validates only the OTP parameters.
     /// Artwork and grouping were validated on load and transaction commit.
@@ -94,6 +146,8 @@ impl Token {
             }
         }
         self.secret.zeroize();
+        self.notes.zeroize();
+        self.recovery_codes.iter_mut().for_each(RecoveryCode::erase);
         if let Some(s) = &mut self.identity_secret {
             s.zeroize()
         };

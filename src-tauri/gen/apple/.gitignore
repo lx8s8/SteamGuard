@@ -1,3 +1,5 @@
 xcuserdata/
 build/
 Externals/
+.system-entry/
+system-entry.generated.yml

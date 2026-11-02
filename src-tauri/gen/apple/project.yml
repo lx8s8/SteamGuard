@@ -17,6 +17,7 @@ targetTemplates:
     type: application
     sources:
       - path: Sources
+      - path: SystemEntriesShared
     scheme:
       environmentVariables:
         RUST_BACKTRACE: full
@@ -29,6 +30,7 @@ targets:
     platform: iOS
     sources:
       - path: Sources
+      - path: SystemEntriesShared
       - path: ../../locales
         buildPhase: resources
       - path: Assets.xcassets
@@ -61,8 +63,12 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        CFBundleShortVersionString: 1.5.1
+        CFBundleShortVersionString: "1.5.1"
         CFBundleVersion: "1.5.1"
+        SteamGuardAppGroup: $(STEAMGUARD_APP_GROUP)
+        CFBundleURLTypes:
+          - CFBundleURLName: steamguard.system-entry
+            CFBundleURLSchemes: [steamguard]
     entitlements:
       path: steamguard_iOS/steamguard_iOS.entitlements
     scheme:
@@ -77,9 +83,12 @@ targets:
         LIBRARY_SEARCH_PATHS[arch=x86_64]: $(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)
         LIBRARY_SEARCH_PATHS[arch=arm64]: $(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)
         ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: true
+        STEAMGUARD_APP_GROUP: ""
         EXCLUDED_ARCHS[sdk=iphoneos*]: x86_64
       groups: [app]
     dependencies:
+      - target: SteamGuardWidgets
+        embed: true
       - framework: libapp.a
         embed: false
       - sdk: CoreGraphics.framework
@@ -101,3 +110,31 @@ targets:
         outputFiles:
           - $(SRCROOT)/Externals/x86_64/${CONFIGURATION}/libapp.a
           - $(SRCROOT)/Externals/arm64/${CONFIGURATION}/libapp.a
+  SteamGuardWidgets:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: SystemEntriesShared
+      - path: SystemEntriesWidget
+    info:
+      path: SystemEntriesWidget/Info.plist
+      properties:
+        CFBundleDisplayName: SteamGuard
+        CFBundleShortVersionString: "1.5.1"
+        CFBundleVersion: "1.5.1"
+        SteamGuardAppGroup: $(STEAMGUARD_APP_GROUP)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_NAME: SteamGuardWidgets
+        PRODUCT_BUNDLE_IDENTIFIER: com.kasen.steamguard.widgets
+        SKIP_INSTALL: true
+        APPLICATION_EXTENSION_API_ONLY: true
+        STEAMGUARD_APP_GROUP: ""
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+    dependencies:
+      - sdk: SwiftUI.framework
+      - sdk: WidgetKit.framework

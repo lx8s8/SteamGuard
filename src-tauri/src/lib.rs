@@ -4,6 +4,7 @@ mod avatar;
 mod backup;
 mod backup_commands;
 mod backup_external;
+mod clipboard;
 mod desktop;
 mod import;
 mod migration;
@@ -13,6 +14,7 @@ mod otp;
 mod quick_access;
 mod steam;
 mod sync;
+mod system_entries;
 mod token_commands;
 mod updates;
 mod vault;
@@ -139,7 +141,7 @@ struct VaultStatus {
     biometric_enabled: bool,
     preview_active: bool,
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn ui_localize(app: tauri::AppHandle, reason: String, fallback: String) -> Result<(), String> {
     app.secure_access().localize(&reason, &fallback)
 }
@@ -160,7 +162,7 @@ async fn appearance_configure(app: tauri::AppHandle, theme: String) -> Result<()
     let _ = theme;
     Ok(())
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn vault_background(
     s: State<AppState>,
     q: State<quick_access::QuickAccess>,
@@ -176,11 +178,12 @@ fn vault_background(
     }
     s.vault()?.set_background(hidden);
     if hidden {
+        s.sync.cancel();
         q.clear();
     }
     Ok(())
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn vault_status(
     s: State<AppState>,
     q: State<quick_access::QuickAccess>,
@@ -384,7 +387,7 @@ async fn quick_preview_enter(
     }
     q.enter(quick_access::load_preview(&v.path, &key)?)
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn quick_preview_tokens(
     s: State<AppState>,
     q: State<quick_access::QuickAccess>,
@@ -395,7 +398,7 @@ fn quick_preview_tokens(
     }
     q.tokens(&v.path, s.timestamp())
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn quick_preview_exit(s: State<AppState>, q: State<quick_access::QuickAccess>) {
     s.epoch.fetch_add(1, Ordering::SeqCst);
     q.clear();
@@ -565,7 +568,7 @@ async fn vault_change_password(
     let _ = app.secure_access().remove("biometric");
     v.change_password(&current, &next)
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn vault_lock(s: State<AppState>, q: State<quick_access::QuickAccess>) -> Result<(), String> {
     s.sync.cancel();
     s.epoch.fetch_add(1, Ordering::SeqCst);
@@ -575,14 +578,14 @@ fn vault_lock(s: State<AppState>, q: State<quick_access::QuickAccess>) -> Result
     s.steam.clear();
     Ok(())
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn vault_touch(s: State<AppState>) -> Result<(), String> {
     let mut v = s.vault()?;
     v.ensure()?;
     v.touch();
     Ok(())
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn list_tokens(s: State<AppState>) -> Result<Vec<TokenView>, String> {
     let mut v = s.vault()?;
     let now = s.timestamp();
@@ -747,7 +750,7 @@ struct QrImportPreview {
     progress: import::qr::Progress,
     preview: Option<ImportPreview>,
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn import_qr_preview(s: State<AppState>, payloads: Vec<String>) -> Result<QrImportPreview, String> {
     qr_import_preview(&s, payloads)
 }
@@ -786,7 +789,7 @@ fn qr_import_preview(s: &AppState, payloads: Vec<String>) -> Result<QrImportPrev
         preview,
     })
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn import_discard(s: State<AppState>, preview_id: String) -> Result<(), String> {
     s.previews
         .lock()
@@ -794,11 +797,11 @@ fn import_discard(s: State<AppState>, preview_id: String) -> Result<(), String> 
         .remove(&preview_id);
     Ok(())
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn import_camera_supported() -> bool {
     cfg!(mobile)
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn import_commit(s: State<AppState>, preview_id: String) -> Result<usize, String> {
     commit_import_preview(&s, &preview_id)
 }
@@ -816,11 +819,11 @@ fn commit_import_preview(s: &AppState, preview_id: &str) -> Result<usize, String
     }
     v.update(|d| d.merge_import(std::mem::take(&mut p.tokens), std::mem::take(&mut p.groups)))
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn token_groups(s: State<AppState>) -> Result<Vec<String>, String> {
     Ok(s.vault()?.ensure()?.group_names())
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn token_group_manage(
     s: State<AppState>,
     action: String,
@@ -834,7 +837,7 @@ fn token_group_manage(
 struct IconUpdate {
     value: Option<String>,
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn token_update(
     s: State<AppState>,
     id: String,
@@ -922,20 +925,20 @@ async fn backup_status(
         external_supported: !cfg!(mobile),
     })
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn backup_directory_configure(s: State<AppState>, path: Option<String>) -> Result<(), String> {
     let mut v = s.vault()?;
     v.ensure()?;
     backup::configure_directory(&v.path, path.as_deref())
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn backup_configure(s: State<AppState>, enabled: bool) -> Result<(), String> {
     s.vault()?.update(|d| {
         d.auto_backup = enabled;
         Ok(())
     })
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn backup_now(s: State<AppState>) -> Result<(), String> {
     let mut v = s.vault()?;
     v.ensure()?;
@@ -956,7 +959,7 @@ async fn backup_export(
     };
     save_file(&app, &format!("SteamGuard-{name}"), "sgvault", bytes).await
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn backup_restore(s: State<AppState>, name: String, password: String) -> Result<usize, String> {
     let password = Zeroizing::new(password);
     let mut v = s.vault()?;
@@ -965,7 +968,7 @@ fn backup_restore(s: State<AppState>, name: String, password: String) -> Result<
     let data = vault::decode(&bytes, &password)?;
     v.update(|d| d.merge_backup(data))
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn token_rename(s: State<AppState>, id: String, name: String) -> Result<(), String> {
     let name = name.trim();
     if name.is_empty() || name.chars().count() > 120 {
@@ -980,14 +983,14 @@ fn token_rename(s: State<AppState>, id: String, name: String) -> Result<(), Stri
         Ok(())
     })
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn token_delete(s: State<AppState>, id: String) -> Result<(), String> {
     s.vault()?
         .update(|d| token_commands::delete(d, std::slice::from_ref(&id)))?;
     s.steam.logout(&id);
     Ok(())
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn token_advance(s: State<AppState>, id: String) -> Result<(), String> {
     let mut vault = s.vault()?;
     let device = vault.device_id.clone();
@@ -1009,7 +1012,7 @@ fn token_advance(s: State<AppState>, id: String) -> Result<(), String> {
         Ok(())
     })
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn token_reorder(s: State<AppState>, ids: Vec<String>) -> Result<(), String> {
     s.vault()?.update(|d| {
         let tokens = &mut d.tokens;
@@ -1110,9 +1113,18 @@ async fn save_file(
         .map_err(|_| "无法保存文件")?;
     Ok(Some(label))
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn token_uri(s: State<AppState>, id: String) -> Result<String, String> {
-    let t = s.token(&id)?;
+    let mut vault = s.vault()?;
+    let t = vault
+        .ensure()?
+        .tokens
+        .iter()
+        .find(|t| t.id == id)
+        .ok_or("令牌不存在")?;
+    make_token_uri(t)
+}
+fn make_token_uri(t: &Token) -> Result<String, String> {
     let kind = if t.kind == "hotp" { "hotp" } else { "totp" };
     let mut u = url::Url::parse(&format!("otpauth://{kind}/")).map_err(|_| "URI 格式错误")?;
     u.set_path(&format!("{}:{}", t.issuer, t.name));
@@ -1273,7 +1285,7 @@ async fn steam_poll_login(
     }
     Ok(r)
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn steam_logout(s: State<AppState>, id: String) -> Result<(), String> {
     s.unlocked()?;
     let mut v = s.vault()?;
@@ -1537,12 +1549,12 @@ async fn steam_remove_authenticator(
     v.touch();
     v.save()
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn steam_network_settings(s: State<AppState>) -> Result<network::NetworkSettings, String> {
     s.unlocked()?;
     Ok(s.steam.network_settings())
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn steam_network_configure(
     s: State<AppState>,
     settings: network::NetworkSettings,
@@ -1573,7 +1585,7 @@ async fn sync_time(s: State<'_, AppState>) -> Result<i64, String> {
     s.time_offset.store(offset, Ordering::Relaxed);
     Ok(offset)
 }
-#[tauri::command]
+#[tauri::command(async)]
 fn open_external(app: tauri::AppHandle, url: String) -> Result<(), String> {
     let u = url::Url::parse(&url).map_err(|_| "链接无效")?;
     if u.scheme() != "https"
@@ -1599,7 +1611,11 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_quick_access::init());
-    let builder = builder.plugin(tauri_plugin_cloud_auth::init());
+    let builder = builder
+        .plugin(tauri_plugin_cloud_auth::init())
+        .plugin(tauri_plugin_private_clipboard::init())
+        .plugin(tauri_plugin_system_entry::init())
+        .plugin(tauri_plugin_icloud_sync::init());
     #[cfg(mobile)]
     let builder = builder.plugin(tauri_plugin_barcode_scanner::init());
     #[cfg(desktop)]
@@ -1617,6 +1633,12 @@ pub fn run() {
         .setup(|app| {
             app.manage(updates::Controller::default());
             sync::cloud::initialize(app.handle().clone());
+            sync::icloud::initialize(app.handle().clone());
+            app.manage(clipboard::Controller::new(
+                app.path()
+                    .app_local_data_dir()?
+                    .join("device-only/clipboard.json"),
+            ));
             backup_external::install(app.handle().clone());
             let path = app.path().app_data_dir()?.join("vault.sgvault");
             std::fs::create_dir_all(path.parent().ok_or("存储目录无效")?.join("device-only"))?;
@@ -1642,6 +1664,7 @@ pub fn run() {
                 time_offset: std::sync::atomic::AtomicI64::new(0),
                 sync: sync::Controller::default(),
             });
+            system_entries::initialize(app.handle())?;
             #[cfg(desktop)]
             desktop::setup(app)?;
             Ok(())
@@ -1671,6 +1694,21 @@ pub fn run() {
                 updates::update_install,
                 updates::update_cancel,
                 updates::update_open_download,
+                clipboard::clipboard_settings,
+                clipboard::clipboard_configure,
+                clipboard::clipboard_housekeeping,
+                clipboard::token_copy,
+                clipboard::token_recovery_copy,
+                clipboard::token_uri_copy,
+                token_commands::token_private_details,
+                token_commands::token_private_details_update,
+                token_commands::token_recovery_mark,
+                sync::icloud::icloud_status,
+                sync::icloud::icloud_watch,
+                system_entries::system_entries_status,
+                system_entries::system_entries_configure,
+                system_entries::system_entry_take,
+                system_entries::system_entries_refresh,
                 sync::cloud::cloud_providers,
                 sync::cloud::cloud_auth_start,
                 sync::cloud::cloud_auth_poll,

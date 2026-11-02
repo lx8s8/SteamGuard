@@ -1,0 +1,10 @@
+/target/
+/Cargo.lock
+/.tauri/
+/android/.gradle/
+/android/build/
+/android/.tauri/
+/ios/.build/
+/ios/.tauri/
+/ios/.swiftpm/
+/ios/Package.resolved

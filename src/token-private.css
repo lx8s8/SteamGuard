@@ -1,0 +1,8 @@
+.private-details-content { padding-block:12px; }
+.private-details-content textarea { display:block; width:100%; max-width:100%; resize:vertical; min-height:78px; max-height:240px; }
+.private-details-content .panel-title { margin-block:16px 8px; }
+.recovery-code-list { display:flex; flex-direction:column; gap:8px; }
+.recovery-code-row { display:grid; grid-template-columns:minmax(0,1fr) auto 32px 32px; gap:6px; align-items:center; }
+.recovery-code-row .recovery-code-value { min-width:0; width:100%; direction:ltr; unicode-bidi:isolate; font-family:ui-monospace,monospace; }
+.recovery-code-row .sync-choice { margin:0; max-width:96px; font-size:12px; }
+.recovery-code-row .button { min-width:0; padding:6px; }

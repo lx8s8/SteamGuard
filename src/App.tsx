@@ -1,4 +1,5 @@
 import { AppMark } from "./AppMark";
+import { SystemEntrySettings } from "./SystemEntrySettings";
 import { t as translate, formatDateTime } from "./i18n";
 import {
   useCallback,
@@ -52,16 +53,17 @@ import { SettingsDisclosure } from "./SettingsDisclosure";
 import { BatchQrExport } from "./BatchQrExport";
 import { LanguageSettings } from "./LanguageSettings";
 import { UpdateSettings } from "./UpdateSettings";
+import { ClipboardSettings } from "./ClipboardSettings";
 import { AppearanceSettings } from "./AppearanceSettings";
 import { SteamQrScanner } from "./SteamQrScanner";
 import { DesktopSettings } from "./DesktopSettings";
 import { QrImportPanel } from "./QrImportPanel";
-import { api, errorText, native } from "./api";
+import { api, call, errorText, native } from "./api";
 import { SyncPanel, useSyncWatcher } from "./SyncPanel";
 import { BackupPanel, BackupBrowser } from "./BackupPanel";
 import { TokenGroups } from "./TokenGroups";
 import { Modal } from "./Modal";
-import { ManualTokenForm, OtpParameters, PasswordSettings, TrashBrowser } from "./TokenManagement";
+import { ManualTokenForm, OtpParameters, PasswordSettings, TrashBrowser, TokenPrivateDetailsEditor } from "./TokenManagement";
 import { QuickAccessSettings } from "./QuickAccessSettings";
 import { SteamNetworkPanel } from "./SteamNetworkPanel";
 import type {
@@ -116,6 +118,13 @@ export default function App() {
   const [licensesOpen, setLicensesOpen] = useState(false);
   const [licenseText, setLicenseText] = useState("");
   useEffect(() => {
+    if (!native) return;
+    const clean = () => { if (!document.hidden) void call("clipboard_housekeeping").catch(() => {}); };
+    clean();
+    document.addEventListener("visibilitychange", clean);
+    return () => document.removeEventListener("visibilitychange", clean);
+  }, []);
+  useEffect(() => {
     if (licensesOpen)
       void fetch("/third-party-notices.txt")
         .then((r) => {
@@ -130,6 +139,7 @@ export default function App() {
   const [status, setStatus] = useState<VaultStatus | null>(null);
   const [tokens, setTokens] = useState<TokenView[]>([]);
   const [search, setSearch] = useState("");
+  const [entryTarget, setEntryTarget] = useState<string | null>(null);
   const [groups, setGroups] = useState<string[]>([]);
   const [groupFilter, setGroupFilter] = useState("all");
   const [groupsOpen, setGroupsOpen] = useState(false);
@@ -297,6 +307,47 @@ export default function App() {
     setMarket(null);
   }, [active?.id]);
   const unlocked = !!status?.initialized && !status.locked;
+  useEffect(() => {
+    if (!unlocked || !native) return;
+    let disposed = false;
+    let taking = false;
+    let supported = false;
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const take = async () => {
+      if (!supported || disposed || taking || document.hidden || resuming.current) return;
+      taking = true;
+      const epoch = accessEpoch.current;
+      try {
+        const next = await call<{ action: "open" | "copy"; id: string | null } | null>("system_entry_take");
+        if (!next || disposed || epoch !== accessEpoch.current || statusRef.current?.locked) return;
+        setPage("tokens");
+        setGroupFilter("all"); setFilter("all"); setSelecting(false);
+        if (next.id) {
+          const token = tokens.find(token => token.id === next.id);
+          if (token) { setSearch(token.name); setEntryTarget(token.id); }
+        } else setSearch("");
+        // External URLs only navigate. Copy always needs a fresh user gesture.
+      } catch { /* Unsupported platforms and locked vaults have no pending entry. */ }
+      finally { taking = false; }
+    };
+    const refreshEntries = () => { if (supported && !document.hidden) void call("system_entries_refresh").catch(() => {}); };
+    void call<{ supported: boolean }>("system_entries_status").then(status => {
+      if (!status?.supported || disposed) return;
+      supported = true;
+      void take(); refreshEntries();
+      timer = setInterval(() => void take(), 1500);
+    }).catch(() => {});
+    const ready = () => { void take(); refreshEntries(); };
+    window.addEventListener("steamguard:foreground-ready", ready);
+    window.addEventListener("steamguard:local-change", refreshEntries);
+    window.addEventListener("steamguard:sync-updated", refreshEntries);
+    return () => {
+      disposed = true; clearInterval(timer);
+      window.removeEventListener("steamguard:foreground-ready", ready);
+      window.removeEventListener("steamguard:local-change", refreshEntries);
+      window.removeEventListener("steamguard:sync-updated", refreshEntries);
+    };
+  }, [unlocked, tokens.map(token => `${token.id}:${token.name}`).join("\0")]);
   const previewMode = !!status?.previewActive && !!status.locked;
   useSyncWatcher(
     unlocked,
@@ -417,6 +468,15 @@ export default function App() {
         ? a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name)
         : a.name.localeCompare(b.name)),
     );
+  useEffect(() => {
+    if (!entryTarget) return;
+    if (unlocked && page === "tokens") {
+      const card = document.querySelector<HTMLElement>(`[data-token-id="${CSS.escape(entryTarget)}"]`);
+      card?.scrollIntoView({ block: "center" });
+      card?.querySelector<HTMLButtonElement>(".copy-button")?.focus({ preventScroll: true });
+    }
+    setEntryTarget(null);
+  }, [entryTarget, page, unlocked]);
   const run = async (job: () => Promise<unknown>, success?: string) => {
     setBusy(true);
     try {
@@ -441,10 +501,9 @@ export default function App() {
     if (!token.code || token.hotpReadOnly || document.hidden || resuming.current) return;
     const epoch = accessEpoch.current;
     try {
-      const current = await api.currentCode(token.id);
+      const current = await api.copyCode(token.id);
       if (epoch !== accessEpoch.current || document.hidden || resuming.current) return;
       setTokens(previous => previous.map(item => item.id === token.id ? { ...item, ...current } : item));
-      await navigator.clipboard.writeText(current.code.replaceAll(" ", ""));
       if (epoch !== accessEpoch.current || resuming.current) return;
       setCopied(token.id);
       setTimeout(() => { if (epoch === accessEpoch.current) setCopied(""); }, 1800);
@@ -693,7 +752,7 @@ export default function App() {
                       {visibleTokens
                         .filter((t) => filter !== "other" || t.kind !== "steam")
                         .map((token) => (
-                          <article className={`token-card ${selected.includes(token.id) ? "token-selected" : ""}`} key={token.id}
+                          <article data-token-id={token.id} className={`token-card ${selected.includes(token.id) ? "token-selected" : ""}`} key={token.id}
                             draggable={unlocked && !busy && sort === "manual" && !selecting}
                             onDragStart={e => { dragging.current = token.id; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", token.id); }}
                             onDragOver={e => { if (sort === "manual" && dragging.current) e.preventDefault(); }}
@@ -1070,6 +1129,8 @@ export default function App() {
                   <PasswordSettings onChange={refresh} />
                   <QuickAccessSettings status={status} onChange={refresh} />
                   <DesktopSettings />
+                  <ClipboardSettings />
+              <SystemEntrySettings tokens={tokens} />
                   <AppearanceSettings />
                   <LanguageSettings />
                   <UpdateSettings />
@@ -2443,7 +2504,6 @@ function EditDialog({
   const [error, setError] = useState("");
   const [showQr, setShowQr] = useState(false);
   const [qrImage, setQrImage] = useState("");
-  const [uri, setUri] = useState("");
   const [exported, setExported] = useState("");
   const act = async (remove: boolean) => {
     setBusy(true);
@@ -2467,7 +2527,6 @@ function EditDialog({
     setError("");
     try {
       const next = await api.uri(token.id);
-      setUri(next);
       setQrImage(await QRCode.toDataURL(next, { width: 260, margin: 2 }));
       setShowQr(true);
     } catch (e) {
@@ -2532,8 +2591,7 @@ function EditDialog({
           <button
             className="button secondary full-width"
             onClick={() =>
-              void navigator.clipboard
-                .writeText(uri)
+              void api.copyUri(token.id)
                 .catch(() => setError(translate("无法复制链接")))
             }
           >
@@ -2597,6 +2655,7 @@ function EditDialog({
               )}
             </div>
           </details>
+          {token.kind !== "steam" && <TokenPrivateDetailsEditor id={token.id} disabled={busy}/>}
           <div className="account-tool-grid">
             <button disabled={busy} onClick={() => void revealQr()}>
               <QrCode size={20} />
@@ -2641,7 +2700,6 @@ function EditDialog({
               className="button secondary"
               onClick={() => {
                 setShowQr(false);
-                setUri("");
                 setQrImage("");
               }}
             >{translate("隐藏密钥并返回")}</button>

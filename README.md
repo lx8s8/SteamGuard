@@ -11,11 +11,12 @@
 - **本地验证码**：支持 Steam Guard、TOTP 和 HOTP，提供手动添加、搜索、自定义分组、置顶、排序与批量管理。
 - **Steam 账号**：密码或二维码登录，支持 Steam Guard、邮箱验证、手机交易确认与市场挂单查询；可扫描登录二维码后核对并审批。
 - **备份与迁移**：支持 Google Authenticator 多码导入与兼容二维码批量导出、Aegis / 2FAS 备份、WinAuth XML、WattToolkit `.mpo` / `.dat`、Steam `.maFile` 与 OTP 链接；提供自动加密快照、外部备份目录、差异预览与逐项恢复。
-- **恢复与管理**：本机加密回收站，支持撤销、还原和永久删除；可修改保险库主密码，HOTP 恢复不会降低计数。
-- **多端同步**：使用自己的网盘，端到端加密同步令牌与分组，可选择已有同步库、合并误建库、核对冲突。支持坚果云与 HTTPS WebDAV，另提供 Google Drive、OneDrive、Dropbox 专用登录接入，需先完成客户端登记配置。
+- **恢复与管理**：本机加密回收站，支持撤销、还原和永久删除；通用令牌可保存备注和备用恢复码，标记已用状态；可修改保险库主密码，HOTP 恢复不会降低计数。
+- **多端同步**：使用自己的网盘，端到端加密同步令牌与分组，可选择已有同步库、合并误建库、核对冲突。支持坚果云与 HTTPS WebDAV；Google Drive、OneDrive、Dropbox 专用登录需先登记客户端。Apple 平台另提供 iCloud Drive 接入，需配置有效容器授权。
 - **快捷访问**：可选择免密码预览验证码，或通过系统设备认证解锁完整保险库；桌面平台条件见[快捷访问说明](docs/DESKTOP-AUTH.md)。
 - **简洁界面**：首页直接显示验证码，未添加 Steam 令牌时隐藏交易与市场入口；支持服务图标、自定义头像、浅色 / 深色主题与文字大小。
 - **桌面托盘**：macOS 菜单栏和 Windows 任务栏常驻，点击令牌即可复制；提供全局快捷键、键盘导航与可选开机启动。
+- **复制与手机入口**：验证码可定时清除剪贴板；手机提供所选令牌的系统快捷入口，打开应用后解锁并复制，详见[手机入口说明](docs/SYSTEM-ENTRIES.md)。
 - **多语言**：内置 16 种语言，可跟随系统或手动切换，支持阿拉伯语从右向左布局。详见[语言说明](docs/LANGUAGES.md)。
 
 ![桌面界面](docs/screenshots/desktop.png)
@@ -71,7 +72,11 @@ npm run build
 - [自动备份与恢复](docs/BACKUP.md)
 - [WebDAV 多端同步](docs/SYNC.md)
 - [专用网盘登录接入](docs/cloud-oauth.md)
+- [iCloud 同步与配置](docs/ICLOUD.md)
 - [桌面快捷访问](docs/DESKTOP-AUTH.md)
+- [手机系统快捷入口](docs/SYSTEM-ENTRIES.md)
+- [剪贴板设置](docs/CLIPBOARD.md)
+- [令牌备注与恢复码](docs/TOKEN-DETAILS.md)
 - [导入格式兼容性](docs/import-format.md)
 - [功能范围](docs/feature-matrix.md)
 - [语言与翻译](docs/LANGUAGES.md)

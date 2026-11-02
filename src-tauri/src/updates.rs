@@ -283,11 +283,11 @@ pub async fn update_install(
         Err("请从发布页面下载移动端更新".into())
     }
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn update_cancel(control: State<'_, Controller>) -> Result<bool, String> {
     control.cancel()
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn update_open_download(app: AppHandle) -> Result<(), String> {
     app.opener()
         .open_url(RELEASES, None::<&str>)

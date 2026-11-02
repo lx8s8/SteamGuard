@@ -1,4 +1,5 @@
 /target/
+/icloud.local/
 /gen/schemas/
 /gen/android/.gradle/
 /gen/android/local.properties

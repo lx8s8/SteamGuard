@@ -39,7 +39,7 @@ fn status(s: &AppState) -> Result<Status, String> {
         conflicts: config.conflicts()?,
     })
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn sync_status(s: State<AppState>) -> Result<Status, String> {
     status(&s)
 }
@@ -177,6 +177,12 @@ impl Drop for Connection {
 }
 impl Connection {
     fn validate(&self) -> Result<String, String> {
+        if icloud::matches(&self.endpoint) {
+            if !self.password.is_empty() {
+                return Err("iCloud 连接不需要网盘密码".into());
+            }
+            return Ok(self.endpoint.clone());
+        }
         if cloud::provider(&self.endpoint).is_some() {
             cloud::Credentials::parse(&self.endpoint, &self.password)?;
             return Ok(self.endpoint.clone());
@@ -193,6 +199,9 @@ impl Connection {
 }
 impl Connection {
     fn resolve(mut self, s: &AppState) -> Result<Self, String> {
+        if icloud::matches(&self.endpoint) {
+            self.username = "iCloud Drive".into();
+        }
         if let Some(provider) = cloud::provider(&self.endpoint) {
             self.username = provider.name().into();
             if uuid::Uuid::parse_str(&self.password).is_ok() {
@@ -215,7 +224,9 @@ async fn operator(
     password: &str,
     network: &crate::network::NetworkSettings,
 ) -> Result<(opendal::Operator, Zeroizing<String>), String> {
-    if cloud::provider(endpoint).is_some() {
+    if icloud::matches(endpoint) {
+        Ok((icloud::operator(s).await?, Zeroizing::new(String::new())))
+    } else if cloud::provider(endpoint).is_some() {
         cloud::operator(s, endpoint, password, network).await
     } else {
         Ok((
@@ -274,7 +285,7 @@ async fn update_credentials(s: &AppState, connection: Connection) -> Result<Stat
     }
     status(s)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn sync_set_alias(s: State<AppState>, alias: String) -> Result<Status, String> {
     let alias = alias.trim();
     if alias.chars().count() > 80 {
@@ -295,7 +306,7 @@ pub struct ConnectionInfo {
     alias: String,
     connection_qr: String,
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn sync_connection_info(s: State<AppState>) -> Result<ConnectionInfo, String> {
     let mut v = s.vault()?;
     let c = v.ensure()?.sync.as_ref().ok_or("尚未连接同步库")?;
@@ -587,7 +598,7 @@ async fn switch(s: &AppState, library_id: &str, sync_password: &str) -> Result<S
     )
     .await
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn sync_pause(s: State<AppState>, active: bool) -> Result<Status, String> {
     s.sync.cancel();
     let mut v = s.vault()?;
@@ -598,7 +609,7 @@ pub fn sync_pause(s: State<AppState>, active: bool) -> Result<Status, String> {
     drop(v);
     status(&s)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn sync_disconnect(s: State<AppState>) -> Result<Status, String> {
     s.sync.cancel();
     let mut v = s.vault()?;
@@ -615,7 +626,7 @@ pub fn sync_disconnect(s: State<AppState>) -> Result<Status, String> {
     drop(v);
     status(&s)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn sync_resolve(s: State<AppState>, id: String, choice: String) -> Result<Status, String> {
     if s.sync.busy() {
         return Err("请等待当前同步完成".into());
@@ -629,7 +640,7 @@ pub fn sync_resolve(s: State<AppState>, id: String, choice: String) -> Result<St
     drop(v);
     status(&s)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn sync_claim_hotp(
     s: State<AppState>,
     id: String,

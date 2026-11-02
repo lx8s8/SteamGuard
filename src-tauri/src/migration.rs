@@ -5,7 +5,7 @@ use tauri::State;
 pub struct Export {
     pages: Vec<String>,
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn token_export_qr_batch(s: State<AppState>, ids: Vec<String>) -> Result<Export, String> {
     if ids.is_empty()
         || ids.len() > 1000
