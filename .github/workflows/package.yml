@@ -3,7 +3,6 @@ name: Build desktop and mobile packages
 on:
   workflow_dispatch:
   push:
-    branches: [main, master]
     tags: ["v*"]
   pull_request:
     paths:
