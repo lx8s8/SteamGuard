@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "tray-popup",
+  "description": "Read-only desktop token popup; privileged commands are rejected by the invoke handler",
+  "windows": [
+    "quick-tokens"
+  ],
+  "platforms": [
+    "macOS",
+    "windows",
+    "linux"
+  ],
+  "permissions": []
+}

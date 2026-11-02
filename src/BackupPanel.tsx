@@ -181,7 +181,6 @@ export function BackupPanel({ onChange }: { onChange: () => Promise<void> }) {
         </span>
         <div>
           <h2>自动备份</h2>
-          <p>保留加密快照，找回误删的令牌</p>
         </div>
       </div>
       <div className="setting-row">

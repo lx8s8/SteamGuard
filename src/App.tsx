@@ -12,7 +12,6 @@ import {
   Check,
   CheckCheck,
   ChevronDown,
-  ChevronRight,
   CircleHelp,
   Clock3,
   Copy,
@@ -44,6 +43,9 @@ import {
   X,
 } from "lucide-react";
 import QRCode from "qrcode";
+import { TokenAvatar, IconPicker } from "./TokenAvatar";
+import { SettingsDisclosure } from "./SettingsDisclosure";
+import { DesktopSettings } from "./DesktopSettings";
 import { QrImportPanel } from "./QrImportPanel";
 import { api, errorText, native } from "./api";
 import { SyncPanel, useSyncWatcher } from "./SyncPanel";
@@ -67,32 +69,11 @@ const navigation: {
   id: Page;
   label: string;
   icon: typeof Shield;
-  description: string;
 }[] = [
-  {
-    id: "tokens",
-    label: "本地令牌",
-    icon: LayoutGrid,
-    description: "每一次登录，都安心一点。",
-  },
-  {
-    id: "confirmations",
-    label: "交易确认",
-    icon: CheckCheck,
-    description: "核对每笔交易，由你亲自确认。",
-  },
-  {
-    id: "market",
-    label: "社区市场",
-    icon: ShoppingBag,
-    description: "查看你的市场在售物品与账户状态。",
-  },
-  {
-    id: "settings",
-    label: "设置",
-    icon: Settings2,
-    description: "为你的令牌，设置更稳妥的保护。",
-  },
+  { id: "tokens", label: "令牌", icon: LayoutGrid },
+  { id: "confirmations", label: "交易确认", icon: CheckCheck },
+  { id: "market", label: "社区市场", icon: ShoppingBag },
+  { id: "settings", label: "设置", icon: Settings2 },
 ];
 
 function Spinner() {
@@ -116,17 +97,23 @@ function SteamMark({ small = false }: { small?: boolean }) {
   );
 }
 function TokenIcon({ token }: { token: TokenView }) {
-  return token.kind === "steam" ? (
-    <SteamMark />
-  ) : (
-    <span className="token-generic">
-      <KeyRound size={23} />
-    </span>
-  );
+  return <TokenAvatar token={token} />;
 }
 
 export default function App() {
   const [showUnlock, setShowUnlock] = useState(false);
+  const [licensesOpen, setLicensesOpen] = useState(false);
+  const [licenseText, setLicenseText] = useState("");
+  useEffect(() => {
+    if (licensesOpen)
+      void fetch("/third-party-notices.txt")
+        .then((r) => {
+          if (!r.ok) throw new Error();
+          return r.text();
+        })
+        .then(setLicenseText)
+        .catch(() => setLicenseText("无法读取许可文件"));
+  }, [licensesOpen]);
   const startupAccess = useRef(false);
   const [page, setPage] = useState<Page>("tokens");
   const [status, setStatus] = useState<VaultStatus | null>(null);
@@ -155,7 +142,6 @@ export default function App() {
     item: Confirmation;
     approve: boolean;
   } | null>(null);
-  const [time, setTime] = useState(new Date());
   const refreshing = useRef(false);
   const notify = useCallback(
     (text: string, error = false) => setNotification({ text, error }),
@@ -211,7 +197,6 @@ export default function App() {
   useEffect(() => {
     void refresh();
     const timer = setInterval(() => {
-      setTime(new Date());
       void refresh();
     }, 1000);
     return () => clearInterval(timer);
@@ -231,6 +216,18 @@ export default function App() {
       setGroupFilter("all");
   }, [groups, groupFilter]);
   const steamTokens = tokens.filter((t) => t.kind === "steam");
+  const hasSteam = steamTokens.length > 0;
+  const visibleNavigation = navigation.filter(
+    (item) => hasSteam || item.id === "tokens" || item.id === "settings",
+  );
+  useEffect(() => {
+    if (!hasSteam) {
+      setPage((value) =>
+        value === "market" || value === "confirmations" ? "tokens" : value,
+      );
+      setFilter("all");
+    }
+  }, [hasSteam]);
   const active = steamTokens.find((t) => t.id === account) ?? steamTokens[0];
   useEffect(() => {
     setConfirmations([]);
@@ -247,6 +244,7 @@ export default function App() {
         t.id,
         t.name,
         t.group,
+        t.icon,
         t.counter,
         t.steamId,
         t.enrollmentPending,
@@ -280,7 +278,11 @@ export default function App() {
     let backgroundTimer: ReturnType<typeof setTimeout> | undefined;
     const visibility = () => {
       clearTimeout(backgroundTimer);
-      if (native && document.hidden) {
+      if (
+        native &&
+        /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) &&
+        document.hidden
+      ) {
         backgroundTimer = setTimeout(() => {
           void api
             .lock()
@@ -386,12 +388,11 @@ export default function App() {
           </span>
           <span>
             Steam<span className="brand-light">Guard</span>
-            <small>你的本地安全空间</small>
           </span>
         </a>
-        <div className="workspace-label">工作空间</div>
+
         <nav aria-label="主导航">
-          {navigation.map((item) => (
+          {visibleNavigation.map((item) => (
             <button
               key={item.id}
               onClick={() => setPage(item.id)}
@@ -400,79 +401,18 @@ export default function App() {
             >
               <item.icon size={19} strokeWidth={1.8} />
               <span>{item.label}</span>
-              {item.id === "tokens" && (
-                <span className="nav-count">{tokens.length}</span>
-              )}
               {item.id === "confirmations" && confirmations.length > 0 && (
                 <span className="nav-count">{confirmations.length}</span>
               )}
             </button>
           ))}
         </nav>
-        <div className="sidebar-bottom">
-          <div className="local-note">
-            <span className="status-dot" />
-            <span>本地存储 · 由你掌控</span>
-            <LockKeyhole size={13} />
-          </div>
-          <div className="sidebar-version">
-            <span>STEAMGUARD</span>
-            <span>v1.4.0</span>
-          </div>
-        </div>
       </aside>
-
       <div className="main-shell">
-        <header className="topbar">
-          <div className="breadcrumb">
-            <Shield size={15} />
-            <span>个人工作空间</span>
-            <ChevronRight size={13} />
-            <strong>{current.label}</strong>
-          </div>
-          <div className="topbar-actions">
-            {page === "tokens" && (
-              <button
-                className="icon-button mobile-add"
-                aria-label="添加令牌"
-                disabled={!unlocked}
-                onClick={() => setImportOpen(true)}
-              >
-                <Plus size={23} />
-              </button>
-            )}
-            {!native && <span className="preview-badge">界面预览</span>}
-            <span className="system-state">
-              <span className={`status-dot ${!unlocked ? "muted" : ""}`} />
-              {unlocked
-                ? "保险库已解锁"
-                : previewMode
-                  ? "令牌预览 · 只读"
-                  : "本地加密保护"}
-            </span>
-            <button
-              className="icon-button"
-              aria-label="查看帮助"
-              onClick={() =>
-                notify(
-                  "导入现有令牌后，可生成验证码、登录 Steam 并查看交易确认。所有令牌保存在本机加密保险库中。",
-                )
-              }
-            >
-              <CircleHelp size={18} />
-            </button>
-            <div className="profile-badge">SG</div>
-          </div>
-        </header>
         <main>
           <div className="page-heading">
             <div>
-              <div className="eyebrow">YOUR SECURITY, IN YOUR HANDS</div>
-              <h1>
-                {current.label}
-                <span className="heading-dot">.</span>
-              </h1>
-              <p>{current.description}</p>
+              <h1>{current.label}</h1>
             </div>
             <div className="heading-actions">
               {page === "tokens" && (
@@ -510,7 +450,7 @@ export default function App() {
           {!status ? (
             <div className="loading-state">
               <Spinner />
-              <span>正在连接本地保险库…</span>
+              <span>正在加载…</span>
             </div>
           ) : !unlocked && (!previewMode || page !== "tokens" || showUnlock) ? (
             <VaultGate
@@ -532,100 +472,49 @@ export default function App() {
                 <>
                   {previewMode && (
                     <div className="preview-notice">
-                      <div>
-                        <ShieldCheck size={22} />
-                        <div>
-                          <strong>免密码预览</strong>
-                          <p>可查看、复制验证码，保险库保持锁定。</p>
-                        </div>
-                      </div>
+                      <span>只读预览</span>
                       <button
-                        className="button primary"
+                        className="button secondary"
                         onClick={() => setShowUnlock(true)}
                       >
-                        <LockKeyhole size={16} />
-                        解锁全部功能
+                        解锁
                       </button>
                     </div>
                   )}
-                  <div className="overview-grid">
-                    <div className="overview-card">
-                      <span className="overview-icon blue">
-                        <ShieldCheck size={20} />
-                      </span>
-                      <div>
-                        <span className="overview-label">已保护的令牌</span>
-                        <div className="overview-value">
-                          {tokens.length}
-                          <span>个账户</span>
-                        </div>
-                      </div>
-                      <span className="overview-decoration">↗</span>
-                    </div>
-                    <div className="overview-card">
-                      <span className="overview-icon cyan">
-                        <SteamMark small />
-                      </span>
-                      <div>
-                        <span className="overview-label">Steam 账户</span>
-                        <div className="overview-value">
-                          {steamTokens.length}
-                          <span>
-                            {steamTokens.filter((t) => t.loggedIn).length}{" "}
-                            个已登录
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="overview-card security-card">
-                      <span className="overview-icon green">
-                        <Fingerprint size={21} />
-                      </span>
-                      <div>
-                        <span className="overview-label">保险库状态</span>
-                        <div className="security-value">
-                          本地加密
-                          <span className="secure-tag">
-                            <span className="status-dot" />
-                            保护中
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                   <div className="section-toolbar">
-                    <div className="token-tabs">
-                      <button
-                        className={filter === "all" ? "selected" : ""}
-                        onClick={() => setFilter("all")}
-                      >
-                        全部令牌<span>{tokens.length}</span>
-                      </button>
-                      <button
-                        className={filter === "steam" ? "selected" : ""}
-                        onClick={() => setFilter("steam")}
-                      >
-                        Steam
-                      </button>
-                      <button
-                        className={filter === "other" ? "selected" : ""}
-                        onClick={() =>
-                          setFilter(filter === "other" ? "all" : "other")
-                        }
-                      >
-                        其他令牌
-                      </button>
-                    </div>
+                    {hasSteam && (
+                      <div className="token-tabs">
+                        <button
+                          className={filter === "all" ? "selected" : ""}
+                          onClick={() => setFilter("all")}
+                        >
+                          全部
+                        </button>
+                        <button
+                          className={filter === "steam" ? "selected" : ""}
+                          onClick={() => setFilter("steam")}
+                        >
+                          Steam
+                        </button>
+                        <button
+                          className={filter === "other" ? "selected" : ""}
+                          onClick={() =>
+                            setFilter(filter === "other" ? "all" : "other")
+                          }
+                        >
+                          其他令牌
+                        </button>
+                      </div>
+                    )}
                     <div className="toolbar-right">
                       <label className="search-box">
                         <Search size={16} />
                         <input
                           value={search}
                           onChange={(e) => setSearch(e.target.value)}
-                          placeholder="搜索账户或服务…"
+                          placeholder="搜索"
                           aria-label="搜索令牌"
                         />
-                        <kbd>⌘ K</kbd>
                       </label>
                       <label className="sort-select" title="排序">
                         <SlidersHorizontal size={16} />
@@ -684,11 +573,16 @@ export default function App() {
                                     {token.group}
                                   </small>
                                 )}
-                                <span>
-                                  {token.kind === "steam"
-                                    ? "Steam Guard"
-                                    : token.issuer || token.kind.toUpperCase()}
-                                </span>
+                                {token.accountName &&
+                                !token.name.includes(token.accountName) ? (
+                                  <span>{token.accountName}</span>
+                                ) : token.kind !== "steam" &&
+                                  token.issuer &&
+                                  !token.name
+                                    .toLowerCase()
+                                    .includes(token.issuer.toLowerCase()) ? (
+                                  <span>{token.issuer}</span>
+                                ) : null}
                               </div>
                               <button
                                 className="icon-button token-menu"
@@ -723,20 +617,26 @@ export default function App() {
                                 )}
                               </button>
                             </div>
-                            <div className="token-progress">
-                              <span
-                                style={{
-                                  width: `${Math.max(0, Math.min(100, (token.remaining / (token.period || 30)) * 100))}%`,
-                                }}
-                              />
-                            </div>
+                            {token.kind !== "hotp" && (
+                              <div
+                                className="token-progress"
+                                aria-label={`剩余 ${token.remaining} 秒`}
+                              >
+                                <span
+                                  style={{
+                                    width: `${Math.max(0, Math.min(100, (token.remaining / (token.period || 30)) * 100))}%`,
+                                  }}
+                                />
+                              </div>
+                            )}
                             <div className="token-card-bottom">
-                              <span className="token-time">
-                                <Clock3 size={12} />
-                                {token.kind === "hotp"
-                                  ? `计数 ${token.counter ?? 0}`
-                                  : `${token.remaining} 秒后刷新`}
-                              </span>
+                              {token.kind === "hotp" && (
+                                <span className="token-time">
+                                  {token.kind === "hotp"
+                                    ? `计数 ${token.counter ?? 0}`
+                                    : ""}
+                                </span>
+                              )}
                               {token.kind === "steam" ? (
                                 <button
                                   className={`session-link ${token.loggedIn ? "connected" : ""}`}
@@ -779,9 +679,7 @@ export default function App() {
                                   下一验证码
                                   <ArrowRight size={12} />
                                 </button>
-                              ) : (
-                                <span className="local-tag">TOTP</span>
-                              )}
+                              ) : null}
                             </div>
                           </article>
                         ))}
@@ -790,7 +688,7 @@ export default function App() {
                     <div className="empty-state compact">
                       <Search size={28} />
                       <h2>没有找到匹配的令牌</h2>
-                      <p>试试其他关键词，或切换筛选条件。</p>
+
                       <button
                         className="button secondary"
                         onClick={() => {
@@ -804,51 +702,17 @@ export default function App() {
                     </div>
                   ) : (
                     <div className="tokens-empty">
-                      <div className="empty-illustration">
-                        <span className="orbit one" />
-                        <span className="orbit two" />
-                        <span className="floating-key">
-                          <KeyRound size={17} />
-                        </span>
-                        <span className="floating-steam">
-                          <SteamMark small />
-                        </span>
-                        <span className="empty-shield">
-                          <ShieldCheck size={43} strokeWidth={1.4} />
-                        </span>
-                        <span className="empty-spark">✦</span>
-                      </div>
-                      <span className="eyebrow">
-                        A SAFER PLACE FOR YOUR ACCOUNTS
-                      </span>
-                      <h2>你的安全空间，准备就绪</h2>
-                      <p>
-                        将已有令牌带到这里，统一管理登录验证码和 Steam
-                        交易确认。
-                      </p>
+                      <h2>暂无令牌</h2>
                       <button
                         className="button primary"
+                        disabled={!unlocked}
                         onClick={() => setImportOpen(true)}
                       >
                         <Plus size={17} />
-                        添加第一个令牌
-                        <ArrowRight size={15} />
+                        添加令牌
                       </button>
-                      <span className="empty-formats">
-                        支持 Watt Toolkit .mpo · Steam .maFile · 通用 OTP
-                      </span>
                     </div>
                   )}
-                  <div className="bottom-note">
-                    <ShieldCheck size={15} />
-                    <p>
-                      令牌始终保存在本机加密保险库。解锁密码不会上传到服务器。
-                    </p>
-                    <button onClick={() => setPage("settings")}>
-                      安全设置
-                      <ArrowUpRight size={13} />
-                    </button>
-                  </div>
                 </>
               )}
               {(page === "confirmations" || page === "market") && (
@@ -1103,42 +967,20 @@ export default function App() {
               )}
               {page === "settings" && (
                 <div className="settings-grid">
-                  <SyncPanel tokens={tokens} onChange={refresh} />
-                  <BackupPanel onChange={refresh} />
+                  <SettingsDisclosure title="多端同步">
+                    <SyncPanel tokens={tokens} onChange={refresh} />
+                  </SettingsDisclosure>
+                  <SettingsDisclosure title="自动备份">
+                    <BackupPanel onChange={refresh} />
+                  </SettingsDisclosure>
                   <QuickAccessSettings status={status} onChange={refresh} />
+                  <DesktopSettings />
                   <section className="settings-panel">
                     <div className="panel-title">
-                      <span className="overview-icon green">
-                        <ShieldCheck size={20} />
-                      </span>
-                      <div>
-                        <h2>本地保险库</h2>
-                        <p>保护你的令牌与 Steam 登录会话</p>
-                      </div>
-                      <span className="secure-tag">已加密</span>
+                      <h2>导入与导出</h2>
                     </div>
                     <div className="setting-row">
-                      <div>
-                        <h3>锁定保险库</h3>
-                        <p>
-                          清除内存中的令牌，使用主密码或已启用的设备认证重新打开。
-                        </p>
-                      </div>
-                      <button
-                        className="button secondary"
-                        onClick={() =>
-                          void run(() => api.lock(), "保险库已锁定")
-                        }
-                      >
-                        <LockKeyhole size={15} />
-                        立即锁定
-                      </button>
-                    </div>
-                    <div className="setting-row">
-                      <div>
-                        <h3>加密备份</h3>
-                        <p>为备份设置独立密码，妥善保存到安全位置。</p>
-                      </div>
+                      <h3>加密备份</h3>
                       <button
                         className="button secondary"
                         disabled={!tokens.length}
@@ -1149,10 +991,7 @@ export default function App() {
                       </button>
                     </div>
                     <div className="setting-row">
-                      <div>
-                        <h3>导入备份</h3>
-                        <p>支持验证器二维码、Google 多码导出及常见备份文件。</p>
-                      </div>
+                      <h3>导入令牌或备份</h3>
                       <button
                         className="button secondary"
                         onClick={() => setImportOpen(true)}
@@ -1162,77 +1001,61 @@ export default function App() {
                       </button>
                     </div>
                   </section>
-                  <section className="settings-panel">
-                    <div className="panel-title">
-                      <span className="overview-icon blue">
-                        <Clock3 size={20} />
-                      </span>
-                      <div>
-                        <h2>时间与验证码</h2>
-                        <p>保持验证码与服务器时间一致</p>
-                      </div>
-                    </div>
-                    <div className="setting-row">
-                      <div>
-                        <h3>同步 Steam 时间</h3>
-                        <p>与 Steam 时间服务器同步，校正验证码时间偏差。</p>
-                      </div>
-                      <button
-                        className="button secondary"
-                        disabled={busy}
-                        onClick={() =>
-                          void run(() => api.syncTime(), "时间已同步")
-                        }
-                      >
-                        {busy ? <Spinner /> : <RefreshCw size={15} />}同步
-                      </button>
-                    </div>
-                    <div className="setting-row">
-                      <div>
-                        <h3>当前设备时间</h3>
-                        <p>{time.toLocaleString("zh-CN", { hour12: false })}</p>
-                      </div>
-                      <span className="local-tag">
-                        {Intl.DateTimeFormat().resolvedOptions().timeZone}
-                      </span>
-                    </div>
-                  </section>
-                  <SteamNetworkPanel />
+                  {hasSteam && (
+                    <SettingsDisclosure title="Steam">
+                      <section className="settings-panel">
+                        <div className="panel-title">
+                          <h2>Steam</h2>
+                        </div>
+                        <div className="setting-row">
+                          <h3>同步 Steam 时间</h3>
+                          <button
+                            className="button secondary"
+                            disabled={busy}
+                            onClick={() =>
+                              void run(() => api.syncTime(), "时间已同步")
+                            }
+                          >
+                            {busy ? <Spinner /> : <RefreshCw size={15} />}同步
+                          </button>
+                        </div>
+                        <SteamNetworkPanel />
+                      </section>
+                    </SettingsDisclosure>
+                  )}
                   <section className="settings-panel about-panel">
                     <span className="brand-symbol">
                       <ShieldCheck size={26} />
                     </span>
                     <div>
                       <h2>
-                        SteamGuard <span>1.4.0</span>
+                        SteamGuard <span>1.5.0</span>
                       </h2>
                       <p>
-                        参考 Watt Toolkit 本地令牌功能构建。基于 Tauri
-                        2，支持桌面与移动设备。
+                        {hasSteam
+                          ? "开源双重验证器，支持通用 OTP、Steam 令牌、交易确认与社区市场。"
+                          : "开源双重验证器，支持 TOTP 与 HOTP。"}
                       </p>
-                      <p className="muted-copy">
-                        开源授权与第三方声明请参阅项目文档。
-                      </p>
+                      <a
+                        className="text-button"
+                        href="/third-party-notices.txt"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          setLicensesOpen(true);
+                        }}
+                      >
+                        开源许可
+                      </a>
                     </div>
                   </section>
                 </div>
               )}
             </>
           )}
-          <footer className="main-footer">
-            <span>
-              <span className="status-dot" />
-              LOCAL FIRST. ALWAYS.
-            </span>
-            <span>
-              <LockKeyhole size={11} />
-              安心，来自自己掌控。
-            </span>
-          </footer>
         </main>
       </div>
       <nav className="mobile-nav" aria-label="移动端导航">
-        {navigation.map((item) => (
+        {visibleNavigation.map((item) => (
           <button
             key={item.id}
             className={page === item.id ? "active" : ""}
@@ -1255,6 +1078,11 @@ export default function App() {
           </button>
         </div>
       )}
+      {licensesOpen && (
+        <Modal title="开源许可" onClose={() => setLicensesOpen(false)} wide>
+          <pre className="license-text">{licenseText || "加载中…"}</pre>
+        </Modal>
+      )}
       {groupsOpen && (
         <TokenGroups
           groups={groups}
@@ -1264,6 +1092,7 @@ export default function App() {
       )}
       {importOpen && (
         <ImportDialog
+          hasSteam={hasSteam}
           onLogin={() => {
             setImportOpen(false);
             setLoginToken({
@@ -1280,7 +1109,7 @@ export default function App() {
           onComplete={async () => {
             setImportOpen(false);
             await refresh();
-            notify("令牌已安全导入本地保险库");
+            notify("导入完成");
           }}
         />
       )}
@@ -1431,54 +1260,8 @@ function VaultGate({
   };
   return (
     <div className="vault-welcome">
-      <div className="welcome-art">
-        <div className="welcome-grid" />
-        <div className="welcome-art-top">
-          <span className="status-dot" />
-          DESIGNED FOR PEACE OF MIND
-        </div>
-        <div className="welcome-orb">
-          <ShieldCheck size={80} strokeWidth={1.1} />
-        </div>
-        <div className="welcome-copy">
-          <span className="eyebrow">安全感，随身而行</span>
-          <h2>
-            你的账户。
-            <br />
-            你的令牌。
-            <br />
-            <span>你的掌控。</span>
-          </h2>
-          <p>
-            让登录验证码和交易确认，
-            <br />
-            拥有一个安心的本地空间。
-          </p>
-        </div>
-        <div className="welcome-platforms">
-          <span>
-            <Globe2 size={14} />
-            macOS · Windows
-          </span>
-          <span>
-            <Smartphone size={14} />
-            Android · iOS
-          </span>
-        </div>
-      </div>
       <div className="vault-form-wrap">
-        <div className="vault-form-icon">
-          <LockKeyhole size={25} />
-        </div>
-        <span className="eyebrow">
-          {initialized ? "WELCOME BACK" : "LET’S GET STARTED"}
-        </span>
-        <h2>{initialized ? "解锁你的安全空间" : "创建你的本地保险库"}</h2>
-        <p>
-          {initialized
-            ? "输入密码，继续访问你的令牌与 Steam 账户。"
-            : "只需一个密码，开始保护你的所有令牌。"}
-        </p>
+        <h2>{initialized ? "解锁" : "设置密码"}</h2>
         {initialized && (biometricEnabled || previewEnabled) && (
           <div className="quick-gate-actions">
             {biometricEnabled && (
@@ -1497,7 +1280,7 @@ function VaultGate({
                 onClick={() => void quick(false)}
                 disabled={busy}
               >
-                免密码预览令牌
+                预览令牌
                 <ArrowRight size={17} />
               </button>
             )}
@@ -1518,9 +1301,7 @@ function VaultGate({
               onChange={(e) => setPassword(e.target.value)}
               minLength={initialized ? 1 : 8}
               required
-              placeholder={
-                initialized ? "输入你的解锁密码" : "至少 8 位，建议使用长密码"
-              }
+              placeholder={initialized ? "输入密码" : "至少 8 位"}
             />
           </div>
           {!initialized && (
@@ -1549,11 +1330,6 @@ function VaultGate({
             <ArrowRight size={16} />
           </button>
         </form>
-        {!initialized && (
-          <p className="form-hint migration-hint">
-            从旧版迁移时，请先保留旧版，在此创建保险库后导入加密备份。
-          </p>
-        )}
         {hasBackups && (
           <button
             className="text-button backup-gate-button"
@@ -1569,20 +1345,13 @@ function VaultGate({
             onChange={onReady}
           />
         )}
-        <div className="privacy-note">
-          <ShieldCheck size={17} />
-          <p>
-            {initialized
-              ? "密码仅在本机用于解密。"
-              : "密码只在本机使用，我们无法找回。请妥善保管密码并定期导出备份。"}
-          </p>
-        </div>
       </div>
     </div>
   );
 }
 
 function ImportDialog({
+  hasSteam,
   onClose,
   onComplete,
   onLogin,
@@ -1590,6 +1359,7 @@ function ImportDialog({
   onClose: () => void;
   onComplete: () => Promise<void>;
   onLogin: () => void;
+  hasSteam: boolean;
 }) {
   const [mode, setMode] = useState<"file" | "text" | "qr">("file");
   const [file, setFile] = useState<File | null>(null);
@@ -1732,21 +1502,21 @@ function ImportDialog({
         </>
       ) : (
         <>
-          {mode !== "qr" && (
-            <>
-              <p className="dialog-intro">
-                兼容原始备份格式，无需提前转换。你的密钥只在本机处理。
-              </p>
+          {mode !== "qr" &&
+            (hasSteam ? (
               <button className="steam-login-import" onClick={onLogin}>
                 <SteamMark small />
-                <span>
-                  <strong>登录 Steam 添加令牌</strong>
-                  <small>新建绑定，或通过手机短信迁移现有令牌</small>
-                </span>
+                <span>登录 Steam 添加令牌</span>
                 <ArrowRight size={16} />
               </button>
-            </>
-          )}
+            ) : (
+              <details className="additional-import">
+                <summary>其他添加方式</summary>
+                <button className="button secondary" onClick={onLogin}>
+                  添加 Steam 令牌
+                </button>
+              </details>
+            ))}
           <div className="dialog-tabs import-tabs">
             <button
               className={mode === "qr" ? "selected" : ""}
@@ -2615,7 +2385,7 @@ function LoginDialog({
                     ? canSubmitCode
                       ? "提交验证码"
                       : "检查登录状态"
-                    : "安全登录"}
+                    : "登录"}
                 </button>
               </div>
             </form>
@@ -2690,6 +2460,8 @@ function EditDialog({
   onClose: () => void;
   onComplete: () => Promise<void>;
 }) {
+  const [icon, setIcon] = useState(token.icon ?? null);
+  const [pickIcon, setPickIcon] = useState(false);
   const [name, setName] = useState(token.name);
   const [group, setGroup] = useState(token.group ?? "");
   const [deleting, setDeleting] = useState(false);
@@ -2705,7 +2477,9 @@ function EditDialog({
     try {
       await (remove
         ? api.remove(token.id)
-        : api.updateToken(token.id, name.trim(), group || null));
+        : api.updateToken(token.id, name.trim(), group || null, {
+            value: icon,
+          }));
       await onComplete();
     } catch (e) {
       setError(errorText(e));
@@ -2742,12 +2516,28 @@ function EditDialog({
   return (
     <Modal
       title={
-        deleting ? "删除这个令牌？" : showQr ? "令牌迁移二维码" : "管理令牌"
+        pickIcon
+          ? "选择头像"
+          : deleting
+            ? "删除这个令牌？"
+            : showQr
+              ? "令牌迁移二维码"
+              : "管理令牌"
       }
       eyebrow="AUTHENTICATOR SETTINGS"
       onClose={onClose}
     >
-      {deleting ? (
+      {pickIcon ? (
+        <IconPicker
+          token={token}
+          selected={icon}
+          onSelect={(value) => {
+            setIcon(value);
+            setPickIcon(false);
+          }}
+          onBack={() => setPickIcon(false)}
+        />
+      ) : deleting ? (
         <div className="delete-warning">
           <Trash2 size={27} />
           <h3>{token.name}</h3>
@@ -2783,7 +2573,14 @@ function EditDialog({
       ) : (
         <>
           <div className="login-account">
-            <TokenIcon token={token} />
+            <button
+              className="avatar-edit"
+              aria-label="更换头像"
+              onClick={() => setPickIcon(true)}
+            >
+              <TokenAvatar token={token} icon={icon} />
+              <span>更换头像</span>
+            </button>
             <div>
               <strong>
                 {token.issuer ||
@@ -2791,7 +2588,7 @@ function EditDialog({
                     ? "Steam Guard"
                     : token.kind.toUpperCase())}
               </strong>
-              <span>{token.steamId || "本机加密保存"}</span>
+              {token.steamId && <span>{token.steamId}</span>}
             </div>
           </div>
           <label className="field-label" htmlFor="token-name">
@@ -2819,19 +2616,22 @@ function EditDialog({
               </option>
             ))}
           </select>
-          <div className="token-metadata">
-            <span>
-              类型 <strong>{token.kind.toUpperCase()}</strong>
-            </span>
-            <span>
-              周期 <strong>{token.period} 秒</strong>
-            </span>
-            {token.algorithm && (
+          <details className="token-details">
+            <summary>令牌详情</summary>
+            <div className="token-metadata">
               <span>
-                算法 <strong>{token.algorithm}</strong>
+                类型 <strong>{token.kind.toUpperCase()}</strong>
               </span>
-            )}
-          </div>
+              <span>
+                周期 <strong>{token.period} 秒</strong>
+              </span>
+              {token.algorithm && (
+                <span>
+                  算法 <strong>{token.algorithm}</strong>
+                </span>
+              )}
+            </div>
+          </details>
           <div className="account-tool-grid">
             <button disabled={busy} onClick={() => void revealQr()}>
               <QrCode size={20} />
@@ -2855,54 +2655,56 @@ function EditDialog({
       )}
       {error && <div className="form-error">{error}</div>}
       {exported && <div className="inline-success">{exported}</div>}
-      <div className="modal-actions">
-        {deleting ? (
-          <>
+      {!pickIcon && (
+        <div className="modal-actions">
+          {deleting ? (
+            <>
+              <button
+                className="button secondary"
+                disabled={busy}
+                onClick={() => setDeleting(false)}
+              >
+                返回
+              </button>
+              <button
+                className="button danger"
+                disabled={busy}
+                onClick={() => void act(true)}
+              >
+                {busy ? <Spinner /> : <Trash2 size={15} />}确认删除
+              </button>
+            </>
+          ) : showQr ? (
             <button
               className="button secondary"
-              disabled={busy}
-              onClick={() => setDeleting(false)}
+              onClick={() => {
+                setShowQr(false);
+                setUri("");
+                setQrImage("");
+              }}
             >
-              返回
+              隐藏密钥并返回
             </button>
-            <button
-              className="button danger"
-              disabled={busy}
-              onClick={() => void act(true)}
-            >
-              {busy ? <Spinner /> : <Trash2 size={15} />}确认删除
-            </button>
-          </>
-        ) : showQr ? (
-          <button
-            className="button secondary"
-            onClick={() => {
-              setShowQr(false);
-              setUri("");
-              setQrImage("");
-            }}
-          >
-            隐藏密钥并返回
-          </button>
-        ) : (
-          <>
-            <button
-              className="button text danger-text"
-              onClick={() => setDeleting(true)}
-            >
-              <Trash2 size={15} />
-              删除令牌
-            </button>
-            <button
-              className="button primary"
-              disabled={busy || !name.trim()}
-              onClick={() => void act(false)}
-            >
-              {busy ? <Spinner /> : <Check size={15} />}保存
-            </button>
-          </>
-        )}
-      </div>
+          ) : (
+            <>
+              <button
+                className="button text danger-text"
+                onClick={() => setDeleting(true)}
+              >
+                <Trash2 size={15} />
+                删除令牌
+              </button>
+              <button
+                className="button primary"
+                disabled={busy || !name.trim()}
+                onClick={() => void act(false)}
+              >
+                {busy ? <Spinner /> : <Check size={15} />}保存
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </Modal>
   );
 }

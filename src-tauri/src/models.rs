@@ -6,6 +6,8 @@ pub struct Token {
     pub id: String,
     pub name: String,
     pub issuer: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
     #[serde(default)]
     pub group: Option<String>,
     pub kind: String,
@@ -31,6 +33,7 @@ impl Token {
             issuer: if steam { "Steam".into() } else { String::new() },
             kind,
             secret,
+            icon: None,
             group: None,
             algorithm: "SHA1".into(),
             digits: if steam { 5 } else { 6 },
@@ -45,6 +48,9 @@ impl Token {
         }
     }
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(icon) = &self.icon {
+            crate::avatar::validate(icon)?;
+        }
         if self
             .group
             .as_ref()
@@ -93,6 +99,7 @@ pub struct TokenView {
     pub id: String,
     pub name: String,
     pub issuer: String,
+    pub icon: Option<String>,
     pub kind: String,
     pub code: String,
     pub period: u64,

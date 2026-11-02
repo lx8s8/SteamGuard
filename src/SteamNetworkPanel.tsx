@@ -62,7 +62,6 @@ export function SteamNetworkPanel() {
         </span>
         <div>
           <h2>Steam 网络连接</h2>
-          <p>选择连接方式，检查认证、时间和社区接口</p>
         </div>
       </div>
       <label className="field-label" htmlFor={`${id}-mode`}>

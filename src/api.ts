@@ -1,5 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type {
+  DesktopSnapshot,
   SyncStatus,
   SyncConnection,
   SyncCredentials,
@@ -29,6 +30,16 @@ export const call = <T>(
   return invoke<T>(command, args);
 };
 export const api = {
+  desktopSettings: () =>
+    call<{ supported: boolean; resident: boolean }>("desktop_settings"),
+  desktopConfigure: (resident: boolean) =>
+    call<{ supported: boolean; resident: boolean }>("desktop_configure", {
+      resident,
+    }),
+  desktopSnapshot: () => call<DesktopSnapshot>("desktop_snapshot"),
+  desktopCopy: (id: string) => call<void>("desktop_copy", { id }),
+  desktopOpen: () => call<void>("desktop_open_main"),
+  desktopHide: () => call<void>("desktop_hide"),
   syncStatus: () => call<SyncStatus>("sync_status"),
   syncConnect: (args: SyncConnection) =>
     call<SyncStatus>("sync_connect", { connection: args }),
@@ -81,8 +92,12 @@ export const api = {
     name: string,
     next?: string,
   ) => call<void>("token_group_manage", { action, name, next }),
-  updateToken: (id: string, name: string, group: string | null) =>
-    call<void>("token_update", { id, name, group }),
+  updateToken: (
+    id: string,
+    name: string,
+    group: string | null,
+    icon?: { value: string | null },
+  ) => call<void>("token_update", { id, name, group, icon }),
   backupStatus: () => call<BackupStatus>("backup_status"),
   backupConfigure: (enabled: boolean) =>
     call<void>("backup_configure", { enabled }),

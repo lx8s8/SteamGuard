@@ -345,6 +345,14 @@ fn project(
         current.insert(format!("{prefix}core"), json(&Core::from(token))?);
         current.insert(format!("{prefix}name"), json(&token.name)?);
         current.insert(format!("{prefix}group"), json(&token.group)?);
+        if token.icon.is_some()
+            || doc
+                .get(ROOT, format!("{prefix}avatar"))
+                .map_err(|_| "无法读取头像")?
+                .is_some()
+        {
+            current.insert(format!("{prefix}avatar"), json(&token.icon)?);
+        }
         current.insert(format!("{prefix}counter"), json(&token.counter)?);
         if token.kind == "hotp" {
             let owner = one(doc, &format!("{prefix}owner"))?.unwrap_or(json(&state.device)?);
@@ -422,6 +430,13 @@ fn safe_label(field: &str, value: &str) -> String {
                 )
             })
             .unwrap_or_else(|_| "无效令牌版本".into()),
+        "avatar" => match serde_json::from_str::<Option<String>>(value) {
+            Ok(Some(icon)) if icon.starts_with("brand:") => {
+                format!("图标 · {}", icon.trim_start_matches("brand:"))
+            }
+            Ok(Some(_)) => "自定义头像".into(),
+            _ => "自动图标".into(),
+        },
         "counter" => "计数版本".into(),
         "owner" => "HOTP 主设备版本".into(),
         _ => serde_json::from_str::<Option<String>>(value)
@@ -459,6 +474,7 @@ fn inspect(doc: &AutoCommit, baseline: &BTreeMap<String, String>) -> Result<Vec<
                 match field {
                     "name" => "显示名称",
                     "group" => "所属分组",
+                    "avatar" => "头像",
                     "core" => "令牌数据",
                     "alive" => "保留或删除",
                     "owner" => "HOTP 主设备",
@@ -498,7 +514,10 @@ fn validate_document(doc: &AutoCommit) -> Result<(), String> {
             || parts.len() == 3
                 && parts[0] == "t"
                 && valid_id(parts[1])
-                && ["alive", "core", "name", "group", "counter", "owner"].contains(&parts[2]))
+                && [
+                    "alive", "core", "name", "group", "counter", "owner", "avatar",
+                ]
+                .contains(&parts[2]))
         {
             return Err("同步库含不支持的字段".into());
         }
@@ -607,6 +626,10 @@ fn materialize(
         token.group =
             serde_json::from_str(&one(doc, &format!("{prefix}/group"))?.ok_or("同步分组缺失")?)
                 .map_err(|_| "同步分组无效")?;
+        token.icon = one(doc, &format!("{prefix}/avatar"))?
+            .map(|value| serde_json::from_str(&value).map_err(|_| "同步头像格式无效"))
+            .transpose()?
+            .flatten();
         token.counter = values(doc, &format!("{prefix}/counter"))?
             .iter()
             .map(|(_, v)| v.parse::<u64>().map_err(|_| "同步计数无效"))
@@ -1025,6 +1048,38 @@ mod tests {
         receive(&b, &mut a, "actor-a");
         assert!(a.tokens[0].group.is_none() && b.tokens[0].group.is_none());
         assert!(a.groups.is_empty());
+    }
+    #[test]
+    fn avatars_merge_independently_can_reset_and_conflicts_never_expose_image_data() {
+        let mut a = first();
+        let initial = load(a.sync.as_ref().unwrap(), "reader").unwrap();
+        assert!(!initial.keys(ROOT).any(|k| k.ends_with("/avatar")));
+        let mut b = copy(&a);
+        a.tokens[0].icon = Some("brand:steam".into());
+        record_local(&mut a, "actor-a").unwrap();
+        b.tokens[0].name = "Renamed elsewhere".into();
+        record_local(&mut b, "actor-b").unwrap();
+        receive(&a, &mut b, "actor-b");
+        receive(&b, &mut a, "actor-a");
+        assert_eq!(b.tokens[0].icon.as_deref(), Some("brand:steam"));
+        assert_eq!(a.tokens[0].name, "Renamed elsewhere");
+        assert!(a.sync.as_ref().unwrap().conflicts().unwrap().is_empty());
+        a.tokens[0].icon = None;
+        record_local(&mut a, "actor-a").unwrap();
+        receive(&a, &mut b, "actor-b");
+        assert!(b.tokens[0].icon.is_none());
+        a.tokens[0].icon = Some("brand:google".into());
+        b.tokens[0].icon = Some("brand:github".into());
+        record_local(&mut a, "actor-a").unwrap();
+        record_local(&mut b, "actor-b").unwrap();
+        receive(&a, &mut b, "actor-b");
+        let conflicts = b.sync.as_ref().unwrap().conflicts().unwrap();
+        assert_eq!(conflicts.len(), 1);
+        assert_eq!(conflicts[0].field, "头像");
+        assert_eq!(
+            safe_label("avatar", "\"data:image/png;base64,PRIVATE\""),
+            "自定义头像"
+        );
     }
     #[test]
     fn steam_session_and_unrecognized_import_fields_never_enter_sync_document() {

@@ -3,7 +3,6 @@ import { X } from "lucide-react";
 
 export function Modal({
   title,
-  eyebrow,
   children,
   onClose,
   wide = false,
@@ -65,7 +64,6 @@ export function Modal({
       >
         <div className="modal-heading">
           <div>
-            {eyebrow && <span className="eyebrow">{eyebrow}</span>}
             <h2 id={id}>{title}</h2>
           </div>
           <button className="icon-button" onClick={onClose} aria-label="关闭">

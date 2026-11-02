@@ -13,6 +13,7 @@ async function nativeFixture(page: Page) {
   await page.addInitScript(() => {
     const tokens = [
       {
+        icon: null as string | null,
         group: null as string | null,
         id: "steam-test",
         name: "测试 · Steam",
@@ -27,6 +28,7 @@ async function nativeFixture(page: Page) {
         hasIdentitySecret: true,
       },
       {
+        icon: null as string | null,
         group: null as string | null,
         id: "steam-offline",
         name: "测试 · 待登录",
@@ -39,6 +41,7 @@ async function nativeFixture(page: Page) {
         accountName: "fixture-offline",
       },
       {
+        icon: null as string | null,
         group: null as string | null,
         id: "totp-test",
         name: "测试 · 通用 OTP",
@@ -122,6 +125,9 @@ async function nativeFixture(page: Page) {
       message?: string;
       guardSubmitted?: boolean;
     } | null = null;
+    const params = new URLSearchParams(location.search);
+    if (params.has("generic")) tokens.splice(0, 2);
+    let resident = true;
     const commands: { command: string; args: Record<string, unknown> }[] = [];
     Object.assign(window, {
       isTauri: true,
@@ -130,6 +136,32 @@ async function nativeFixture(page: Page) {
         invoke: async (command: string, args: Record<string, unknown> = {}) => {
           commands.push({ command, args });
           switch (command) {
+            case "desktop_settings":
+              return { supported: params.has("desktop"), resident };
+            case "desktop_configure":
+              resident = !!args.resident;
+              return { supported: true, resident };
+            case "desktop_snapshot":
+              return {
+                initialized: true,
+                locked,
+                preview: previewActive,
+                previewEnabled,
+                tokens:
+                  locked && !previewActive ? [] : tokens.map((t) => ({ ...t })),
+              };
+            case "desktop_copy":
+              if (locked && !previewActive) throw new Error("已锁定");
+              return;
+            case "desktop_open_main":
+            case "desktop_hide":
+              return;
+            case "token_delete": {
+              const index = tokens.findIndex((t) => t.id === args.id);
+              if (index >= 0) tokens.splice(index, 1);
+              return;
+            }
+
             case "sync_status":
               return { ...syncState };
             case "sync_discover": {
@@ -224,6 +256,8 @@ async function nativeFixture(page: Page) {
               if (token) {
                 token.name = String(args.name);
                 token.group = args.group ? String(args.group) : null;
+                if (args.icon)
+                  token.icon = (args.icon as { value: string | null }).value;
               }
               return;
             }
@@ -246,6 +280,7 @@ async function nativeFixture(page: Page) {
                 throw new Error("密码错误或备份已损坏");
               if (!tokens.some((t) => t.id === "restored-fixture"))
                 tokens.push({
+                  icon: null,
                   group: null,
                   id: "restored-fixture",
                   name: "恢复的令牌",
@@ -423,6 +458,7 @@ async function nativeFixture(page: Page) {
                 return 0;
               }
               tokens.push({
+                icon: null as string | null,
                 group: null as string | null,
                 id: "imported-test",
                 name: "测试 · 导入令牌",
@@ -557,6 +593,14 @@ async function commandCount(page: Page, command: string) {
   );
 }
 
+async function openSettings(page: Page) {
+  await page.getByRole("button", { name: "设置", exact: true }).first().click();
+  for (const summary of await page.locator(".settings-summary").all()) {
+    if ((await summary.getAttribute("aria-expanded")) === "false")
+      await summary.click();
+  }
+}
+
 test.beforeEach(async ({ page }) => {
   await nativeFixture(page);
   await page.goto("/");
@@ -623,7 +667,7 @@ test("password login handles Steam Guard status and QR login displays a QR code"
   await dialog
     .getByLabel("密码", { exact: true })
     .fill("synthetic-fixture-password");
-  await dialog.getByRole("button", { name: "安全登录" }).click();
+  await dialog.getByRole("button", { name: "登录", exact: true }).click();
   await expect(dialog.getByLabel("验证码", { exact: true })).toBeVisible();
   await dialog.getByLabel("验证码", { exact: true }).fill("ABCDE");
   await dialog.getByRole("button", { name: "提交验证码" }).click();
@@ -650,7 +694,7 @@ test("a rejected automatic code leaves an in-app local-token retry without resen
   await card.getByRole("button", { name: "连接 Steam" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("密码", { exact: true }).fill("synthetic-password");
-  await dialog.getByRole("button", { name: "安全登录" }).click();
+  await dialog.getByRole("button", { name: "登录", exact: true }).click();
   await expect(dialog.getByText(/EResult 88/)).toBeVisible();
   await expect(dialog.getByLabel("验证码", { exact: true })).toBeVisible();
   await dialog
@@ -671,7 +715,7 @@ test("email selection survives login polling and sends the chosen code type", as
   await card.getByRole("button", { name: "连接 Steam" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("密码", { exact: true }).fill("synthetic-password");
-  await dialog.getByRole("button", { name: "安全登录" }).click();
+  await dialog.getByRole("button", { name: "登录", exact: true }).click();
   await dialog.getByLabel("验证方式").selectOption("2");
   await page.clock.fastForward(1500);
   await expect
@@ -703,7 +747,7 @@ test("phone-only Steam approval does not demand an unavailable code", async ({
   await card.getByRole("button", { name: "连接 Steam" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("密码", { exact: true }).fill("synthetic-password");
-  await dialog.getByRole("button", { name: "安全登录" }).click();
+  await dialog.getByRole("button", { name: "登录", exact: true }).click();
   await expect(dialog.getByLabel("验证码", { exact: true })).toHaveCount(0);
   await expect(
     dialog.getByRole("button", { name: "检查登录状态", exact: true }),
@@ -724,7 +768,7 @@ test("new Steam enrollment requires an explicit start and recovery acknowledgmen
   await dialog
     .getByLabel("密码", { exact: true })
     .fill("synthetic-fixture-password");
-  await dialog.getByRole("button", { name: "安全登录" }).click();
+  await dialog.getByRole("button", { name: "登录", exact: true }).click();
   await dialog.getByLabel("验证码", { exact: true }).fill("ABCDE");
   await dialog.getByRole("button", { name: "提交验证码" }).click();
   await dialog.getByRole("button", { name: "绑定新令牌" }).click();
@@ -764,10 +808,10 @@ test("QR approval shows request details before submitting a decision", async ({
 });
 
 test("locks the vault and removes token content", async ({ page }) => {
-  await page.getByRole("button", { name: "设置", exact: true }).first().click();
-  await page.getByRole("button", { name: "立即锁定" }).click();
+  await openSettings(page);
+  await page.getByRole("button", { name: "锁定保险库" }).click();
   await expect(
-    page.getByRole("heading", { name: "解锁你的安全空间" }),
+    page.getByRole("heading", { name: "解锁", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "测试 · Steam", exact: true }),
@@ -777,7 +821,7 @@ test("locks the vault and removes token content", async ({ page }) => {
 test("saves a chosen proxy only on explicit save and shows endpoint diagnostics", async ({
   page,
 }) => {
-  await page.getByRole("button", { name: "设置", exact: true }).first().click();
+  await openSettings(page);
   const panel = page.locator(".network-panel");
   await panel.getByLabel("连接方式", { exact: true }).selectOption("manual");
   await panel
@@ -852,7 +896,7 @@ for (const width of [360, 390, 768, 1180]) {
 test("quick access settings verify the password, keep failures recoverable, and can be disabled", async ({
   page,
 }) => {
-  await page.getByRole("button", { name: "设置", exact: true }).first().click();
+  await openSettings(page);
   const preview = page.getByRole("switch", { name: "免密码预览令牌" });
   await expect(preview).toHaveAttribute("aria-checked", "false");
   await preview.click();
@@ -880,7 +924,7 @@ test("startup preview exposes codes while keeping privileged actions locked", as
   page,
 }) => {
   await page.goto("/?quick=preview");
-  await expect(page.getByText("免密码预览", { exact: true })).toBeVisible();
+  await expect(page.getByText("只读预览", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("button", { name: "添加令牌", exact: true }),
   ).toBeDisabled();
@@ -959,10 +1003,7 @@ for (const width of [320, 390, 768, 844]) {
         .evaluate((el) => el.scrollWidth <= window.innerWidth),
     ).toBe(true);
     await dialog.getByRole("button", { name: "关闭", exact: true }).click();
-    await page
-      .getByRole("navigation", { name: "移动端导航" })
-      .getByRole("button", { name: "设置", exact: true })
-      .click();
+    await openSettings(page);
     await expect(
       page.getByRole("switch", { name: "免密码预览令牌" }),
     ).toBeVisible();
@@ -1023,7 +1064,7 @@ test("custom groups can be created, assigned, renamed and deleted without deleti
 test("automatic backups can be configured, exported and restored only with a valid backup password", async ({
   page,
 }) => {
-  await page.getByRole("button", { name: "设置", exact: true }).first().click();
+  await openSettings(page);
   const toggle = page.getByRole("switch", { name: "变更后自动备份" });
   await expect(toggle).toHaveAttribute("aria-checked", "true");
   await toggle.click();
@@ -1054,7 +1095,7 @@ test("phone home opens on tokens without statistics or a large add panel", async
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator(".overview-grid")).toBeHidden();
-  await expect(page.locator(".page-heading")).toBeHidden();
+  await expect(page.locator(".page-heading p")).toHaveCount(0);
   const card = page.locator(".token-card").first();
   await expect(card).toBeInViewport();
   const bounds = await card.boundingBox();
@@ -1092,7 +1133,7 @@ test("WebDAV discovery reports auth failure and first-library creation clears cr
   page,
 }) => {
   await page.goto("/?cloud=empty");
-  await page.getByRole("button", { name: "设置", exact: true }).click();
+  await openSettings(page);
   const panel = page.locator(".sync-panel");
   await expect(panel.getByLabel("连接方式")).toHaveValue("join");
   await panel
@@ -1140,7 +1181,7 @@ test("existing cloud libraries must be selected and independent creation needs e
   page,
 }) => {
   await page.goto("/?cloud=multiple");
-  await page.getByRole("button", { name: "设置", exact: true }).click();
+  await openSettings(page);
   const panel = page.locator(".sync-panel");
   await panel
     .getByLabel("网盘账号", { exact: true })
@@ -1188,7 +1229,7 @@ test("connected devices can select a different library and retry wrong passwords
 }) => {
   await page.setViewportSize({ width: 320, height: 740 });
   await page.goto("/?sync=connected&cloud=multiple");
-  await page.getByRole("button", { name: "设置", exact: true }).click();
+  await openSettings(page);
   await page
     .getByRole("button", { name: "选择其他同步库合并", exact: true })
     .click();
@@ -1240,7 +1281,7 @@ test("connected devices can select a different library and retry wrong passwords
 test("joining a library passes its identifier and independent encryption password", async ({
   page,
 }) => {
-  await page.getByRole("button", { name: "设置", exact: true }).click();
+  await openSettings(page);
   const panel = page.locator(".sync-panel");
   await panel.getByLabel("连接方式").selectOption("join");
   await panel.getByLabel("网盘服务").selectOption("custom");
@@ -1276,7 +1317,7 @@ test("conflicting sync fields are kept until a version is explicitly selected", 
   page,
 }) => {
   await page.goto("/?sync=conflict");
-  await page.getByRole("button", { name: "设置", exact: true }).click();
+  await openSettings(page);
   const region = page.getByRole("region", { name: "同步冲突", exact: true });
   await expect(
     region.getByRole("button", { name: "保留所选版本", exact: true }),
@@ -1298,7 +1339,7 @@ test("HOTP on a secondary device cannot copy or advance and transfer requires ac
     .filter({ hasText: "测试 · 通用 OTP" });
   await expect(card.getByText("仅主设备", { exact: true })).toBeDisabled();
   await expect(card.getByRole("button", { name: "下一验证码" })).toBeDisabled();
-  await page.getByRole("button", { name: "设置", exact: true }).click();
+  await openSettings(page);
   await page.getByRole("button", { name: "切换到本机", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(
@@ -1315,7 +1356,7 @@ test("encrypted sync settings fit a narrow phone and preview never starts cloud 
 }) => {
   await page.setViewportSize({ width: 320, height: 740 });
   await page.goto("/?sync=conflict");
-  await page.getByRole("button", { name: "设置", exact: true }).click();
+  await openSettings(page);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -1326,7 +1367,7 @@ test("encrypted sync settings fit a narrow phone and preview never starts cloud 
     fullPage: true,
   });
   await page.goto("/?quick=preview&sync=connected");
-  await expect(page.getByText("免密码预览", { exact: true })).toBeVisible();
+  await expect(page.getByText("只读预览", { exact: true })).toBeVisible();
   await page.waitForTimeout(2300);
   expect(await commandCount(page, "sync_run")).toBe(0);
 });
@@ -1588,4 +1629,184 @@ test("a file preview arriving after the import dialog closes is immediately disc
     )
     .toBe(true);
   expect(await commandCount(page, "import_commit")).toBe(0);
+});
+
+test("generic authenticator hides Steam features and contains no decorative security messaging", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/?generic");
+  await expect(
+    page.getByRole("heading", { name: "测试 · 通用 OTP" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "交易确认", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "社区市场", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.locator(
+      ".overview-grid,.bottom-note,.main-footer,.system-state,.privacy-note",
+    ),
+  ).toHaveCount(0);
+  await expect(page.locator("body")).not.toContainText(
+    /每一次登录|由你掌控|安心一点|安全空间|保护中|已保护的令牌/,
+  );
+  await page.screenshot({ path: "artifacts/mobile-generic-1.5.0.png" });
+  await openSettings(page);
+  await expect(
+    page.getByRole("heading", { name: "Steam 网络连接" }),
+  ).toHaveCount(0);
+  expect(await commandCount(page, "steam_network_settings")).toBe(0);
+});
+
+test("service icons and custom avatars save with token edits, can be cancelled and reset", async ({
+  page,
+}) => {
+  const manage = () =>
+    page
+      .getByRole("button", { name: "管理 测试 · 通用 OTP", exact: true })
+      .click();
+  await manage();
+  let dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "更换头像", exact: true }).click();
+  await dialog.getByLabel("搜索图标").fill("github");
+  await dialog.getByLabel("选择 GitHub 图标", { exact: true }).click();
+  await dialog.getByRole("button", { name: "保存", exact: true }).click();
+  const card = page
+    .locator(".token-card")
+    .filter({ hasText: "测试 · 通用 OTP" });
+  await expect(card.getByLabel("GitHub", { exact: true })).toBeVisible();
+  await manage();
+  await dialog.getByRole("button", { name: "更换头像", exact: true }).click();
+  await dialog.getByLabel("上传头像").setInputFiles(await qrImage(ordinaryQr));
+  await expect(dialog.getByRole("heading", { name: "管理令牌" })).toBeVisible();
+  await dialog.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(card.getByRole("img", { name: "自定义头像" })).toBeVisible();
+  const size = await card
+    .getByRole("img", { name: "自定义头像" })
+    .evaluate(async (img: HTMLImageElement) => {
+      await img.decode();
+      return [img.naturalWidth, img.naturalHeight];
+    });
+  expect(size).toEqual([96, 96]);
+  await manage();
+  await dialog.getByRole("button", { name: "更换头像", exact: true }).click();
+  await dialog.getByRole("button", { name: "自动图标", exact: true }).click();
+  await dialog.getByRole("button", { name: "关闭", exact: true }).click();
+  await expect(card.getByRole("img", { name: "自定义头像" })).toBeVisible();
+  await manage();
+  await dialog.getByRole("button", { name: "更换头像", exact: true }).click();
+  await dialog.getByRole("button", { name: "自动图标", exact: true }).click();
+  await dialog.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(card.getByRole("img", { name: "自定义头像" })).toHaveCount(0);
+});
+
+test("tray popup copies directly, clears tokens on lock and exposes no management controls", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 370 });
+  await page.goto("/?view=tray");
+  await page
+    .getByRole("button", { name: "复制 测试 · 通用 OTP 验证码" })
+    .click();
+  expect(await commandCount(page, "desktop_copy")).toBe(1);
+  expect(await commandCount(page, "list_tokens")).toBe(0);
+  expect(await commandCount(page, "sync_status")).toBe(0);
+  await expect(page.getByRole("button", { name: "添加令牌" })).toHaveCount(0);
+  await page.screenshot({ path: "artifacts/tray-1.5.0.png" });
+  await page.getByRole("button", { name: "锁定", exact: true }).click();
+  await expect(page.locator(".tray-token")).toHaveCount(0);
+  await page.getByRole("button", { name: "解锁", exact: true }).click();
+  expect(await commandCount(page, "desktop_open_main")).toBe(1);
+});
+
+test("desktop residency preference is explicit and persists in the settings view", async ({
+  page,
+}) => {
+  await page.goto("/?desktop");
+  await openSettings(page);
+  const toggle = page.getByRole("switch", { name: "关闭窗口后常驻托盘" });
+  await expect(toggle).toBeChecked();
+  await toggle.click();
+  await expect(toggle).not.toBeChecked();
+  expect(await commandCount(page, "desktop_configure")).toBe(1);
+});
+
+test("compact controls and cloud dialogs fit a 320 pixel screen", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.goto("/?sync=connected&cloud=multiple");
+  const fits = async () => {
+    const outside = await page.evaluate(() =>
+      Array.from(document.querySelectorAll("body *"))
+        .filter((el) => {
+          const r = el.getBoundingClientRect();
+          return r.width && (r.right > innerWidth + 1 || r.left < -1);
+        })
+        .map(
+          (el) =>
+            `${el.tagName}.${el.className} ${JSON.stringify(el.getBoundingClientRect().toJSON())}`,
+        )
+        .slice(0, 10),
+    );
+    expect(outside).toEqual([]);
+  };
+  await fits();
+  await openSettings(page);
+  await fits();
+  await page
+    .getByRole("button", { name: "选择其他同步库合并", exact: true })
+    .click();
+  await fits();
+});
+
+test("settings start compact and reveal cloud configuration only when requested", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/?generic");
+  await page.getByRole("button", { name: "设置", exact: true }).click();
+  await expect(page.getByLabel("网盘账号", { exact: true })).toHaveCount(0);
+  await page.screenshot({ path: "artifacts/settings-compact-1.5.0.png" });
+  await page.getByRole("button", { name: "多端同步", exact: true }).click();
+  await expect(page.getByLabel("网盘账号", { exact: true })).toBeVisible();
+});
+
+test("Steam navigation disappears after the last Steam token is removed", async ({
+  page,
+}) => {
+  for (const name of ["测试 · Steam", "测试 · 待登录"]) {
+    await page
+      .getByRole("button", { name: `管理 ${name}`, exact: true })
+      .click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "删除令牌", exact: true })
+      .click();
+    await page
+      .getByRole("dialog")
+      .getByRole("button", { name: "确认删除", exact: true })
+      .click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  }
+  await expect(
+    page.getByRole("button", { name: "交易确认", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "社区市场", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "添加令牌", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "添加 Steam 令牌", exact: true }),
+  ).toBeHidden();
+  await page.locator("summary").filter({ hasText: "其他添加方式" }).click();
+  await page
+    .getByRole("button", { name: "添加 Steam 令牌", exact: true })
+    .click();
+  await expect(
+    page.getByRole("dialog").getByLabel("Steam 账户名", { exact: true }),
+  ).toBeVisible();
 });

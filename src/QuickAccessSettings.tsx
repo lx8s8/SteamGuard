@@ -66,6 +66,7 @@ export function QuickAccessSettings({
     event.preventDefault();
     if (slot) void configure(slot, true);
   };
+  if (capabilities && !capabilities.supported) return null;
   return (
     <section className="settings-panel quick-settings">
       <div className="panel-title">
@@ -74,13 +75,12 @@ export function QuickAccessSettings({
         </span>
         <div>
           <h2>快捷访问</h2>
-          <p>选择适合这台手机的打开方式</p>
         </div>
       </div>
       <div className="setting-row">
         <div>
           <h3>免密码预览令牌</h3>
-          <p>下次打开直接查看、复制验证码。登录、交易和令牌管理仍需解锁。</p>
+          <p>直接查看和复制验证码，管理令牌仍需解锁。</p>
         </div>
         <button
           className="access-switch"
@@ -98,7 +98,7 @@ export function QuickAccessSettings({
       <div className="setting-row">
         <div>
           <h3>{capabilities?.label || "指纹 / Face ID"} 解锁</h3>
-          <p>通过系统认证进入完整保险库，可随时改用主密码。</p>
+          <p>通过系统认证解锁。</p>
         </div>
         <button
           className="access-switch"
@@ -120,7 +120,7 @@ export function QuickAccessSettings({
             ? "快捷访问支持 Android 和 iOS；桌面版继续使用主密码。"
             : !capabilities.biometricAvailable
               ? "尚未检测到可用的指纹或 Face ID，请先在系统设置中录入。"
-              : "主密码仍用于备份与恢复，请妥善保管。更改系统生物特征后需重新启用认证。"}
+              : "更改系统生物特征后需重新启用。"}
         </p>
       )}
       {error && !slot && (

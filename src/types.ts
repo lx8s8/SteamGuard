@@ -14,6 +14,7 @@ export interface TokenView {
   id: string;
   name: string;
   issuer: string;
+  icon?: string | null;
   kind: TokenKind;
   code: string;
   period: number;
@@ -144,3 +145,22 @@ export interface SyncConnection extends SyncCredentials {
   libraryId?: string;
   confirmNewLibrary?: boolean;
 }
+
+export type DesktopSnapshot = {
+  initialized: boolean;
+  locked: boolean;
+  preview: boolean;
+  previewEnabled: boolean;
+  tokens: Pick<
+    TokenView,
+    | "id"
+    | "name"
+    | "issuer"
+    | "icon"
+    | "kind"
+    | "code"
+    | "remaining"
+    | "period"
+    | "hotpReadOnly"
+  >[];
+};

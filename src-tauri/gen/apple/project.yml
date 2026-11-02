@@ -48,6 +48,7 @@ targets:
         NSCameraUsageDescription: 扫描验证器二维码，在本机导入令牌。
         NSFaceIDUsageDescription: 使用 Face ID 解锁本机加密令牌库；你也可以使用主密码。
         LSRequiresIPhoneOS: true
+        UIUserInterfaceStyle: Light
         UILaunchStoryboardName: LaunchScreen
         UIRequiredDeviceCapabilities: [arm64, metal]
         UISupportedInterfaceOrientations:
@@ -59,8 +60,8 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        CFBundleShortVersionString: 1.4.0
-        CFBundleVersion: "1.4.0"
+        CFBundleShortVersionString: 1.5.0
+        CFBundleVersion: "1.5.0"
     entitlements:
       path: steamguard_iOS/steamguard_iOS.entitlements
     scheme:

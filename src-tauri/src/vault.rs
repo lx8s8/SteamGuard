@@ -143,6 +143,9 @@ impl VaultData {
                 if existing.group.is_none() {
                     existing.group = token.group.clone();
                 }
+                if existing.icon.is_none() {
+                    existing.icon = token.icon.clone();
+                }
                 if token.kind == "hotp" {
                     existing.counter = existing.counter.max(token.counter);
                 }
@@ -172,6 +175,9 @@ impl VaultData {
                 }
                 if existing.group.is_none() {
                     existing.group = token.group.clone();
+                }
+                if existing.icon.is_none() {
+                    existing.icon = token.icon.clone();
                 }
                 token.erase();
             } else {
@@ -818,6 +824,53 @@ mod tests {
         assert!(v.create("fixture password").is_err());
         assert!(v.data.is_none() && v.key.is_none());
         fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    #[ignore = "manual isolated native UI fixture, requires STEAMGUARD_QA_DIR"]
+    fn native_ui_fixture() {
+        let dir = std::path::PathBuf::from(std::env::var("STEAMGUARD_QA_DIR").unwrap());
+        assert_eq!(dir.file_name().unwrap(), "com.kasen.steamguard.qa");
+        let path = dir.join("vault.sgvault");
+        assert!(!path.exists(), "refusing to replace an existing QA vault");
+        let mut v = Vault::new(path);
+        v.create("synthetic-native-qa-password").unwrap();
+        v.update(|d| {
+            for (name, issuer, kind, brand, secret) in [
+                ("Google · demo@example.test", "Google", "totp", "google", 1),
+                ("GitHub · demo", "GitHub", "totp", "github", 2),
+                ("Steam · demo", "Steam", "steam", "steam", 3),
+            ] {
+                let mut token = Token::new(name.into(), kind.into(), vec![secret; 20]);
+                token.issuer = issuer.into();
+                token.icon = Some(format!("brand:{brand}"));
+                d.tokens.push(token);
+            }
+            Ok(())
+        })
+        .unwrap();
+    }
+    #[test]
+    fn avatars_survive_encrypted_backup_and_merge_without_overwriting_existing_choice() {
+        let mut token = Token::new("avatar".into(), "totp".into(), vec![3; 20]);
+        token.icon = Some("brand:github".into());
+        let data = VaultData {
+            tokens: vec![token.clone()],
+            ..Default::default()
+        };
+        let encrypted = backup(&data, "synthetic-password").unwrap();
+        assert!(!String::from_utf8_lossy(&encrypted).contains("brand:github"));
+        let restored = decode(&encrypted, "synthetic-password").unwrap();
+        assert_eq!(restored.tokens[0].icon, token.icon);
+        token.icon = None;
+        let mut existing = VaultData {
+            tokens: vec![token],
+            ..Default::default()
+        };
+        assert_eq!(existing.merge_backup(restored), 0);
+        assert_eq!(existing.tokens[0].icon.as_deref(), Some("brand:github"));
+        existing.tokens[0].icon = Some("brand:google".into());
+        existing.merge_import(data.tokens, vec![]);
+        assert_eq!(existing.tokens[0].icon.as_deref(), Some("brand:google"));
     }
     #[test]
     fn encrypted_roundtrip_rejects_password_and_tamper() {

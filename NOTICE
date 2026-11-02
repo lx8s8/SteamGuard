@@ -39,3 +39,12 @@ https://github.com/beemdevelopment/Aegis/blob/master/app/src/main/proto/google_a
 https://github.com/beemdevelopment/Aegis/blob/master/docs/vault.md
 2FAS backup compatibility was checked against its published BackupContent / BackupService schema.
 https://github.com/twofas/2fas-android
+
+Service artwork: Font Awesome Free Brands 7.3.1, Fonticons, Inc.
+https://fontawesome.com
+SVG artwork is licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).
+Brand SVG paths are rendered without changes; original colors are chosen by this app.
+Brand names and logos remain the trademarks of their respective owners.
+
+Desktop clipboard integration: official Tauri clipboard-manager plugin (Apache-2.0 / MIT).
+https://github.com/tauri-apps/plugins-workspace/tree/v2/plugins/clipboard-manager
