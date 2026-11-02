@@ -861,7 +861,7 @@
 .backup-restore-note {
   margin-top: 20px;
   padding: 14px;
-  border: 1px solid #4b5263;
+  border: 1px solid var(--line);
   border-radius: 10px;
   font-size: 13px;
   line-height: 1.7;

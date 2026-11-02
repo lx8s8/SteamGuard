@@ -48,3 +48,6 @@ Brand names and logos remain the trademarks of their respective owners.
 
 Desktop clipboard integration: official Tauri clipboard-manager plugin (Apache-2.0 / MIT).
 https://github.com/tauri-apps/plugins-workspace/tree/v2/plugins/clipboard-manager
+
+UI color direction inspired by Magpie (MIT). SteamGuard layout, styles and orbit/check app artwork are implemented in this project.
+https://github.com/demo007x/Magpie

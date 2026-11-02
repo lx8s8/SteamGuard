@@ -139,7 +139,7 @@ Actions 单独上传 **`iOS-arm64-device-IPA-unsigned`**。在 iPhone 上先解�
 
 ## GitHub Actions
 
-`.github/workflows/package.yml` 构建 Apple Silicon / Intel macOS、Windows x64、Android ARM64/x64，以及 ARM64 iOS 模拟器、未签名真机归档和单独的真机 IPA。触发方式为主分支提交、版本标签、相关 Pull Request 或手动运行。
+`.github/workflows/package.yml` 构建 Apple Silicon / Intel macOS、Windows x64、Android ARM64/x64，以及 ARM64 iOS 模拟器、未签名真机归档和单独的真机 IPA。触发方式为版本标签、相关 Pull Request 或手动运行；普通主分支提交不会触发打包。
 
 独立的 Linux 前端任务只安装 Node.js 与 Chromium，运行 TypeScript 检查和 Playwright 界面测试，不编译 Rust。原生构建任务分别使用对应平台工具链。
 
@@ -157,3 +157,8 @@ Actions 单独上传 **`iOS-arm64-device-IPA-unsigned`**。在 iPhone 上先解�
 正式分发增加两份 macOS `.app.tar.gz` 和 `latest.json`。Windows 根据原安装方式使用同一 NSIS 或 MSI 安装器；签名嵌在清单中，收集脚本会拒绝缺少更新签名、版本不一致或多余附件。首次接入更新签名的版本仍需手动安装，随后才能在应用内检查和安装后续版本。主密码、备份、网盘配置均不进入更新清单。
 
 Apple 权限说明内置于 `src-tauri/locales/*.lproj`，macOS 通过平台配置映射到 Resources 根目录，iOS 通过 XcodeGen 的本地化资源组收录。修改 `project.yml` 后用 XcodeGen 重新生成原生工程，避免手改生成的资源索引。
+
+
+## 图标与界面资源
+
+图标母版位于 `assets/brand`。运行 `npm run icons:generate` 可同步桌面、iOS、Android 自适应 / 单色、菜单栏及浏览器资源，不生成安装包。iOS 使用完整不透明背景；尺寸与原生 AppIcon 清单对应。细节见 [图标说明](../assets/brand/README.md)。

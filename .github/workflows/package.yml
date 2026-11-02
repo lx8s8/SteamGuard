@@ -7,6 +7,7 @@ on:
   pull_request:
     paths:
       - "src/**"
+      - "assets/brand/**"
       - "src-tauri/**"
       - "scripts/**"
       - "package*.json"
@@ -40,6 +41,7 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run test:i18n
+      - run: npm run test:icons
       - run: npx playwright install --with-deps chromium
       - run: npm run test:ui
       - run: npm run test:release

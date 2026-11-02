@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { api, errorText } from "./api";
 import { TokenAvatar } from "./TokenAvatar";
+import { OtpProgress } from "./OtpProgress";
 import type { DesktopSnapshot } from "./types";
 export default function TrayApp() {
   const [snapshot, setSnapshot] = useState<DesktopSnapshot | null>(null);
@@ -195,12 +196,7 @@ export default function TrayApp() {
                     <Copy size={15} />
                   )}
                   {token.kind !== "hotp" && (
-                    <span
-                      className="tray-progress"
-                      style={{
-                        width: `${Math.max(0, Math.min(100, (token.remaining / token.period) * 100))}%`,
-                      }}
-                    />
+                    <OtpProgress className="tray-progress" remaining={token.remaining} period={token.period} code={token.code} />
                   )}
                 </button>
               ))}

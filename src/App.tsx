@@ -1,3 +1,4 @@
+import { AppMark } from "./AppMark";
 import { t as translate, formatDateTime } from "./i18n";
 import {
   useCallback,
@@ -46,6 +47,7 @@ import {
 } from "lucide-react";
 import QRCode from "qrcode";
 import { TokenAvatar, IconPicker } from "./TokenAvatar";
+import { OtpProgress } from "./OtpProgress";
 import { SettingsDisclosure } from "./SettingsDisclosure";
 import { BatchQrExport } from "./BatchQrExport";
 import { LanguageSettings } from "./LanguageSettings";
@@ -509,7 +511,7 @@ export default function App() {
           }}
         >
           <span className="brand-symbol">
-            <ShieldCheck size={25} strokeWidth={1.9} />
+            <AppMark size={25} />
           </span>
           <span>
             Steam<span className="brand-light">Guard</span>
@@ -752,16 +754,13 @@ export default function App() {
                               </button>
                             </div>
                             {token.kind !== "hotp" && (
-                              <div
+                              <OtpProgress
                                 className="token-progress"
-                                aria-label={translate("剩余 {{remaining}} 秒", { remaining: token.remaining })}
-                              >
-                                <span
-                                  style={{
-                                    width: `${Math.max(0, Math.min(100, (token.remaining / (token.period || 30)) * 100))}%`,
-                                  }}
-                                />
-                              </div>
+                                label={translate("剩余 {{remaining}} 秒", { remaining: token.remaining })}
+                                remaining={token.remaining}
+                                period={token.period}
+                                code={token.code}
+                              />
                             )}
                             <div className="token-card-bottom">
                               {token.kind === "hotp" && (
@@ -1120,7 +1119,7 @@ export default function App() {
                   )}
                   <section className="settings-panel about-panel">
                     <span className="brand-symbol">
-                      <ShieldCheck size={26} />
+                      <AppMark size={26} />
                     </span>
                     <div>
                       <h2>

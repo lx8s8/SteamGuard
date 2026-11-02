@@ -12,7 +12,7 @@ export function applyAppearance() {
   const dark = theme === "dark" || (theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
   document.documentElement.dataset.theme = dark ? "dark" : "light";
   document.documentElement.style.setProperty("--text-scale", String(["100", "112", "125"].includes(size) ? Number(size) / 100 : 1));
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#111821" : "#ffffff");
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#1c1c1e" : "#f5f5f7");
   if (native && !new URLSearchParams(location.search).has("view") && theme !== previousTheme) {
     previousTheme = theme;
     void call("appearance_configure", { theme: ["light", "dark"].includes(theme) ? theme : "system" }).catch(() => { previousTheme = ""; });

@@ -31,6 +31,7 @@ export const call = <T>(
     );
   const ready = ["quick_configure", "quick_biometric_unlock"].includes(command) ? awaitNativeLocalization() : Promise.resolve();
   return ready.then(() => invoke<T>(command, args)).then(result => {
+    if (command === "sync_time") window.dispatchEvent(new Event("steamguard:clock-synced"));
     if (["token_create", "token_update", "token_rename", "token_delete", "token_batch", "token_reorder", "token_group_manage", "token_advance", "import_commit", "backup_restore_selected", "trash_restore"].includes(command)) window.dispatchEvent(new Event("steamguard:local-change"));
     return result;
   });
