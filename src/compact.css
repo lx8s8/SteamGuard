@@ -1104,3 +1104,33 @@ select,
 textarea {
   color-scheme: light;
 }
+
+/* Token management remains within the existing toolbar and dialogs. */
+.token-management-toolbar { display:flex; justify-content:flex-end; gap:6px; margin:-2px 0 12px; }
+.token-management-toolbar .button { padding:5px 8px; min-height:30px; font-size:12px; }
+.batch-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding:12px; margin-bottom:14px; border:1px solid var(--line); border-radius:12px; }
+.batch-toolbar label { display:flex; align-items:center; gap:6px; }
+.batch-toolbar select { width:auto; max-width:180px; }
+.token-selected { outline:2px solid var(--blue); outline-offset:1px; }
+.token-selection { display:flex; align-items:center; gap:7px; margin-bottom:9px; font-size:12px; }
+.token-identity h3 { display:flex; align-items:center; gap:5px; }
+.token-card[draggable="true"] { cursor:grab; }
+.token-card[draggable="true"]:active { cursor:grabbing; }
+.manual-order-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:14px 0; }
+.manual-order-actions > span { margin-right:auto; font-size:13px; }
+.otp-parameters { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:14px; }
+.otp-parameters label { display:flex; flex-direction:column; gap:7px; font-size:13px; min-width:0; }
+.otp-parameters small { color:var(--muted); line-height:1.5; }
+.selection-list { max-height:340px; overflow:auto; margin:14px 0; }
+.selection-list > label { display:flex; align-items:flex-start; gap:10px; padding:11px 2px; border-bottom:1px solid var(--line); }
+.selection-list input, .token-selection input, .batch-toolbar input { width:16px; height:16px; flex:0 0 16px; margin:3px 0; accent-color:var(--blue); }
+.selection-list > label > span { min-width:0; display:flex; flex-direction:column; gap:4px; overflow-wrap:anywhere; }
+.selection-list small { color:var(--muted); font-size:12px; line-height:1.5; }
+.backup-directory-path { overflow-wrap:anywhere; }
+.sync-config-import { margin-bottom:18px; }
+.sync-qr-upload { position:relative; overflow:hidden; }
+.sync-qr-upload input { position:absolute; inset:0; opacity:0; cursor:pointer; }
+@media(max-width:480px) { .otp-parameters { grid-template-columns:1fr; } .batch-toolbar { gap:7px; } .batch-toolbar .button { padding:8px; font-size:12px; } .batch-toolbar select { max-width:130px; } }
+@media (max-width:700px), (pointer:coarse) { .import-tabs { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+/* Dialog actions stay above transient notifications. */
+.toast { z-index:90; }

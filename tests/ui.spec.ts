@@ -13,6 +13,7 @@ import {
 // Synthetic data only. These UI tests do not contact Steam or load private exports.
 async function nativeFixture(page: Page) {
   await page.addInitScript(() => {
+    localStorage.setItem("steamguard.language", "zh-CN");
     const tokens = [
       {
         icon: null as string | null,
@@ -55,6 +56,7 @@ async function nativeFixture(page: Page) {
         loggedIn: false,
       },
     ];
+    const trash: (typeof tokens[number] & { deletedAt: number })[] = [];
     const syncScenario = new URLSearchParams(location.search).get("sync");
     const cloudScenario = new URLSearchParams(location.search).get("cloud");
     const cloudLibraries =
@@ -128,6 +130,9 @@ async function nativeFixture(page: Page) {
       guardSubmitted?: boolean;
     } | null = null;
     const params = new URLSearchParams(location.search);
+    if (params.has("manyTokens")) for (let index = 0; index < 3; index++) tokens.push({ ...tokens[2], id: `extra-${index}`, name: `额外令牌 ${index}` });
+    let externalBackup = false;
+    const externalBackupStatus = () => ({ supported: params.has("externalBackup"), configured: externalBackup, label: externalBackup ? "DeviceBackups" : "" });
     if (params.has("generic")) tokens.splice(0, 2);
     let resident = true;
     const commands: { command: string; args: Record<string, unknown> }[] = [];
@@ -140,6 +145,8 @@ async function nativeFixture(page: Page) {
       __testCommands: commands,
       __TAURI_INTERNALS__: {
         invoke: async (command: string, args: Record<string, unknown> = {}) => {
+          // Match the JSON IPC boundary: undefined fields never reach Rust.
+          args = JSON.parse(JSON.stringify(args));
           commands.push({ command, args });
           switch (command) {
             case "desktop_settings":
@@ -147,8 +154,9 @@ async function nativeFixture(page: Page) {
             case "desktop_configure":
               resident = !!args.resident;
               return { supported: true, resident };
-            case "desktop_snapshot":
-              return {
+            case "desktop_snapshot": {
+              const result = {
+                revision: "fixture-revision",
                 initialized: true,
                 locked,
                 preview: previewActive,
@@ -156,6 +164,12 @@ async function nativeFixture(page: Page) {
                 tokens:
                   locked && !previewActive ? [] : tokens.map((t) => ({ ...t })),
               };
+              if (params.has("deferDesktopSnapshot") && !(window as any).__desktopSnapshotResolved) return new Promise(resolve => Object.assign(window, { __resolveDesktopSnapshot: () => { (window as any).__desktopSnapshotResolved = true; resolve(result); } }));
+              return result;
+            }
+            case "desktop_codes":
+              if (locked && !previewActive) throw new Error("保险库已锁定");
+              return { revision: "fixture-revision", codes: tokens.map(t => ({ id: t.id, code: t.code, remaining: t.remaining, period: t.period })) };
             case "desktop_copy":
               if (locked && !previewActive) throw new Error("已锁定");
               return;
@@ -164,10 +178,52 @@ async function nativeFixture(page: Page) {
               return;
             case "token_delete": {
               const index = tokens.findIndex((t) => t.id === args.id);
-              if (index >= 0) tokens.splice(index, 1);
+              if (index >= 0) trash.push({ ...tokens.splice(index, 1)[0], deletedAt: 1793404800 });
               return;
             }
+            case "token_codes": return { revision: "fixture-revision", codes: tokens.map(t => ({ id: t.id, code: t.code, remaining: t.remaining, period: t.period })) };
+            case "token_current_code": {
+              if (locked && !previewActive) throw new Error("保险库已锁定");
+              const token = tokens.find(t => t.id === args.id);
+              if (!token || (token as any).hotpReadOnly) throw new Error("无法读取验证码");
+              if ((window as any).__deferCurrentCode) return new Promise(resolve => Object.assign(window, { __resolveCurrentCode: () => resolve({ code: "654321", remaining: 28, period: token.period }) }));
+              return { code: "654321", remaining: 28, period: token.period };
+            }
+            case "token_create": {
+              const input = args.input as Record<string, any>;
+              if (!/^[A-Z2-7]+=*$/.test(input.secret)) throw new Error("密钥不是有效 Base32");
+              if (input.kind !== "hotp" && input.counter !== undefined) throw new Error("只有 HOTP 令牌可修改计数");
+              tokens.push({ id: "manual-fixture", name: input.name, issuer: input.issuer || "", kind: input.kind, code: "234567", period: input.period || 30, remaining: 20, icon: null, group: input.group || null, loggedIn: false, ...input, secret: undefined } as any);
+              return "manual-fixture";
+            }
+            case "token_reorder": tokens.sort((a, b) => (args.ids as string[]).indexOf(a.id) - (args.ids as string[]).indexOf(b.id)); return;
+            case "token_batch": {
+              const ids = args.ids as string[];
+              for (const token of [...tokens]) if (ids.includes(token.id)) {
+                if (args.action === "pin") Object.assign(token, { pinned: args.pinned });
+                if (args.action === "group") token.group = String(args.group || "") || null;
+                if (args.action === "delete") { trash.push({ ...token, deletedAt: 1793404800 }); tokens.splice(tokens.indexOf(token), 1); }
+              }
+              return ids.length;
+            }
+            case "trash_list": return trash;
+            case "trash_restore": {
+              const ids = args.ids as string[];
+              for (const token of [...trash]) if (ids.includes(token.id)) { tokens.push(token); trash.splice(trash.indexOf(token), 1); }
+              return ids.length;
+            }
+            case "trash_delete": { const ids = args.ids as string[]; for (const token of [...trash]) if (ids.includes(token.id)) trash.splice(trash.indexOf(token), 1); return ids.length; }
+            case "vault_change_password":
+              if (args.currentPassword !== "synthetic-vault-password") throw new Error("主密码错误");
+              previewEnabled = false; biometricEnabled = false; return;
 
+            case "sync_set_alias": Object.assign(syncState, { alias: args.alias }); return { ...syncState };
+            case "sync_update_credentials": {
+              const connection = args.connection as Record<string, unknown>;
+              if (connection.password === "wrong-app-password") throw new Error("网盘拒绝访问");
+              Object.assign(syncState, { endpoint: connection.endpoint, username: connection.username }); return { ...syncState };
+            }
+            case "sync_connection_info": return { endpoint: syncState.endpoint, username: syncState.username, libraryId: syncState.libraryId, alias: "家庭设备", connectionQr: JSON.stringify({ version: 1, endpoint: syncState.endpoint, username: syncState.username, libraryId: syncState.libraryId }) };
             case "sync_status":
               return { ...syncState };
             case "sync_discover": {
@@ -260,10 +316,13 @@ async function nativeFixture(page: Page) {
             case "token_update": {
               const token = tokens.find((t) => t.id === args.id);
               if (token) {
+                const parameters = args.parameters as Record<string, unknown> | undefined;
+                if (parameters?.counter !== undefined && (token.kind !== "hotp" || (token as any).hotpReadOnly)) throw new Error("只有 HOTP 主设备可修改计数");
                 token.name = String(args.name);
                 token.group = args.group ? String(args.group) : null;
                 if (args.icon)
                   token.icon = (args.icon as { value: string | null }).value;
+                if (args.parameters) Object.assign(token, args.parameters);
               }
               return;
             }
@@ -277,10 +336,24 @@ async function nativeFixture(page: Page) {
             case "backup_configure":
               autoBackup = !!args.enabled;
               return;
+            case "backup_external_status": return externalBackupStatus();
+            case "backup_external_choose":
+              if (!(window as any).__cancelBackupDirectory) externalBackup = true;
+              return externalBackupStatus();
+            case "backup_external_clear": externalBackup = false; return externalBackupStatus();
             case "backup_now":
               return;
             case "backup_export":
               return "/fixture/SteamGuard-backup.sgvault";
+            case "backup_preview": {
+              if (args.password !== "synthetic-vault-password") throw new Error("密码错误或备份已损坏");
+              if (params.has("backupDiff")) return { previewId: "backup-diff", newCount: 1, updateCount: 1, unchangedCount: 0, conflictCount: 1, tokens: [{ id: "restored-fixture", name: "恢复的令牌", issuer: "Example", kind: "totp", status: "new" }, { id: "totp-test", name: "测试 · 通用 OTP", issuer: "Example", kind: "totp", status: "update" }, { id: "conflict-fixture", name: "密钥冲突的令牌", issuer: "Example", kind: "totp", status: "conflict", detail: "令牌密钥不一致" }] };
+              return { previewId: "backup-fixture", newCount: 1, updateCount: 0, unchangedCount: 1, conflictCount: 0, tokens: [{ id: "restored-fixture", name: "恢复的令牌", issuer: "Example", kind: "totp", status: "new" }, { id: "totp-test", name: "测试 · 通用 OTP", issuer: "Example", kind: "totp", status: "unchanged" }] };
+            }
+            case "backup_restore_selected": {
+              if ((args.ids as string[]).includes("restored-fixture")) tokens.push({ icon: null, group: null, id: "restored-fixture", name: "恢复的令牌", issuer: "Example", kind: "totp", code: "654321", period: 30, remaining: 24, loggedIn: false });
+              return (args.ids as string[]).length;
+            }
             case "backup_restore": {
               if (args.password !== "synthetic-vault-password")
                 throw new Error("密码错误或备份已损坏");
@@ -1119,11 +1192,14 @@ test("automatic backups can be configured, exported and restored only with a val
   expect(await commandCount(page, "backup_export")).toBe(1);
   expect(await commandCount(page, "backup_restore")).toBe(0);
   await dialog.getByLabel("备份主密码").fill("wrong-password");
-  await dialog.getByRole("button", { name: "合并恢复", exact: true }).click();
+  await dialog.getByRole("button", { name: "验证并预览备份", exact: true }).click();
   await expect(dialog.getByRole("alert")).toHaveText("密码错误或备份已损坏");
   await dialog.getByLabel("备份主密码").fill("synthetic-vault-password");
-  await dialog.getByRole("button", { name: "合并恢复", exact: true }).click();
-  await expect(dialog.getByRole("status")).toContainText("补回 1 个令牌");
+  await dialog.getByRole("button", { name: "验证并预览备份", exact: true }).click();
+  await expect(dialog.getByRole("region", { name: "备份差异预览" })).toContainText("新增 1");
+  expect(await commandCount(page, "backup_restore_selected")).toBe(0);
+  await dialog.getByRole("button", { name: "恢复所选令牌", exact: true }).click();
+  await expect(dialog.getByRole("status")).toContainText("已恢复所选的 1 个令牌");
   await expect(dialog.getByLabel("备份主密码")).toHaveValue("");
 });
 
@@ -1914,4 +1990,327 @@ test("Steam navigation disappears after the last Steam token is removed", async 
   await expect(
     page.getByRole("dialog").getByLabel("Steam 账户名", { exact: true }),
   ).toBeVisible();
+});
+
+
+test("manual HOTP creation and generic parameter editing preserve advanced values", async ({ page }) => {
+  await page.getByRole("button", { name: "添加令牌", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "手动添加", exact: true }).click();
+  await dialog.getByLabel("服务名称", { exact: true }).fill("Example Service");
+  await dialog.getByLabel("账户或显示名称", { exact: true }).fill("工作账户");
+  await dialog.getByLabel("密钥（Base32）", { exact: true }).fill("gezd gnbv gy3t qojq");
+  await dialog.getByLabel("令牌类型", { exact: true }).selectOption("hotp");
+  await dialog.locator("summary").filter({ hasText: "高级参数" }).click();
+  await dialog.getByLabel("算法", { exact: true }).selectOption("SHA256");
+  await dialog.getByLabel("验证码位数", { exact: true }).selectOption("8");
+  await dialog.getByLabel("计数器", { exact: true }).fill("42");
+  await dialog.getByRole("button", { name: "保存令牌", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  const input = await page.evaluate(() => (window as any).__testCommands.find((c: any) => c.command === "token_create").args.input);
+  expect(input).toMatchObject({ issuer: "Example Service", name: "工作账户", secret: "GEZDGNBVGY3TQOJQ", kind: "hotp", algorithm: "SHA256", digits: 8, counter: 42 });
+  await page.getByRole("button", { name: "管理 工作账户", exact: true }).click();
+  await dialog.locator("summary").filter({ hasText: "高级参数" }).click();
+  await expect(dialog.getByLabel("计数器", { exact: true })).toHaveValue("42");
+  await dialog.getByLabel("验证码位数", { exact: true }).selectOption("6");
+  await dialog.getByRole("button", { name: "保存", exact: true }).click();
+  expect(await page.evaluate(() => (window as any).__testCommands.filter((c: any) => c.command === "token_update").at(-1).args.parameters.digits)).toBe(6);
+});
+
+test("batch deletion can be undone and trash permanent deletion requires review", async ({ page }) => {
+  await page.getByRole("button", { name: "批量管理", exact: true }).click();
+  await page.getByLabel("选择 测试 · 通用 OTP", { exact: true }).check();
+  await page.getByRole("region", { name: "批量管理令牌" }).getByRole("button", { name: "删除", exact: true }).click();
+  expect(await commandCount(page, "token_batch")).toBe(0);
+  await page.getByRole("dialog").getByRole("button", { name: "移入回收站", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "测试 · 通用 OTP", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "撤销", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "测试 · 通用 OTP", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "管理 测试 · 通用 OTP", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "删除令牌", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "确认删除", exact: true }).click();
+  await page.getByRole("button", { name: "回收站", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("checkbox").check();
+  await dialog.getByRole("button", { name: "永久删除", exact: true }).click();
+  expect(await commandCount(page, "trash_delete")).toBe(0);
+  await dialog.getByRole("button", { name: "永久删除", exact: true }).click();
+  await expect(dialog).toContainText("回收站为空");
+  expect(await commandCount(page, "trash_delete")).toBe(1);
+});
+
+test("pin and accessible manual move persist without replacing name and type sorting", async ({ page }) => {
+  await page.getByRole("button", { name: "管理 测试 · 通用 OTP", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "上移", exact: true }).click();
+  await dialog.getByRole("checkbox", { name: "置顶显示", exact: true }).check();
+  await dialog.getByRole("button", { name: "保存", exact: true }).click();
+  expect(await commandCount(page, "token_reorder")).toBe(1);
+  await expect(page.locator(".token-card").first()).toContainText("测试 · 通用 OTP");
+  await page.getByLabel("令牌排序", { exact: true }).selectOption("name");
+  await page.getByLabel("令牌排序", { exact: true }).selectOption("type");
+  await expect(page.locator(".token-card").first()).toContainText("测试 · 通用 OTP");
+});
+
+test("copy obtains the current native code and lightweight polling avoids full token reloads", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  const before = await commandCount(page, "list_tokens");
+  await page.getByRole("button", { name: "复制 测试 · 通用 OTP 验证码", exact: true }).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("654321");
+  expect(await commandCount(page, "token_current_code")).toBe(1);
+  await page.waitForTimeout(1200);
+  expect(await commandCount(page, "token_codes")).toBeGreaterThan(0);
+  expect(await commandCount(page, "list_tokens")).toBeLessThanOrEqual(before + 1); // one initial automatic sync may finish
+});
+
+test("changing the master password validates locally and resets quick access after success", async ({ page }) => {
+  await openSettings(page);
+  await page.locator(".settings-panel").filter({ hasText: "保险库主密码" }).getByRole("button", { name: "修改", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("当前主密码", { exact: true }).fill("wrong");
+  await dialog.getByLabel("新主密码", { exact: true }).fill("new-synthetic-password");
+  await dialog.getByLabel("再次输入新主密码", { exact: true }).fill("different-password");
+  await dialog.getByRole("button", { name: "保存新密码", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toContainText("不一致");
+  expect(await commandCount(page, "vault_change_password")).toBe(0);
+  await dialog.getByLabel("再次输入新主密码", { exact: true }).fill("new-synthetic-password");
+  await dialog.getByRole("button", { name: "保存新密码", exact: true }).click();
+  await expect(dialog.getByRole("alert")).toContainText("主密码错误");
+  await dialog.getByLabel("当前主密码", { exact: true }).fill("synthetic-vault-password");
+  await dialog.getByRole("button", { name: "保存新密码", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("status")).toContainText("主密码已修改");
+});
+
+test("sync configuration excludes passwords and credential changes preserve library identity", async ({ page }) => {
+  await page.goto("/?sync=connected");
+  await openSettings(page);
+  await page.locator("summary").filter({ hasText: "同步库名称与连接设置" }).click();
+  await page.getByRole("button", { name: "显示加入配置二维码", exact: true }).click();
+  await expect(page.getByRole("dialog")).toContainText("不含密码或令牌密钥");
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
+  await page.getByRole("button", { name: "更新网盘应用密码", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("新的网盘应用密码", { exact: true }).fill("replacement-synthetic-password");
+  await dialog.getByRole("button", { name: "验证并更新连接", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(await commandCount(page, "sync_update_credentials")).toBe(1);
+  expect(await commandCount(page, "sync_disconnect")).toBe(0);
+  await expect(page.locator(".sync-details")).toContainText("2971a71b-042c-4f28-b8ae-3c02b713f0f0");
+});
+
+
+test("hidden windows stop code polling and foreground rechecks native lock state", async ({ page }) => {
+  await expect.poll(() => commandCount(page, "token_codes")).toBeGreaterThan(0);
+  await page.evaluate(() => { Object.defineProperty(document, "hidden", { configurable: true, value: true }); document.dispatchEvent(new Event("visibilitychange")); });
+  const before = await commandCount(page, "token_codes");
+  await page.waitForTimeout(1300);
+  expect(await commandCount(page, "token_codes")).toBe(before);
+  await page.evaluate(async () => { await (window as any).__TAURI_INTERNALS__.invoke("vault_lock"); Object.defineProperty(document, "hidden", { configurable: true, value: false }); document.dispatchEvent(new Event("visibilitychange")); });
+  await expect(page.locator(".token-card")).toHaveCount(0);
+  await expect(page.getByLabel("解锁密码", { exact: true })).toBeVisible();
+});
+
+test("a suspended phone locks before showing codes when returning after a minute", async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, "userAgent", { configurable: true, value: "SteamGuard Android" }));
+  await page.reload();
+  await expect(page.locator(".token-card")).toHaveCount(3);
+  await page.evaluate(() => {
+    Object.defineProperty(document, "hidden", { configurable: true, value: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+  expect(await commandCount(page, "vault_background")).toBe(1);
+  // Advance wall time without running setTimeout: the WebView was suspended.
+  await page.evaluate(() => {
+    const realNow = Date.now;
+    Date.now = () => realNow() + 61_000;
+    Object.defineProperty(document, "hidden", { configurable: true, value: false });
+    document.dispatchEvent(new Event("visibilitychange"));
+    Date.now = realNow;
+  });
+  await expect(page.locator(".token-card")).toHaveCount(0);
+  await expect(page.getByLabel("解锁密码", { exact: true })).toBeVisible();
+  expect(await commandCount(page, "vault_lock")).toBe(1);
+  const lifecycle = await page.evaluate(() => (window as any).__testCommands.filter((c: any) => c.command === "vault_background").map((c: any) => c.args.hidden));
+  expect(lifecycle).toEqual([true, false]);
+});
+
+test("joining through a config QR fills only public connection fields", async ({ page }) => {
+  await openSettings(page);
+  await page.locator("summary").filter({ hasText: "从另一台设备的配置二维码加入" }).click();
+  const config = { version: 1, endpoint: "https://dav.other.example.test/dav/", username: "public-account@example.test", libraryId: "2971a71b-042c-4f28-b8ae-3c02b713f0f0" };
+  await page.getByLabel("读取二维码图片", { exact: true }).setInputFiles(await qrImage(JSON.stringify(config)));
+  await expect(page.getByLabel("WebDAV 地址", { exact: true })).toHaveValue(config.endpoint);
+  await expect(page.getByLabel("网盘账号", { exact: true })).toHaveValue(config.username);
+  await expect(page.getByLabel("同步库编号", { exact: true })).toHaveValue(config.libraryId);
+  await expect(page.getByLabel("网盘应用密码", { exact: true })).toHaveValue("");
+  await expect(page.getByLabel("独立同步密码", { exact: true })).toHaveValue("");
+  expect(await commandCount(page, "sync_connect")).toBe(0);
+});
+
+test("manual TOTP and editing a secondary HOTP omit unsupported counters", async ({ page }) => {
+  await page.getByRole("button", { name: "添加令牌", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "手动添加", exact: true }).click();
+  await dialog.getByLabel("账户或显示名称", { exact: true }).fill("TOTP 默认参数");
+  await dialog.getByLabel("密钥（Base32）", { exact: true }).fill("GEZDGNBVGY3TQOJQ");
+  await dialog.getByRole("button", { name: "保存令牌", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  const input = await page.evaluate(() => (window as any).__testCommands.find((c: any) => c.command === "token_create").args.input);
+  expect(input.kind).toBe("totp");
+  expect(input.counter).toBeUndefined();
+  await page.getByRole("button", { name: "管理 TOTP 默认参数", exact: true }).click();
+  await dialog.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).__testCommands.filter((c: any) => c.command === "token_update").at(-1).args.parameters.counter)).toBeUndefined();
+  await page.goto("/?sync=hotp");
+  await page.getByRole("button", { name: "管理 测试 · 通用 OTP", exact: true }).click();
+  await dialog.locator("summary").filter({ hasText: "高级参数" }).click();
+  await expect(dialog.getByLabel("计数器", { exact: true })).toBeDisabled();
+  await dialog.getByLabel("显示名称", { exact: true }).fill("副设备改名");
+  await dialog.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "副设备改名", exact: true })).toBeVisible();
+  const parameters = await page.evaluate(() => (window as any).__testCommands.find((c: any) => c.command === "token_update").args.parameters);
+  expect(parameters.counter).toBeUndefined();
+});
+
+test("backup diff restores only checked entries and prevents selecting conflicts", async ({ page }) => {
+  await page.goto("/?backupDiff");
+  await openSettings(page);
+  await page.locator(".backup-panel").getByRole("button", { name: "查看", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("备份主密码", { exact: true }).fill("synthetic-vault-password");
+  await dialog.getByRole("button", { name: "验证并预览备份", exact: true }).click();
+  const preview = dialog.getByRole("region", { name: "备份差异预览", exact: true });
+  await expect(preview.locator("label").filter({ hasText: "密钥冲突的令牌" }).getByRole("checkbox")).toBeDisabled();
+  await preview.locator("label").filter({ hasText: "恢复的令牌" }).getByRole("checkbox").uncheck();
+  await dialog.getByRole("button", { name: "恢复所选令牌", exact: true }).click();
+  await expect(dialog.getByRole("status")).toContainText("已恢复所选的 1 个令牌");
+  const args = await page.evaluate(() => (window as any).__testCommands.find((c: any) => c.command === "backup_restore_selected").args);
+  expect(args).toEqual({ previewId: "backup-diff", ids: ["totp-test"] });
+});
+
+test("external automatic backup chooser cancellation and reset preserve a compact phone layout", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 780 });
+  await page.goto("/?externalBackup");
+  await openSettings(page);
+  const setting = page.locator(".external-backup-setting");
+  await expect(setting).toContainText("尚未选择目录");
+  await setting.getByRole("button", { name: "选择目录", exact: true }).click();
+  await expect(setting).toContainText("DeviceBackups");
+  await page.evaluate(() => Object.assign(window, { __cancelBackupDirectory: true }));
+  await setting.getByRole("button", { name: "选择目录", exact: true }).click();
+  await expect(setting).toContainText("DeviceBackups");
+  await setting.getByRole("button", { name: "重置目录", exact: true }).click();
+  await expect(setting).toContainText("尚未选择目录");
+  await expect(setting.getByRole("button", { name: "重置目录", exact: true })).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(321);
+});
+
+test("tray keyboard copies through native validation and polling avoids full avatar snapshots", async ({ page }) => {
+  await page.goto("/?view=tray&manyTokens");
+  await expect(page.locator(".tray-token")).toHaveCount(6);
+  const snapshots = await commandCount(page, "desktop_snapshot");
+  const search = page.getByRole("textbox", { name: "搜索令牌", exact: true });
+  await search.focus();
+  await search.press("ArrowDown");
+  await expect(page.getByRole("button", { name: "复制 测试 · Steam 验证码", exact: true })).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("button", { name: "复制 测试 · 待登录 验证码", exact: true })).toBeFocused();
+  await page.keyboard.press("Enter");
+  expect(await page.evaluate(() => (window as any).__testCommands.filter((c: any) => c.command === "desktop_copy").at(-1).args.id)).toBe("steam-offline");
+  await search.fill("通用");
+  await search.press("Enter");
+  expect(await page.evaluate(() => (window as any).__testCommands.filter((c: any) => c.command === "desktop_copy").at(-1).args.id)).toBe("totp-test");
+  await expect.poll(() => commandCount(page, "desktop_codes")).toBeGreaterThan(0);
+  expect(await commandCount(page, "desktop_snapshot")).toBe(snapshots);
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".tray-token")).toHaveCount(0);
+  expect(await commandCount(page, "desktop_hide")).toBe(1);
+});
+
+test("a late tray snapshot cannot reveal codes after the popup loses focus", async ({ page }) => {
+  await page.goto("/?view=tray&deferDesktopSnapshot");
+  await expect.poll(() => page.evaluate(() => typeof (window as any).__resolveDesktopSnapshot)).toBe("function");
+  await page.evaluate(() => { window.dispatchEvent(new Event("blur")); (window as any).__resolveDesktopSnapshot(); });
+  await page.waitForTimeout(1100);
+  await expect(page.locator(".tray-token")).toHaveCount(0);
+  expect(await commandCount(page, "desktop_codes")).toBe(0);
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.locator(".tray-token")).toHaveCount(3);
+});
+
+for (const [width, language] of [[320, "zh-CN"], [390, "ar"], [1180, "en"]] as const) {
+  test(`dark theme and large text remain readable at ${width}px in ${language}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 820 });
+    await openSettings(page);
+    await page.getByLabel("主题", { exact: true }).selectOption("dark");
+    await page.getByLabel("文字大小", { exact: true }).selectOption("125");
+    await page.getByRole("combobox", { name: "应用语言", exact: true }).selectOption(language);
+    await expect(page.locator("html")).toHaveAttribute("dir", language === "ar" ? "rtl" : "ltr");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width + 1);
+    await page.screenshot({ path: `artifacts/qa-dark-settings-${width}-${language}.png`, fullPage: true });
+    const navigation = page.locator(width <= 900 ? ".mobile-nav button" : ".sidebar nav button");
+    await navigation.first().click();
+    await expect(page.locator(".token-card")).toHaveCount(3);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width + 1);
+    await page.screenshot({ path: `artifacts/qa-dark-tokens-${width}-${language}.png`, fullPage: true });
+    await page.locator(".token-menu").first().click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width + 1);
+    const contrasts = await page.locator(".modal").evaluate(modal => {
+      const channels = (value: string) => (value.match(/[\d.]+/g) || []).map(Number);
+      const luminance = (rgb: number[]) => rgb.slice(0, 3).map(value => { const n = value / 255; return n <= 0.04045 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4; }).reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+      return ["h2", ".field-label", "input", ".danger-text", ".button.primary"].map(selector => {
+        const element = modal.querySelector(selector)!;
+        const foreground = channels(getComputedStyle(element).color);
+        let backgroundElement: Element | null = element;
+        let background = channels(getComputedStyle(element).backgroundColor);
+        while (background.length === 4 && background[3] === 0 && backgroundElement?.parentElement) {
+          backgroundElement = backgroundElement.parentElement;
+          background = channels(getComputedStyle(backgroundElement).backgroundColor);
+        }
+        const a = luminance(foreground), b = luminance(background);
+        return { selector, ratio: (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05) };
+      });
+    });
+    for (const contrast of contrasts) expect(contrast.ratio, contrast.selector).toBeGreaterThanOrEqual(4.5);
+    await page.screenshot({ path: `artifacts/qa-dark-modal-${width}-${language}.png`, fullPage: true });
+  });
+}
+
+
+test("a current-code request finishing after manual lock cannot write the clipboard", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.evaluate(async () => { await navigator.clipboard.writeText("unchanged-before-lock"); Object.assign(window, { __deferCurrentCode: true }); });
+  await page.getByRole("button", { name: "复制 测试 · 通用 OTP 验证码", exact: true }).click();
+  await expect.poll(() => page.evaluate(() => typeof (window as any).__resolveCurrentCode)).toBe("function");
+  await openSettings(page);
+  await page.getByRole("button", { name: "锁定保险库", exact: true }).click();
+  await expect(page.getByLabel("解锁密码", { exact: true })).toBeVisible();
+  await page.evaluate(() => (window as any).__resolveCurrentCode());
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("unchanged-before-lock");
+});
+
+test("scanning a Steam login QR only fills the request and still requires review and approval", async ({ page }) => {
+  const card = page.locator(".token-card").filter({ has: page.getByRole("heading", { name: "测试 · Steam", exact: true }) });
+  await card.getByRole("button", { name: "已登录", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "批准二维码登录" }).click();
+  await dialog.getByLabel("读取二维码图片", { exact: true }).setInputFiles(await qrImage("https://example.test/not-a-steam-login"));
+  await expect(dialog.getByRole("alert")).toContainText("有效的 Steam 登录二维码");
+  expect(await commandCount(page, "steam_qr_info")).toBe(0);
+  expect(await commandCount(page, "steam_qr_approve")).toBe(0);
+  await dialog.getByLabel("读取二维码图片", { exact: true }).setInputFiles(await qrImage("https://s.team/q/1/123456789"));
+  await expect(dialog.getByLabel("Steam 登录二维码链接", { exact: true })).toHaveValue("https://s.team/q/1/123456789");
+  expect(await commandCount(page, "steam_qr_info")).toBe(0);
+  expect(await commandCount(page, "steam_qr_approve")).toBe(0);
+  await dialog.getByRole("button", { name: "核对登录请求", exact: true }).click();
+  await expect(dialog.getByRole("heading", { name: "Fixture PC", exact: true })).toBeVisible();
+  expect(await commandCount(page, "steam_qr_approve")).toBe(0);
+  await dialog.getByRole("button", { name: "批准登录", exact: true }).click();
+  await expect.poll(() => commandCount(page, "steam_qr_approve")).toBe(1);
 });

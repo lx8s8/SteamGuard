@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { t as translate } from "./i18n";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Check,
   Copy,
@@ -13,81 +14,147 @@ import type { DesktopSnapshot } from "./types";
 export default function TrayApp() {
   const [snapshot, setSnapshot] = useState<DesktopSnapshot | null>(null);
   const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState(0);
   const [copied, setCopied] = useState("");
   const [error, setError] = useState("");
+  const active = useRef(false);
+  const epoch = useRef(0);
+  const revision = useRef<string | null>(null);
+  const loading = useRef<number | null>(null);
+  const live = useCallback((value: number) => active.current && value === epoch.current && !document.hidden, []);
+  const clearSensitive = useCallback(() => {
+    epoch.current += 1;
+    revision.current = null;
+    setSnapshot(null); setCopied("");
+  }, []);
   const refresh = useCallback(async () => {
+    const current = epoch.current;
+    if (!live(current) || loading.current === current) return;
+    loading.current = current;
     try {
-      setSnapshot(await api.desktopSnapshot());
+      const next = await api.desktopSnapshot();
+      if (!live(current)) return;
+      revision.current = next.revision;
+      setSnapshot(next);
     } catch (error) {
+      if (!live(current)) return;
+      revision.current = null;
       setSnapshot(null);
       setError(errorText(error));
-    }
-  }, []);
-  const action = async (job: () => Promise<unknown>) => {
+    } finally { if (loading.current === current) loading.current = null; }
+  }, [live]);
+  const action = async (job: () => Promise<unknown>, reload = true) => {
+    const current = epoch.current;
     try {
       setError("");
       await job();
-      await refresh();
+      if (reload && live(current)) await refresh();
     } catch (error) {
-      setError(errorText(error));
+      if (live(current)) setError(errorText(error));
     }
   };
+  const hide = useCallback(async (openMain = false) => {
+    active.current = false;
+    clearSensitive();
+    try { await (openMain ? api.desktopOpen() : api.desktopHide()); }
+    catch (error) { setError(errorText(error)); }
+  }, [clearSensitive]);
   useEffect(() => {
-    let focused = document.hasFocus();
-    if (focused) void refresh();
-    const timer = setInterval(() => {
-      if (focused && !document.hidden) void refresh();
-    }, 1000);
+    let polling = false;
+    const poll = async () => {
+      const current = epoch.current;
+      if (!live(current) || polling || loading.current === current) return;
+      if (revision.current === null) { await refresh(); return; }
+      polling = true;
+      try {
+        const next = await api.desktopCodes();
+        if (!live(current)) return;
+        if (next.revision !== revision.current) { await refresh(); return; }
+        const codes = new Map(next.codes.map(code => [code.id, code]));
+        setSnapshot(previous => previous ? { ...previous, tokens: previous.tokens.map(token => {
+          const code = codes.get(token.id);
+          return code ? { ...token, code: code.code, remaining: code.remaining, period: code.period } : token;
+        }) } : null);
+      } catch { if (live(current)) await refresh(); }
+      finally { polling = false; }
+    };
     const focus = () => {
-      focused = true;
-      setSearch("");
-      setCopied("");
+      active.current = true;
+      clearSensitive();
+      setSearch(""); setSelected(0); setError("");
       void refresh();
     };
-    const blur = () => {
-      focused = false;
-      setSnapshot(null);
-      setCopied("");
-    };
+    const blur = () => { active.current = false; clearSensitive(); };
+    const visibility = () => { if (document.hidden) blur(); else if (document.hasFocus()) focus(); };
     const key = (event: KeyboardEvent) => {
-      if (event.key === "Escape") void api.desktopHide();
+      if (event.key === "Escape") { event.preventDefault(); void hide(); }
     };
+    if (document.hasFocus()) focus();
+    const timer = setInterval(() => void poll(), 1000);
     window.addEventListener("focus", focus);
     window.addEventListener("blur", blur);
     window.addEventListener("keydown", key);
+    document.addEventListener("visibilitychange", visibility);
     return () => {
+      active.current = false; epoch.current += 1;
       clearInterval(timer);
       window.removeEventListener("focus", focus);
       window.removeEventListener("blur", blur);
       window.removeEventListener("keydown", key);
+      document.removeEventListener("visibilitychange", visibility);
     };
-  }, [refresh]);
+  }, [refresh, live, clearSensitive, hide]);
   const available = snapshot && (!snapshot.locked || snapshot.preview);
+  const tokens = snapshot?.tokens.filter(token => `${token.name} ${token.issuer}`.toLocaleLowerCase().includes(search.toLocaleLowerCase())) || [];
+  const copy = (id: string) => {
+    const current = epoch.current;
+    if (!live(current)) return;
+    return action(async () => {
+      await api.desktopCopy(id);
+      if (!live(current)) return;
+      setCopied(id);
+      setTimeout(() => { if (live(current)) setCopied(""); }, 1800);
+    }, false);
+  };
+  const navigate = (event: React.KeyboardEvent) => {
+    if (!available || event.altKey || event.ctrlKey || event.metaKey) return;
+    const enabled = tokens.map((token, index) => ({ token, index })).filter(({token}) => !token.hotpReadOnly && token.code);
+    if (!enabled.length) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const current = enabled.findIndex(({index}) => index === selected);
+      const index = event.target instanceof HTMLInputElement ? (event.key === "ArrowDown" ? 0 : enabled.length - 1) : (current + (event.key === "ArrowDown" ? 1 : -1) + enabled.length) % enabled.length;
+      setSelected(enabled[index].index);
+      document.getElementById(`tray-token-${enabled[index].token.id}`)?.focus();
+    } else if (event.key === "Enter" && event.target instanceof HTMLInputElement) {
+      event.preventDefault(); const token = enabled.find(({index}) => index === selected)?.token || enabled[0].token; void copy(token.id);
+    }
+  };
   return (
-    <main className="tray-panel">
+    <main className="tray-panel" onKeyDown={navigate}>
       <header>
         <strong>SteamGuard</strong>
         <div>
           {snapshot && !snapshot.locked && (
             <button
               className="icon-button"
-              aria-label="锁定"
-              onClick={() => void action(api.lock)}
+              aria-label={translate("锁定")}
+              onClick={() => { clearSensitive(); void action(api.lock); }}
             >
               <LockKeyhole size={16} />
             </button>
           )}
           <button
             className="icon-button"
-            aria-label="打开应用"
-            onClick={() => void action(api.desktopOpen)}
+            aria-label={translate("打开应用")}
+            onClick={() => void hide(true)}
           >
             <ExternalLink size={16} />
           </button>
           <button
             className="icon-button"
-            aria-label="关闭"
-            onClick={() => void action(api.desktopHide)}
+            aria-label={translate("关闭")}
+            onClick={() => void hide()}
           >
             <X size={17} />
           </button>
@@ -99,38 +166,28 @@ export default function TrayApp() {
             <label className="tray-search">
               <Search size={15} />
               <input
-                aria-label="搜索令牌"
-                placeholder="搜索"
+                aria-label={translate("搜索令牌")}
+                placeholder={translate("搜索")}
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => { setSearch(event.target.value); setSelected(0); }}
               />
             </label>
           )}
           <div className="tray-list">
-            {snapshot.tokens
-              .filter((token) =>
-                `${token.name} ${token.issuer}`
-                  .toLowerCase()
-                  .includes(search.toLowerCase()),
-              )
-              .map((token) => (
+            {tokens.map((token, index) => (
                 <button
                   key={token.id}
-                  className={`tray-token ${copied === token.id ? "copied" : ""}`}
+                  id={`tray-token-${token.id}`}
+                  onFocus={() => setSelected(index)}
+                  className={`tray-token ${copied === token.id ? "copied" : ""} ${selected === index ? "selected" : ""}`}
                   disabled={token.hotpReadOnly || !token.code}
-                  aria-label={`复制 ${token.name} 验证码`}
-                  onClick={() =>
-                    void action(async () => {
-                      await api.desktopCopy(token.id);
-                      setCopied(token.id);
-                      setTimeout(() => setCopied(""), 1800);
-                    })
-                  }
+                  aria-label={translate("复制 {{name}} 验证码", { name: token.name })}
+                  onClick={() => void copy(token.id)}
                 >
                   <TokenAvatar token={token} />
                   <span className="tray-identity">
                     <strong>{token.name}</strong>
-                    <span>{token.hotpReadOnly ? "仅主设备" : token.code}</span>
+                    <span>{token.hotpReadOnly ? translate("仅主设备") : token.code}</span>
                   </span>
                   {copied === token.id ? (
                     <Check size={17} />
@@ -147,8 +204,8 @@ export default function TrayApp() {
                   )}
                 </button>
               ))}
-            {!snapshot.tokens.length && (
-              <div className="tray-empty">暂无令牌</div>
+            {!tokens.length && (
+              <div className="tray-empty">{search ? translate("未找到令牌") : translate("暂无令牌")}</div>
             )}
           </div>
         </>
@@ -156,17 +213,15 @@ export default function TrayApp() {
         <div className="tray-empty">
           <button
             className="button primary"
-            onClick={() => void action(api.desktopOpen)}
+            onClick={() => void hide(true)}
           >
-            {snapshot?.initialized ? "解锁" : "打开应用"}
+            {snapshot?.initialized ? translate("解锁") : translate("打开应用")}
           </button>
           {snapshot?.previewEnabled && (
             <button
               className="text-button"
               onClick={() => void action(api.previewEnter)}
-            >
-              预览令牌
-            </button>
+            >{translate("预览令牌")}</button>
           )}
         </div>
       )}

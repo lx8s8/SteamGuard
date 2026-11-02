@@ -1,3 +1,4 @@
+import { t as translate } from "./i18n";
 import { useState } from "react";
 import { FolderPlus, Pencil, Trash2 } from "lucide-react";
 import { api, errorText } from "./api";
@@ -41,14 +42,12 @@ export function TokenGroups({
   };
   return (
     <Modal
-      title="管理分组"
+      title={translate("管理分组")}
       onClose={() => {
         if (!busy) onClose();
       }}
     >
-      <p className="dialog-intro">
-        按用途整理 Steam 和其他令牌。删除分组会将其中的令牌移到「未分组」。
-      </p>
+      <p className="dialog-intro">{translate("按用途整理 Steam 和其他令牌。删除分组会将其中的令牌移到「未分组」。")}</p>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -56,7 +55,7 @@ export function TokenGroups({
         }}
       >
         <label className="field-label" htmlFor="group-name">
-          {editing ? `重命名「${editing}」` : "新建分组"}
+          {editing ? translate("重命名「{{editing}}」", { editing: editing }) : translate("新建分组")}
         </label>
         <div className="group-create">
           <input
@@ -65,12 +64,12 @@ export function TokenGroups({
             onChange={(e) => setName(e.target.value)}
             maxLength={40}
             required
-            placeholder="例如：邮箱、工作、游戏"
+            placeholder={translate("例如：邮箱、工作、游戏")}
             disabled={busy}
           />
           <button className="button primary" disabled={busy || !name.trim()}>
             <FolderPlus size={17} />
-            {editing ? "保存" : "创建"}
+            {editing ? translate("保存") : translate("创建")}
           </button>
         </div>
         {editing && (
@@ -82,9 +81,7 @@ export function TokenGroups({
               setEditing(null);
               setName("");
             }}
-          >
-            取消重命名
-          </button>
+          >{translate("取消重命名")}</button>
         )}
       </form>
       <div className="group-list">
@@ -94,7 +91,7 @@ export function TokenGroups({
               <strong>{group}</strong>
               <button
                 className="icon-button"
-                aria-label={`重命名分组 ${group}`}
+                aria-label={translate("重命名分组 {{group}}", { group: group })}
                 disabled={busy}
                 onClick={() => {
                   setEditing(group);
@@ -106,7 +103,7 @@ export function TokenGroups({
               </button>
               <button
                 className="icon-button"
-                aria-label={`删除分组 ${group}`}
+                aria-label={translate("删除分组 {{group}}", { group: group })}
                 disabled={busy}
                 onClick={() => setRemoving(group)}
               >
@@ -115,27 +112,23 @@ export function TokenGroups({
             </div>
           ))
         ) : (
-          <p className="form-hint">还没有自定义分组，先创建一个。</p>
+          <p className="form-hint">{translate("还没有自定义分组，先创建一个。")}</p>
         )}
       </div>
       {removing && (
         <div className="group-delete-review">
-          <p>删除「{removing}」？其中的令牌会保留并移到未分组。</p>
+          <p>{translate("删除「{{removing}}」？其中的令牌会保留并移到未分组。", { removing: removing })}</p>
           <div className="modal-actions">
             <button
               className="button secondary"
               disabled={busy}
               onClick={() => setRemoving(null)}
-            >
-              取消
-            </button>
+            >{translate("取消")}</button>
             <button
               className="button danger"
               disabled={busy}
               onClick={() => void submit("delete", removing)}
-            >
-              确认删除分组
-            </button>
+            >{translate("确认删除分组")}</button>
           </div>
         </div>
       )}

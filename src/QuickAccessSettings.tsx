@@ -1,3 +1,4 @@
+import { t as translate, translateNativeText } from "./i18n";
 import { useEffect, useState, type FormEvent } from "react";
 import { Eye, Fingerprint, LoaderCircle, LockKeyhole } from "lucide-react";
 import { Modal } from "./Modal";
@@ -26,7 +27,7 @@ export function QuickAccessSettings({
         setCapabilities({
           supported: false,
           biometricAvailable: false,
-          label: "指纹 / Face ID",
+          label: translate("指纹 / Face ID"),
         }),
       );
   }, []);
@@ -74,18 +75,18 @@ export function QuickAccessSettings({
           <Fingerprint size={22} />
         </span>
         <div>
-          <h2>快捷访问</h2>
+          <h2>{translate("快捷访问")}</h2>
         </div>
       </div>
       <div className="setting-row">
         <div>
-          <h3>免密码预览令牌</h3>
-          <p>直接查看和复制验证码，管理令牌仍需解锁。</p>
+          <h3>{translate("免密码预览令牌")}</h3>
+          <p>{translate("直接查看和复制验证码，管理令牌仍需解锁。")}</p>
         </div>
         <button
           className="access-switch"
           role="switch"
-          aria-label="免密码预览令牌"
+          aria-label={translate("免密码预览令牌")}
           aria-checked={!!status.previewEnabled}
           disabled={
             busy || (!status.previewEnabled && !capabilities?.supported)
@@ -97,13 +98,13 @@ export function QuickAccessSettings({
       </div>
       <div className="setting-row">
         <div>
-          <h3>{capabilities?.label || "指纹 / Face ID"} 解锁</h3>
-          <p>通过系统认证解锁。</p>
+          <h3>{translate("{{value1}} 解锁", { value1: capabilities?.label ? translateNativeText(capabilities.label) : translate("指纹 / Face ID") })}</h3>
+          <p>{translate("通过系统认证解锁。")}</p>
         </div>
         <button
           className="access-switch"
           role="switch"
-          aria-label="设备生物认证解锁"
+          aria-label={translate("设备生物认证解锁")}
           aria-checked={!!status.biometricEnabled}
           disabled={
             busy ||
@@ -117,10 +118,10 @@ export function QuickAccessSettings({
       {capabilities && (
         <p className="access-note">
           {!capabilities.supported
-            ? "快捷访问支持 Android 和 iOS；桌面版继续使用主密码。"
+            ? translate("快捷访问支持 Android 和 iOS；桌面版继续使用主密码。")
             : !capabilities.biometricAvailable
-              ? "尚未检测到可用的指纹或 Face ID，请先在系统设置中录入。"
-              : "更改系统生物特征后需重新启用。"}
+              ? translate("尚未检测到可用的指纹或 Face ID，请先在系统设置中录入。")
+              : translate("更改系统生物特征后需重新启用。")}
         </p>
       )}
       {error && !slot && (
@@ -130,21 +131,19 @@ export function QuickAccessSettings({
       )}
       {slot && (
         <Modal
-          title={slot === "preview" ? "启用免密码预览" : "启用设备认证解锁"}
+          title={slot === "preview" ? translate("启用免密码预览") : translate("启用设备认证解锁")}
           onClose={close}
         >
           <div className="access-explanation">
             {slot === "preview" ? <Eye size={24} /> : <Fingerprint size={24} />}
             <p>
               {slot === "preview"
-                ? "启用后，能打开此应用的人都能查看、复制验证码。此设置只在这台手机生效，不会开放交易确认或导出权限。"
-                : "验证主密码后，将解锁密钥交给系统保护。以后可用指纹、Touch ID 或 Face ID 解锁，不需要重复输入主密码。"}
+                ? translate("启用后，能打开此应用的人都能查看、复制验证码。此设置只在这台手机生效，不会开放交易确认或导出权限。")
+                : translate("验证主密码后，将解锁密钥交给系统保护。以后可用指纹、Touch ID 或 Face ID 解锁，不需要重复输入主密码。")}
             </p>
           </div>
           <form onSubmit={submit}>
-            <label className="field-label" htmlFor="access-password">
-              确认保险库主密码
-            </label>
+            <label className="field-label" htmlFor="access-password">{translate("确认保险库主密码")}</label>
             <input
               id="access-password"
               type="password"
@@ -166,17 +165,13 @@ export function QuickAccessSettings({
                 type="button"
                 onClick={close}
                 disabled={busy}
-              >
-                取消
-              </button>
+              >{translate("取消")}</button>
               <button className="button primary" disabled={busy || !password}>
                 {busy ? (
                   <LoaderCircle size={17} className="spin" />
                 ) : (
                   <LockKeyhole size={17} />
-                )}
-                确认启用
-              </button>
+                )}{translate("确认启用")}</button>
             </div>
           </form>
         </Modal>

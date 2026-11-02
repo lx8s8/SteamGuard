@@ -1,3 +1,4 @@
+import { t as translate } from "./i18n";
 import { useEffect, useId, useState } from "react";
 import {
   Check,
@@ -46,7 +47,7 @@ export function SteamNetworkPanel() {
       else {
         await api.configureNetwork(settings);
         setReport(null);
-        setMessage("连接方式已保存，对后续 Steam 请求生效");
+        setMessage(translate("连接方式已保存，对后续 Steam 请求生效"));
       }
     } catch (e) {
       setError(errorText(e));
@@ -61,12 +62,10 @@ export function SteamNetworkPanel() {
           <Globe2 size={20} />
         </span>
         <div>
-          <h2>Steam 网络连接</h2>
+          <h2>{translate("Steam 网络连接")}</h2>
         </div>
       </div>
-      <label className="field-label" htmlFor={`${id}-mode`}>
-        连接方式
-      </label>
+      <label className="field-label" htmlFor={`${id}-mode`}>{translate("连接方式")}</label>
       <select
         id={`${id}-mode`}
         disabled={!ready || busy}
@@ -79,15 +78,13 @@ export function SteamNetworkPanel() {
           setMessage("");
         }}
       >
-        <option value="system">使用系统代理（推荐）</option>
-        <option value="direct">直接连接</option>
-        <option value="manual">手动代理</option>
+        <option value="system">{translate("使用系统代理（推荐）")}</option>
+        <option value="direct">{translate("直接连接")}</option>
+        <option value="manual">{translate("手动代理")}</option>
       </select>
       {settings.mode === "manual" && (
         <>
-          <label className="field-label" htmlFor={`${id}-proxy`}>
-            代理地址
-          </label>
+          <label className="field-label" htmlFor={`${id}-proxy`}>{translate("代理地址")}</label>
           <input
             id={`${id}-proxy`}
             value={settings.proxyUrl}
@@ -99,17 +96,11 @@ export function SteamNetworkPanel() {
             spellCheck={false}
             placeholder="http://127.0.0.1:7890"
           />
-          <p className="form-hint">
-            支持 HTTP、HTTPS、SOCKS5 /
-            SOCKS5H。请填写当前设备的实际代理地址；地址中不支持用户名和密码。
-          </p>
+          <p className="form-hint">{translate("支持 HTTP、HTTPS、SOCKS5 / SOCKS5H。请填写当前设备的实际代理地址；地址中不支持用户名和密码。")}</p>
         </>
       )}
       {settings.mode === "system" && (
-        <p className="form-hint">
-          读取 Windows 系统代理或 Android
-          系统代理配置。若代理软件仅开放本地端口，请选择手动代理。
-        </p>
+        <p className="form-hint">{translate("读取 Windows 系统代理或 Android 系统代理配置。若代理软件仅开放本地端口，请选择手动代理。")}</p>
       )}
       <div className="network-actions">
         <button
@@ -121,9 +112,7 @@ export function SteamNetworkPanel() {
             <LoaderCircle size={15} className="spin" />
           ) : (
             <Check size={15} />
-          )}
-          保存连接方式
-        </button>
+          )}{translate("保存连接方式")}</button>
         <button
           className="button secondary"
           disabled={!ready || busy}
@@ -133,9 +122,7 @@ export function SteamNetworkPanel() {
             <LoaderCircle size={15} className="spin" />
           ) : (
             <RefreshCw size={15} />
-          )}
-          检测已保存配置
-        </button>
+          )}{translate("检测已保存配置")}</button>
       </div>
       {message && (
         <p className="network-message" role="status">
@@ -148,14 +135,14 @@ export function SteamNetworkPanel() {
         </div>
       )}
       {report && (
-        <ul className="network-results" aria-label="Steam 网络检测结果">
+        <ul className="network-results" aria-label={translate("Steam 网络检测结果")}>
           {report.checks.map((check) => (
             <li key={check.name} className={check.ok ? "ok" : "failed"}>
               {check.ok ? <Check size={16} /> : <CircleHelp size={16} />}
               <div>
                 <strong>{check.name}</strong>
                 <span>
-                  {check.ok ? `连接正常 · ${check.latencyMs} ms` : check.error}
+                  {check.ok ? translate("连接正常 · {{latencyMs}} ms", { latencyMs: check.latencyMs }) : check.error}
                 </span>
               </div>
             </li>
