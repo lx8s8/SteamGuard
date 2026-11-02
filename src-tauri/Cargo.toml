@@ -1,7 +1,7 @@
 [package]
 name = "steamguard"
-version = "1.4.0"
-description = "Local authenticator and Steam mobile confirmations"
+version = "1.5.0"
+description = "Open-source TOTP, HOTP and Steam Guard authenticator"
 authors = ["kasen"]
 license = "GPL-3.0-only"
 edition = "2021"
@@ -59,10 +59,15 @@ opendal-http-transport-reqwest = { version = "=0.59.5", default-features = false
 reqwest-sync = { package = "reqwest", version = "0.13", default-features = false, features = ["rustls-no-provider", "system-proxy", "socks"] }
 futures = "0.3"
 tauri-plugin-barcode-scanner = "=2.5.3"
+image = { version = "=0.25.10", default-features = false, features = ["png"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21"
 ndk-context = "0.1"
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-clipboard-manager = "2"
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
 [profile.release]

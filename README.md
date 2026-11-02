@@ -1,17 +1,18 @@
 # SteamGuard
 
-开源的本地令牌与 Steam 手机验证工具，支持 macOS、Windows、Android 和 iOS。管理动态验证码、Steam 登录与交易确认，令牌保存在本机加密保险库中。
+开源双重验证器，支持 macOS、Windows、Android 和 iOS。可独立管理通用验证码，也支持 Steam 令牌、账号登录、交易确认与社区市场。
 
 [下载正式版](https://github.com/lx8s8/SteamGuard/releases/latest) · [安装与迁移](docs/INSTALLATION.md) · [更新日志](CHANGELOG.md) · [备份与恢复](docs/BACKUP.md) · [多端同步](docs/SYNC.md)
 
 ## 功能
 
-- **本地验证码**：支持 Steam Guard、TOTP 和 HOTP，提供复制、搜索与自定义分组。
+- **本地验证码**：支持 Steam Guard、TOTP 和 HOTP，提供复制、搜索、自定义分组、服务图标与自定义头像。
 - **Steam 账号**：密码或二维码登录，支持 Steam Guard、邮箱验证与手机交易确认。
 - **备份与迁移**：扫描 Google Authenticator 多码导出和标准 OTP 二维码，支持批量图片、Aegis / 2FAS 明文备份、WattToolkit `.mpo`、Steam `.maFile` 与 OTP 链接；支持加密导出、自动快照与历史恢复。
 - **多端同步**：使用坚果云或兼容 WebDAV 的网盘，端到端加密同步令牌与分组，可选择已有同步库、合并误建库，支持离线合并和冲突确认。
 - **快捷访问**：手机可选择免密码预览验证码，或使用指纹、Touch ID / Face ID 解锁完整保险库。
-- **多端界面**：桌面侧栏与手机底部导航，手机首页直接显示令牌列表。
+- **简洁界面**：首页直接显示验证码，未添加 Steam 令牌时隐藏交易与市场入口。
+- **桌面托盘**：macOS 菜单栏和 Windows 任务栏常驻，点击图标打开令牌列表，点击令牌即可复制。
 
 ![桌面界面](docs/screenshots/desktop.png)
 
@@ -19,11 +20,13 @@
 
 截图中的账户和验证码均为演示数据，首次启动没有预置账户。
 
+令牌菜单可选择服务图标或上传头像；自定义头像保存在加密保险库中，并随 `.sgvault` 备份和 WebDAV 同步。启用头像同步前，请将所有设备更新到 1.5.0 或更新版本。
+
 ## 开始使用
 
 1. 从 [Releases](https://github.com/lx8s8/SteamGuard/releases/latest) 下载适合设备的安装包。
 2. 创建保险库并妥善保管主密码。
-3. 导入已有令牌，或登录 Steam 添加令牌。
+3. 扫描验证器二维码或导入已有备份；如需绑定 Steam，在添加窗口选择“其他添加方式”。
 4. 按需设置分组与快捷访问，并将一份加密备份另存到其他设备或云盘。
 
 从 1.1.x 及更早版本迁移时，请先导出加密备份，再安装新版并导入。详细步骤见[迁移说明](docs/INSTALLATION.md#从旧版本迁移)。

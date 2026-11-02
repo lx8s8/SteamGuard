@@ -1,7 +1,7 @@
 {
   "name": "steamguard",
   "private": true,
-  "version": "1.4.0",
+  "version": "1.5.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -23,6 +23,7 @@
     "test:release": "node --test tests/release.test.mjs tests/release-notes.test.mjs tests/release-maintenance.test.mjs"
   },
   "dependencies": {
+    "@fortawesome/free-brands-svg-icons": "7.3.1",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-barcode-scanner": "2.5.3",
     "@tauri-apps/plugin-opener": "^2",

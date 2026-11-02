@@ -1,6 +1,8 @@
 #[cfg(target_os = "android")]
 mod android_proxy;
+mod avatar;
 mod backup;
+mod desktop;
 mod import;
 mod models;
 mod network;
@@ -516,6 +518,7 @@ fn list_tokens(s: State<AppState>) -> Result<Vec<TokenView>, String> {
                 id: t.id.clone(),
                 name: t.name.clone(),
                 issuer: t.issuer.clone(),
+                icon: t.icon.clone(),
                 kind: t.kind.clone(),
                 code: if !t.hotp_read_only {
                     otp::code(t, now)?
@@ -622,7 +625,8 @@ fn prepare_import_preview(
         existing.iter().any(|e| {
             e.kind == t.kind
                 && e.secret == t.secret
-                && (e.group.is_none() && t.group.is_some()
+                && (e.icon.is_none() && t.icon.is_some()
+                    || e.group.is_none() && t.group.is_some()
                     || t.kind == "hotp" && t.counter > e.counter)
         })
     });
@@ -738,13 +742,26 @@ fn token_group_manage(
     s.vault()?
         .update(|d| d.manage_group(&action, &name, next.as_deref()))
 }
+#[derive(serde::Deserialize)]
+struct IconUpdate {
+    value: Option<String>,
+}
 #[tauri::command]
 fn token_update(
     s: State<AppState>,
     id: String,
     name: String,
     group: Option<String>,
+    icon: Option<IconUpdate>,
 ) -> Result<(), String> {
+    let icon = icon
+        .map(|update| {
+            update
+                .value
+                .map(|value| avatar::normalize(&value))
+                .transpose()
+        })
+        .transpose()?;
     let name = name.trim();
     if name.is_empty() || name.chars().count() > 120 {
         return Err("名称需为 1–120 个字符".into());
@@ -760,6 +777,9 @@ fn token_update(
             .ok_or("令牌不存在")?;
         token.name = name.into();
         token.group = group;
+        if let Some(value) = icon {
+            token.icon = value;
+        }
         Ok(())
     })
 }
@@ -1484,6 +1504,8 @@ pub fn run() {
         .plugin(tauri_plugin_quick_access::init());
     #[cfg(mobile)]
     let builder = builder.plugin(tauri_plugin_barcode_scanner::init());
+    #[cfg(desktop)]
+    let builder = builder.plugin(tauri_plugin_clipboard_manager::init());
     builder
         .setup(|app| {
             let path = app.path().app_data_dir()?.join("vault.sgvault");
@@ -1510,75 +1532,108 @@ pub fn run() {
                 time_offset: std::sync::atomic::AtomicI64::new(0),
                 sync: sync::Controller::default(),
             });
+            #[cfg(desktop)]
+            desktop::setup(app)?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
-            sync::commands::sync_status,
-            sync::commands::sync_connect,
-            sync::commands::sync_discover,
-            sync::commands::sync_switch,
-            sync::commands::sync_run,
-            sync::commands::sync_pause,
-            sync::commands::sync_disconnect,
-            sync::commands::sync_resolve,
-            sync::commands::sync_claim_hotp,
-            vault_status,
-            quick_capabilities,
-            quick_configure,
-            quick_biometric_unlock,
-            quick_preview_enter,
-            quick_preview_tokens,
-            quick_preview_exit,
-            vault_create,
-            vault_unlock,
-            vault_lock,
-            vault_touch,
-            list_tokens,
-            import_preview,
-            import_qr_preview,
-            import_discard,
-            import_camera_supported,
-            import_commit,
-            token_groups,
-            token_group_manage,
-            token_update,
-            backup_status,
-            backup_configure,
-            backup_now,
-            backup_export,
-            backup_restore,
-            token_rename,
-            token_delete,
-            token_advance,
-            token_reorder,
-            vault_export,
-            token_uri,
-            token_export,
-            steam_login,
-            steam_begin_qr,
-            steam_submit_guard,
-            steam_submit_local_guard,
-            steam_poll_login,
-            steam_logout,
-            steam_confirmations,
-            steam_confirmation_action,
-            steam_market,
-            steam_market_search,
-            steam_qr_info,
-            steam_qr_approve,
-            steam_enroll_begin,
-            steam_enroll_finalize,
-            steam_transfer_begin,
-            steam_transfer_finish,
-            steam_remove_authenticator,
-            steam_network_settings,
-            steam_network_configure,
-            steam_network_diagnostics,
-            sync_time,
-            open_external
-        ])
-        .run(tauri::generate_context!())
-        .expect("SteamGuard runtime failed");
+        .on_window_event(|_window, _event| {
+            #[cfg(desktop)]
+            desktop::window_event(_window, _event);
+        })
+        .invoke_handler(|invoke| {
+            if !desktop::allowed_invoke(
+                invoke.message.webview_ref().label(),
+                invoke.message.command(),
+            ) {
+                invoke.resolver.reject("快捷窗口不允许此操作");
+                return true;
+            }
+            let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![
+                desktop::desktop_settings,
+                desktop::desktop_configure,
+                desktop::desktop_snapshot,
+                desktop::desktop_copy,
+                desktop::desktop_open_main,
+                desktop::desktop_hide,
+                sync::commands::sync_status,
+                sync::commands::sync_connect,
+                sync::commands::sync_discover,
+                sync::commands::sync_switch,
+                sync::commands::sync_run,
+                sync::commands::sync_pause,
+                sync::commands::sync_disconnect,
+                sync::commands::sync_resolve,
+                sync::commands::sync_claim_hotp,
+                vault_status,
+                quick_capabilities,
+                quick_configure,
+                quick_biometric_unlock,
+                quick_preview_enter,
+                quick_preview_tokens,
+                quick_preview_exit,
+                vault_create,
+                vault_unlock,
+                vault_lock,
+                vault_touch,
+                list_tokens,
+                import_preview,
+                import_qr_preview,
+                import_discard,
+                import_camera_supported,
+                import_commit,
+                token_groups,
+                token_group_manage,
+                token_update,
+                backup_status,
+                backup_configure,
+                backup_now,
+                backup_export,
+                backup_restore,
+                token_rename,
+                token_delete,
+                token_advance,
+                token_reorder,
+                vault_export,
+                token_uri,
+                token_export,
+                steam_login,
+                steam_begin_qr,
+                steam_submit_guard,
+                steam_submit_local_guard,
+                steam_poll_login,
+                steam_logout,
+                steam_confirmations,
+                steam_confirmation_action,
+                steam_market,
+                steam_market_search,
+                steam_qr_info,
+                steam_qr_approve,
+                steam_enroll_begin,
+                steam_enroll_finalize,
+                steam_transfer_begin,
+                steam_transfer_finish,
+                steam_remove_authenticator,
+                steam_network_settings,
+                steam_network_configure,
+                steam_network_diagnostics,
+                sync_time,
+                open_external
+            ];
+            handler(invoke)
+        })
+        .build(tauri::generate_context!())
+        .expect("SteamGuard runtime failed")
+        .run(|app, event| {
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen {
+                has_visible_windows: false,
+                ..
+            } = event
+            {
+                let _ = desktop::open_main(app);
+            }
+            let _ = (app, event);
+        });
 }
 
 #[cfg(test)]

@@ -113,6 +113,7 @@ impl QuickAccess {
                     id: t.id.clone(),
                     name: t.name.clone(),
                     issuer: t.issuer.clone(),
+                    icon: t.icon.clone(),
                     kind: t.kind.clone(),
                     code: if t.hotp_read_only {
                         String::new()
@@ -142,6 +143,8 @@ impl QuickAccess {
 #[derive(Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct PreviewToken {
+    #[serde(default)]
+    icon: Option<String>,
     id: String,
     name: String,
     issuer: String,
@@ -159,6 +162,7 @@ struct PreviewToken {
 impl PreviewToken {
     fn from(t: &Token) -> Self {
         Self {
+            icon: t.icon.clone(),
             id: t.id.clone(),
             name: t.name.clone(),
             issuer: t.issuer.clone(),
@@ -176,6 +180,7 @@ impl PreviewToken {
         let mut t = Token::new(self.name.clone(), self.kind.clone(), self.secret.clone());
         t.id = self.id.clone();
         t.issuer = self.issuer.clone();
+        t.icon = self.icon.clone();
         t.group = self.group.clone();
         t.algorithm = self.algorithm.clone();
         t.digits = self.digits;
@@ -312,6 +317,7 @@ mod tests {
         let path = dir.join("vault.sgvault");
         fs::write(&path, b"synthetic vault").unwrap();
         let mut token = Token::new("fixture".into(), "steam".into(), vec![1; 20]);
+        token.icon = Some("brand:steam".into());
         token.identity_secret = Some("PRIVATE_CONFIRMATION_KEY".into());
         token.steam_data = Some(serde_json::json!({"revocation_code":"PRIVATE_RECOVERY_CODE"}));
         let key = new_key();
@@ -331,6 +337,7 @@ mod tests {
         q.enter(snapshot).unwrap();
         let views = q.tokens(&path, 1_700_000_000).unwrap();
         assert_eq!(views.len(), 1);
+        assert_eq!(views[0].icon.as_deref(), Some("brand:steam"));
         assert!(!views[0].logged_in && !views[0].has_identity_secret);
         fs::write(&path, b"new vault version").unwrap();
         assert!(q.tokens(&path, 1_700_000_000).is_err());

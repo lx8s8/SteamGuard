@@ -92,3 +92,10 @@ Versions before 1.2.0 use a different private data directory and are no longer d
 | Backup/restore of sync credentials | Excluded from portable and automatic snapshots; reconnect after restore |
 
 See [SYNC.md](SYNC.md) for setup, limits and validation scope. WebDAV tests use a local protocol server and synthetic data. Version 1.3.1 also passed an authorized Jianguoyun service probe with synthetic tokens, encrypted roundtrips, merge and compaction; other providers and LiveContainer networking remain environment-specific verification.
+
+## 界面与桌面快捷访问
+
+- 通用验证器模式：没有 Steam 令牌时隐藏交易确认、社区市场与 Steam 网络设置。
+- 内置离线服务图标，可为每个令牌选择图标或上传头像；头像随本应用加密备份和同步保留。
+- macOS 菜单栏与 Windows 任务栏常驻，点击弹出令牌列表，点击令牌复制当前验证码。锁定时仅显示解锁入口，令牌管理在主窗口完成。
+- 设置中可关闭“关闭窗口后常驻托盘”；退出菜单会结束应用。桌面连续 15 分钟无操作自动锁定，点击复制计为操作。

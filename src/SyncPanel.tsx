@@ -103,7 +103,6 @@ export function SyncPanel({
         </span>
         <div>
           <h2>多端同步</h2>
-          <p>使用自己的网盘，端到端加密同步令牌与分组</p>
         </div>
       </div>
       {status?.configured ? (
