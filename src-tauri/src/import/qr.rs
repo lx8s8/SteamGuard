@@ -99,8 +99,13 @@ fn decode(text: &str) -> Result<MigrationPayload, String> {
     );
     let payload =
         MigrationPayload::decode(bytes.as_slice()).map_err(|_| "Google 迁移数据损坏或被截断")?;
-    if !(0..=1).contains(&payload.version) {
-        return Err("不支持的 Google 迁移版本".into());
+    // Current iOS exports use version 2 with the same fields and may omit batch_id.
+    // Keep a finite compatibility boundary instead of silently accepting future formats.
+    if !(0..=2).contains(&payload.version) {
+        return Err(format!(
+            "暂不支持 Google 迁移格式版本 {}，请更新应用",
+            payload.version
+        ));
     }
     let size = if payload.batch_size == 0 {
         1
@@ -293,6 +298,107 @@ pub(crate) mod tests {
         );
         url.to_string()
     }
+    // Independent v2 wire fixture: public synthetic secrets, no batch_id field.
+    pub(crate) fn v2_uri(index: u8, count: u8, start: u8) -> String {
+        let mut bytes = Vec::new();
+        for ordinal in start..start + count {
+            let secret = format!("1234567890123456{ordinal:04}");
+            let name = format!("Synthetic {ordinal}");
+            let mut account = vec![0x0a, secret.len() as u8];
+            account.extend(secret.as_bytes());
+            account.extend([0x12, name.len() as u8]);
+            account.extend(name.as_bytes());
+            account.extend([0x1a, 7]);
+            account.extend(b"Example");
+            account.extend([0x20, 1, 0x28, 1, 0x30, 2]);
+            bytes.extend([0x0a, account.len() as u8]);
+            bytes.extend(account);
+        }
+        bytes.extend([0x10, 2, 0x18, 3, 0x20, index]);
+        let mut url = url::Url::parse("otpauth-migration://offline").unwrap();
+        url.query_pairs_mut()
+            .append_pair("data", &general_purpose::STANDARD.encode(bytes));
+        url.to_string()
+    }
+    #[test]
+    fn ios_version_two_without_batch_id_collects_all_twenty_two_accounts() {
+        let first = v2_uri(0, 10, 0);
+        let middle = v2_uri(1, 10, 10);
+        let last = v2_uri(2, 2, 20);
+        assert_eq!(decode(&middle).unwrap().version, 2);
+        assert_eq!(decode(&middle).unwrap().batch_id, 0);
+        let partial = collect(&[last.clone(), first.clone(), last.clone()]).unwrap();
+        assert_eq!(partial.progress.received, 2);
+        assert_eq!(partial.progress.token_count, 12);
+        assert_eq!(partial.progress.missing, vec![2]);
+        assert_eq!(partial.progress.duplicate_codes, 1);
+        assert!(!partial.progress.complete);
+        let complete =
+            collect(&[middle.clone(), last.clone(), first.clone(), middle.clone()]).unwrap();
+        assert_eq!(complete.progress.received, 3);
+        assert_eq!(complete.progress.token_count, 22);
+        assert!(complete.progress.complete);
+        assert_eq!(complete.tokens[0].name, "Synthetic 0");
+        assert_eq!(complete.tokens[21].name, "Synthetic 21");
+        assert!(complete
+            .tokens
+            .iter()
+            .all(|t| t.kind == "totp" && t.algorithm == "SHA1" && t.digits == 6 && t.period == 30));
+        assert_eq!(
+            super::super::parse_import(
+                [middle.clone(), last.clone(), first.clone()]
+                    .join("\n")
+                    .as_bytes(),
+                None,
+                "codes.txt"
+            )
+            .unwrap()
+            .len(),
+            22
+        );
+        // Missing numeric protobuf fields and explicitly encoded zero are equivalent.
+        let mut payload = decode(&first).unwrap().encode_to_vec();
+        payload.extend([0x28, 0]);
+        let explicit_zero = format!(
+            "otpauth-migration://offline?data={}",
+            general_purpose::STANDARD.encode(payload)
+        );
+        assert_eq!(
+            collect(&[first.clone(), explicit_zero])
+                .unwrap()
+                .progress
+                .duplicate_codes,
+            1
+        );
+        // Zero-ID exports still reject contradictory page contents, page counts, versions and IDs.
+        let mut changed_id = decode(&middle).unwrap();
+        changed_id.batch_id = 9;
+        let changed_id = format!(
+            "otpauth-migration://offline?data={}",
+            general_purpose::STANDARD.encode(changed_id.encode_to_vec())
+        );
+        for incompatible in [
+            v2_uri(0, 10, 1),
+            uri(0, 3, 1, "v1"),
+            changed_id,
+            v2_uri(3, 1, 30),
+        ] {
+            assert!(collect(&[first.clone(), incompatible]).is_err());
+        }
+    }
+    #[test]
+    fn legacy_zero_and_one_versions_keep_their_compatibility() {
+        let original = uri(7, 1, 0, "Legacy");
+        for version in [0, 1] {
+            let mut payload = decode(&original).unwrap();
+            payload.version = version;
+            let url = format!(
+                "otpauth-migration://offline?data={}",
+                general_purpose::STANDARD.encode(payload.encode_to_vec())
+            );
+            assert!(collect(&[url]).unwrap().progress.complete);
+        }
+    }
     #[test]
     fn out_of_order_pages_and_repeated_scans_require_every_page_before_import() {
         let first = uri(99, 3, 0, "first");
@@ -376,9 +482,13 @@ pub(crate) mod tests {
             assert!(collect(&[uri(99, size, index, "synthetic-private-name")]).is_err());
         }
         let original = uri(99, 1, 0, "synthetic-private-name");
-        for (algorithm, digits, counter, version) in
-            [(4, 1, 0, 1), (1, 3, 0, 1), (1, 1, -1, 1), (1, 1, 0, 2)]
-        {
+        for (algorithm, digits, counter, version) in [
+            (4, 1, 0, 1),
+            (1, 3, 0, 1),
+            (1, 1, -1, 1),
+            (1, 1, 0, 3),
+            (1, 1, 0, -1),
+        ] {
             let mut payload = decode(&original).unwrap();
             payload.accounts[0].algorithm = algorithm;
             payload.accounts[0].digits = digits;

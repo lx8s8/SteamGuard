@@ -28,10 +28,10 @@
 1. 在 SteamGuard 中点击“添加令牌 → 扫码 / 图片”。
 2. Google Authenticator 中选择“转移账号 → 导出账号”，选择账号后显示一张或多张二维码；参见[Google 官方迁移说明](https://support.google.com/accounts/answer/1066447)。
 3. 使用另一台设备的相机扫码，或点击“选择二维码图片”。可以多选图片，也支持一张图片中出现多个二维码。
-4. Google 导出会显示“已收集 X/Y 张”和缺少的序号。可乱序扫描；重复二维码不会重复加入。同批次同序号的不同内容、混入其他导出批次会被拒绝，已收集的有效内容保留。
+4. Google 导出会显示“已收集 X/Y 张”和缺少的序号。可乱序扫描；重复二维码不会重复加入。同序号的不同内容会被拒绝；携带批次编号时也会拒绝混入其他导出批次。已收集的有效内容保留，请始终使用同一次导出的全部二维码。
 5. 收齐后点击“预览令牌”，核对名称和数量，再“确认导入”。收集与预览阶段均不写入保险库。已有令牌按类型和密钥匹配，HOTP 保留较大的计数。
 
-Google 导出使用 `otpauth-migration://offline?data=…`，内容为 Base64 编码的 Protobuf，包含批次编号、总张数和当前序号。解析采用 Prost，字段与 Aegis 当前维护的[迁移协议定义](https://github.com/beemdevelopment/Aegis/blob/master/app/src/main/proto/google_auth.proto)对照。文本导入同样检查批次完整性，不能通过逐张粘贴跳过缺页检查。
+Google 导出使用 `otpauth-migration://offline?data=…`，内容为 Base64 编码的 Protobuf。支持已验证的迁移格式版本 0、1 和 2，校验总张数和当前序号。部分 iOS 版本 2 导出省略批次编号，按 Protobuf 默认值 0 读取；应用仍校验页数、序号、重复内容及完整性，但无法可靠区分来自不同无编号导出的互补页面，因此不能混扫不同次导出的二维码。解析采用 Prost，字段与 Aegis 当前维护的[迁移协议定义](https://github.com/beemdevelopment/Aegis/blob/master/app/src/main/proto/google_auth.proto)对照。文本导入同样检查批次完整性，不能通过逐张粘贴跳过缺页检查。
 
 普通 `otpauth://` 设置码可以连续收集多个，适用于能导出标准设置码的 Aegis、Ente Auth、2FAS 等软件以及网站的双重验证设置页。完整备份文件按上面的格式矩阵支持，不把专有云同步或加密备份当作标准 OTP 码。
 

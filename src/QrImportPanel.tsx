@@ -304,7 +304,7 @@ export function QrImportPanel({
         </button>
       </div>
       <p className="form-hint">
-        可一次选择多张图片，也能读取一张图片中的多个码。图片和二维码内容只在本机处理。
+        可一次选择多张图片，也能读取一张图片中的多个码。Google 多张二维码请使用同一次导出的全部图片。
       </p>
       {camera === "desktop" && (
         <div className="qr-camera-preview">
