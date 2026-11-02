@@ -1,0 +1,1 @@
+<WinAuth><WinAuthAuthenticator><name>V2</name><authenticator type="WinAuth.GoogleAuthenticator"><secretdata encrypted="y">000102030405060791FC82456F2A9581189C84282AA86E6E</secretdata></authenticator></WinAuthAuthenticator></WinAuth>

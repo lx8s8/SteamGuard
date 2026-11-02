@@ -4,6 +4,7 @@ import type {
   DesktopSnapshot,
   BackupPreview, ManualTokenInput, TokenParameters, TokenCode, TrashEntry, SyncConnectionInfo,
   SyncStatus,
+  CloudProvider, CloudAvailability, CloudAuthorization, CloudStarted,
   SyncConnection,
   SyncCredentials,
   VaultStatus,
@@ -37,6 +38,10 @@ export const call = <T>(
   });
 };
 export const api = {
+  cloudProviders: () => call<CloudAvailability[]>("cloud_providers"),
+  cloudAuthStart: (provider: CloudProvider) => call<CloudStarted>("cloud_auth_start", { provider }),
+  cloudAuthPoll: (handle: string, code?: string) => call<CloudAuthorization>("cloud_auth_poll", { handle, code }),
+  cloudAuthCancel: (handle: string) => call<void>("cloud_auth_cancel", { handle }),
   desktopSettings: () =>
     call<{ supported: boolean; resident: boolean }>("desktop_settings"),
   desktopConfigure: (resident: boolean) =>

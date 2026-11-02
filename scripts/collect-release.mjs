@@ -7,8 +7,10 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
+import { verifyUpdaterSignature } from "./updater-signature.mjs";
 
 const version = JSON.parse(readFileSync("package.json", "utf8")).version;
+const publicKey = JSON.parse(readFileSync("src-tauri/tauri.conf.json", "utf8")).plugins.updater.pubkey;
 if (process.env.GITHUB_REF_NAME !== `v${version}`)
   throw new Error("Release tag and application version must match");
 const source = process.argv[2] || "downloaded-artifacts";
@@ -65,9 +67,7 @@ for (const [target, suffix] of updaterSpecs) {
   const name = path.basename(found[0]);
   if (!name.includes(version)) throw new Error(`Unexpected updater version for ${target}`);
   const signature = readFileSync(`${found[0]}.sig`, 'utf8').trim();
-  if (!signature || signature.length > 8192 || !/^[A-Za-z0-9+/=]+$/.test(signature)) throw new Error(`Invalid updater signature for ${target}`);
-  const decoded = Buffer.from(signature,'base64').toString('utf8');
-  if (!decoded.startsWith('untrusted comment:') || !decoded.includes('trusted comment:')) throw new Error(`Invalid updater signature for ${target}`);
+  verifyUpdaterSignature(readFileSync(found[0]), signature, publicKey, version);
   platforms[target] = {signature, url:`https://github.com/lx8s8/SteamGuard/releases/download/v${version}/${name}`};
   if (!installers.some(file => file.name === name)) installers.push({source:found[0], name});
 }

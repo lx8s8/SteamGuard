@@ -103,6 +103,7 @@ export interface QuickCapabilities {
   supported: boolean;
   biometricAvailable: boolean;
   label: string;
+  unavailableReason?: string;
 }
 
 export interface BackupEntry {
@@ -144,6 +145,10 @@ export interface SyncCredentials {
   username: string;
   password: string;
 }
+export type CloudProvider = "google" | "onedrive" | "dropbox";
+export interface CloudAvailability { provider: CloudProvider; name: string; configured: boolean; supported: boolean }
+export interface CloudAuthorization { pending: boolean; handle: string; endpoint: string; username: string }
+export interface CloudStarted { handle: string; flow: "browser" | "manual" | "device" | "complete"; userCode?: string | null; verificationUrl?: string | null }
 export interface SyncConnection extends SyncCredentials {
   syncPassword: string;
   mode: "create" | "join";

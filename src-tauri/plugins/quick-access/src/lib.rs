@@ -1,5 +1,30 @@
 //! Fixed-purpose native secure storage. No raw storage commands are exposed to JS.
 use serde::{Deserialize, Serialize};
+#[cfg(target_os = "macos")]
+mod macos;
+#[cfg(any(target_os = "windows", test))]
+mod sealed;
+#[cfg(target_os = "windows")]
+mod windows;
+#[cfg(target_os = "macos")]
+use macos::Desktop;
+#[cfg(target_os = "windows")]
+use windows::Desktop;
+
+fn validate_slot(slot: &str) -> Result<(), String> {
+    if matches!(slot, "preview" | "biometric") {
+        Ok(())
+    } else {
+        Err("未知的解锁选项".into())
+    }
+}
+fn validate_data(data: &str) -> Result<(), String> {
+    if data.is_empty() || data.len() > 16384 {
+        Err("设备密钥内容无效".into())
+    } else {
+        Ok(())
+    }
+}
 #[cfg(mobile)]
 use tauri::plugin::PluginHandle;
 use tauri::{
@@ -13,6 +38,8 @@ pub struct Availability {
     pub supported: bool,
     pub biometric_available: bool,
     pub label: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unavailable_reason: Option<String>,
 }
 #[derive(Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -60,6 +87,8 @@ struct Response {
 
 pub struct SecureAccess<R: Runtime> {
     prompt: std::sync::Mutex<Prompt>,
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    desktop: Desktop,
     #[cfg(mobile)]
     handle: PluginHandle<R>,
     #[cfg(not(mobile))]
@@ -209,15 +238,18 @@ impl<R: Runtime> SecureAccess<R> {
                 .run_mobile_plugin("availability", ())
                 .map_err(|_| "无法读取设备认证状态".into())
         }
-        #[cfg(not(mobile))]
+        #[cfg(any(target_os = "macos", target_os = "windows"))]
         {
-            Ok(Availability {
-                label: "指纹 / Face ID".into(),
-                ..Default::default()
-            })
+            self.desktop.availability()
+        }
+        #[cfg(not(any(mobile, target_os = "macos", target_os = "windows")))]
+        {
+            Ok(Availability::default())
         }
     }
     pub fn write(&self, slot: &str, data: &str) -> Result<(), String> {
+        validate_slot(slot)?;
+        validate_data(data)?;
         #[cfg(mobile)]
         {
             self.handle
@@ -226,33 +258,49 @@ impl<R: Runtime> SecureAccess<R> {
                     "未能启用快捷访问，请确认设备已设置指纹或 Face ID，并完成系统验证".into()
                 })
         }
-        #[cfg(not(mobile))]
+        #[cfg(any(target_os = "macos", target_os = "windows"))]
         {
-            let _ = (slot, data);
-            Err("快捷访问目前支持 Android 和 iOS".into())
+            self.desktop.write(slot, data)
+        }
+        #[cfg(not(any(mobile, target_os = "macos", target_os = "windows")))]
+        {
+            Err("此系统暂不支持快捷访问".into())
         }
     }
     pub fn read(&self, slot: &str) -> Result<String, String> {
+        validate_slot(slot)?;
         #[cfg(mobile)]
         {
             self.handle.run_mobile_plugin::<Response>("read", self.request(slot, None)).map(|v| v.data).map_err(|_| "验证已取消或设备密钥不可用，请使用主密码解锁；更改系统指纹或 Face ID 后需重新启用".into())
         }
-        #[cfg(not(mobile))]
+        #[cfg(any(target_os = "macos", target_os = "windows"))]
         {
-            let _ = slot;
-            Err("快捷访问目前支持 Android 和 iOS".into())
+            let prompt = self
+                .prompt
+                .lock()
+                .map_err(|_| "设备认证提示暂不可用")?
+                .clone();
+            self.desktop.read(slot, &prompt)
+        }
+        #[cfg(not(any(mobile, target_os = "macos", target_os = "windows")))]
+        {
+            Err("此系统暂不支持快捷访问".into())
         }
     }
     pub fn remove(&self, slot: &str) -> Result<(), String> {
+        validate_slot(slot)?;
         #[cfg(mobile)]
         {
             self.handle
                 .run_mobile_plugin::<()>("remove", self.request(slot, None))
                 .map_err(|_| "无法清除设备密钥，请重试".into())
         }
-        #[cfg(not(mobile))]
+        #[cfg(any(target_os = "macos", target_os = "windows"))]
         {
-            let _ = slot;
+            self.desktop.remove(slot)
+        }
+        #[cfg(not(any(mobile, target_os = "macos", target_os = "windows")))]
+        {
             Ok(())
         }
     }
@@ -276,6 +324,13 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             let handle = _api.register_ios_plugin(init_plugin_quick_access)?;
             app.manage(SecureAccess::<R> {
                 prompt: std::sync::Mutex::new(Prompt::default()),
+                #[cfg(target_os = "macos")]
+                desktop: Desktop::new(&app.config().identifier)?,
+                #[cfg(target_os = "windows")]
+                desktop: Desktop::new(
+                    &app.config().identifier,
+                    app.path().app_local_data_dir()?.join("device-only"),
+                )?,
                 #[cfg(mobile)]
                 handle,
                 #[cfg(not(mobile))]

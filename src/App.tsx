@@ -1629,7 +1629,7 @@ function ImportDialog({
                     ref={picker}
                     type="file"
                     className="visually-hidden"
-                    accept=".mpo,.maFile,.json,.txt,.sgvault,.xml,.2fas"
+                    accept=".mpo,.dat,.maFile,.json,.txt,.sgvault,.xml,.2fas"
                     onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                   />
                   <button

@@ -84,12 +84,14 @@ async fn run(s: &AppState, automatic: bool) -> Result<(), String> {
             d.network.clone(),
         )
     };
-    let op = storage::client(
+    let (op, _) = operator(
+        s,
         &remote.endpoint,
         &remote.username,
         &remote.password,
         &network,
-    )?;
+    )
+    .await?;
     remote.verify_header(&storage::header(&op, &remote.library).await?)?;
     let files = storage::snapshots(&op, &remote).await?;
     let mut cloud = remote.clone();
@@ -175,6 +177,10 @@ impl Drop for Connection {
 }
 impl Connection {
     fn validate(&self) -> Result<String, String> {
+        if cloud::provider(&self.endpoint).is_some() {
+            cloud::Credentials::parse(&self.endpoint, &self.password)?;
+            return Ok(self.endpoint.clone());
+        }
         if self.username.trim().is_empty()
             || self.username.len() > 1024
             || self.password.is_empty()
@@ -185,6 +191,39 @@ impl Connection {
         storage::validate_endpoint(&self.endpoint)
     }
 }
+impl Connection {
+    fn resolve(mut self, s: &AppState) -> Result<Self, String> {
+        if let Some(provider) = cloud::provider(&self.endpoint) {
+            self.username = provider.name().into();
+            if uuid::Uuid::parse_str(&self.password).is_ok() {
+                let payload = s.sync.cloud.resolve(
+                    &self.endpoint,
+                    &self.password,
+                    s.epoch.load(Ordering::SeqCst),
+                )?;
+                self.password.zeroize();
+                self.password = payload;
+            }
+        }
+        Ok(self)
+    }
+}
+async fn operator(
+    s: &AppState,
+    endpoint: &str,
+    username: &str,
+    password: &str,
+    network: &crate::network::NetworkSettings,
+) -> Result<(opendal::Operator, Zeroizing<String>), String> {
+    if cloud::provider(endpoint).is_some() {
+        cloud::operator(s, endpoint, password, network).await
+    } else {
+        Ok((
+            storage::client(endpoint, username, password, network)?,
+            Zeroizing::new(password.into()),
+        ))
+    }
+}
 #[tauri::command]
 pub async fn sync_update_credentials(
     s: State<'_, AppState>,
@@ -193,6 +232,7 @@ pub async fn sync_update_credentials(
     update_credentials(&s, connection).await
 }
 async fn update_credentials(s: &AppState, connection: Connection) -> Result<Status, String> {
+    let connection = connection.resolve(s)?;
     let endpoint = connection.validate()?;
     let lease = s.sync.begin()?;
     let (config, network, epoch) = {
@@ -204,12 +244,14 @@ async fn update_credentials(s: &AppState, connection: Connection) -> Result<Stat
             s.epoch.load(Ordering::SeqCst),
         )
     };
-    let op = storage::client(
+    let (op, updated_password) = operator(
+        s,
         &endpoint,
         connection.username.trim(),
         &connection.password,
         &network,
-    )?;
+    )
+    .await?;
     let header = tokio::select! {
         _ = lease.cancellation.cancelled() => return Err("同步已取消".into()),
         r = storage::header(&op, &config.library) => r?,
@@ -222,7 +264,7 @@ async fn update_credentials(s: &AppState, connection: Connection) -> Result<Stat
         c.endpoint = endpoint;
         c.username = connection.username.trim().into();
         c.password.zeroize();
-        c.password = connection.password.clone();
+        c.password = updated_password.to_string();
         Ok(())
     })?;
     drop(v);
@@ -257,10 +299,13 @@ pub struct ConnectionInfo {
 pub fn sync_connection_info(s: State<AppState>) -> Result<ConnectionInfo, String> {
     let mut v = s.vault()?;
     let c = v.ensure()?.sync.as_ref().ok_or("尚未连接同步库")?;
-    Ok(ConnectionInfo {
+    Ok(connection_info(c))
+}
+fn connection_info(c: &SyncState) -> ConnectionInfo {
+    ConnectionInfo {
         endpoint: c.endpoint.clone(), username: c.username.clone(), library_id: c.library.clone(), alias: c.alias.clone(),
         connection_qr: serde_json::json!({"format":"SteamGuard Sync Connection", "version":1, "endpoint":c.endpoint, "username":c.username, "libraryId":c.library}).to_string(),
-    })
+    }
 }
 
 #[derive(Deserialize)]
@@ -303,13 +348,16 @@ async fn discover(s: &AppState, connection: Option<Connection>) -> Result<Vec<St
             s.epoch.load(Ordering::SeqCst),
         )
     };
+    let connection = connection.resolve(s)?;
     let endpoint = connection.validate()?;
-    let op = storage::client(
+    let (op, _) = operator(
+        s,
         &endpoint,
         connection.username.trim(),
         &connection.password,
         &network,
-    )?;
+    )
+    .await?;
     let libraries = tokio::select! {
         _ = lease.cancellation.cancelled() => return Err("同步已取消".into()),
         r = storage::libraries(&op) => r?,
@@ -337,6 +385,12 @@ async fn connect(
     confirm_new_library: bool,
     switching: bool,
 ) -> Result<Status, String> {
+    let connection = Connection {
+        endpoint: connection.endpoint.clone(),
+        username: connection.username.clone(),
+        password: connection.password.clone(),
+    }
+    .resolve(s)?;
     let endpoint = connection.validate()?;
     if sync_password.is_empty() || sync_password.len() > 4096 {
         return Err("请填写独立同步密码".into());
@@ -377,12 +431,14 @@ async fn connect(
         if switching {
             run(s, false).await?;
         }
-        let op = storage::client(
+        let (op, updated_password) = operator(
+            s,
             &endpoint,
             connection.username.trim(),
             &connection.password,
             &network,
-        )?;
+        )
+        .await?;
         let (header, key) = if mode == "create" {
             if !storage::libraries(&op).await?.is_empty() && !confirm_new_library {
                 return Err("网盘已有同步库，请选择加入；确需独立使用时请确认创建另一个库".into());
@@ -400,7 +456,7 @@ async fn connect(
         let config = SyncState::new(
             endpoint,
             connection.username.trim().into(),
-            connection.password.clone(),
+            updated_password.to_string(),
             &header,
             &key,
             device,
@@ -612,6 +668,36 @@ mod tests {
             Mutex,
         },
     };
+    #[test]
+    fn cloud_join_configuration_contains_no_authorization_or_sync_secrets() {
+        let state = SyncState::new(
+            cloud::Provider::Dropbox.endpoint().into(),
+            "Dropbox".into(),
+            r#"{"provider":"dropbox","refreshToken":"synthetic-private-refresh"}"#.into(),
+            &Header {
+                format: FORMAT.into(),
+                version: 1,
+                library: uuid::Uuid::new_v4().to_string(),
+                kdf: KDF.into(),
+                salt: STANDARD.encode([7u8; 16]),
+                check: Envelope {
+                    version: 1,
+                    nonce: String::new(),
+                    ciphertext: String::new(),
+                },
+            },
+            &[42u8; 32],
+            "fixture-device".into(),
+        );
+        let info = connection_info(&state);
+        let value: serde_json::Value = serde_json::from_str(&info.connection_qr).unwrap();
+        assert_eq!(value["endpoint"], cloud::Provider::Dropbox.endpoint());
+        assert_eq!(value["libraryId"], state.library);
+        assert_eq!(value.as_object().unwrap().len(), 5);
+        assert!(!info.connection_qr.contains("synthetic-private-refresh"));
+        assert!(!info.connection_qr.contains(&state.key));
+        assert!(value.get("password").is_none() && value.get("refreshToken").is_none());
+    }
     fn app(
         dav: &storage::tests::Dav,
         header: &Header,

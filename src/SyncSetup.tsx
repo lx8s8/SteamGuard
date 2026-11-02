@@ -1,6 +1,7 @@
 import { t as translate } from "./i18n";
 import { useEffect, useRef, useState } from "react";
 import { api, errorText } from "./api";
+import { CloudLogin, cloudProvider } from "./CloudLogin";
 import { QrScanner } from "./SteamQrScanner";
 import type { SyncStatus } from "./types";
 
@@ -18,6 +19,7 @@ export function SyncSetup({
   onBusyChange?: (busy: boolean) => void;
 }) {
   const [preset, setPreset] = useState("jianguoyun");
+  const cloud = cloudProvider(`steamguard-cloud://${preset}/`);
   const [endpoint, setEndpoint] = useState("https://dav.jianguoyun.com/dav/");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -36,9 +38,9 @@ export function SyncSetup({
       const config = JSON.parse(text) as Record<string, unknown>;
       if (config.version !== 1 || typeof config.endpoint !== "string" || typeof config.username !== "string" || typeof config.libraryId !== "string") throw new Error(translate("请选择 SteamGuard 同步配置二维码。"));
       const url = new URL(config.endpoint);
-      if (!["https:", "http:"].includes(url.protocol) || url.username || url.password || !config.libraryId.trim()) throw new Error(translate("同步配置中的地址或库编号无效。"));
+      if ((!cloudProvider(config.endpoint) && !["https:", "http:"].includes(url.protocol)) || url.username || url.password || !config.libraryId.trim()) throw new Error(translate("同步配置中的地址或库编号无效。"));
       if ("password" in config || "syncPassword" in config || "secret" in config) throw new Error(translate("配置包含密码，请使用另一台设备生成的无密码配置二维码。"));
-      setEndpoint(config.endpoint); setUsername(config.username); setPreset("custom"); setMode("join"); setManual(true); setLibraryId(config.libraryId); setLibraries(null); setConfirmNew(false); setConfigText(""); setError("");
+      setPassword(""); setEndpoint(config.endpoint); setUsername(config.username); setPreset(cloudProvider(config.endpoint) ?? "custom"); setMode("join"); setManual(true); setLibraryId(config.libraryId); setLibraries(null); setConfirmNew(false); setConfigText(""); setError("");
     } catch (e) { setError(e instanceof SyntaxError ? translate("无法读取同步配置，请扫描另一台设备显示的配置二维码。") : errorText(e)); }
   };
   const resetDiscovery = () => {
@@ -129,8 +131,9 @@ export function SyncSetup({
             disabled={working}
             onChange={(e) => {
               setPreset(e.target.value);
+              setUsername(""); setPassword("");
               setEndpoint(
-                e.target.value === "jianguoyun"
+                cloudProvider(`steamguard-cloud://${e.target.value}/`) ? `steamguard-cloud://${e.target.value}/` : e.target.value === "jianguoyun"
                   ? "https://dav.jianguoyun.com/dav/"
                   : "",
               );
@@ -138,8 +141,14 @@ export function SyncSetup({
             }}
           >
             <option value="jianguoyun">{translate("坚果云")}</option>
+            <option value="google">Google Drive</option>
+            <option value="onedrive">OneDrive</option>
+            <option value="dropbox">Dropbox</option>
             <option value="custom">{translate("其他 WebDAV")}</option>
           </select>
+          {cloud ? <CloudLogin key={cloud} provider={cloud} disabled={working} onAuthorized={authorization => {
+            setEndpoint(authorization.endpoint); setUsername(authorization.username); setPassword(authorization.handle); setLibraries(null); setConfirmNew(false); setError("");
+          }} /> : <>
           <label className="field-label" htmlFor="sync-endpoint">{translate("WebDAV 地址")}</label>
           <input
             id="sync-endpoint"
@@ -183,6 +192,7 @@ export function SyncSetup({
               resetDiscovery();
             }}
           />
+          </>}
         </>
       )}
       <button

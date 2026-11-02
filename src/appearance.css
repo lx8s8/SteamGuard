@@ -100,6 +100,8 @@ html[dir="rtl"] .tray-token, html[dir="rtl"] .settings-summary, html[dir="rtl"] 
 .export-token-selection label { display:flex; gap:10px; align-items:center; min-height:36px; }
 .export-token-selection input { width:18px; height:18px; min-height:18px; flex:0 0 18px; }
 .update-notes { max-height:240px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; font-size:13px; line-height:1.7; color:var(--muted); }
+.update-progress { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.update-progress progress { flex:1; min-width:100px; accent-color:var(--accent); }
 .desktop-shortcut { margin-top:16px; }
 .desktop-shortcut input { flex:1; min-width:120px; }
 @media (max-width:900px), (max-width:1200px) and (pointer:coarse) {

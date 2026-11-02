@@ -117,11 +117,11 @@ export function QuickAccessSettings({
       </div>
       {capabilities && (
         <p className="access-note">
-          {!capabilities.supported
-            ? translate("快捷访问支持 Android 和 iOS；桌面版继续使用主密码。")
+          {capabilities.unavailableReason
+            ? translateNativeText(capabilities.unavailableReason)
             : !capabilities.biometricAvailable
-              ? translate("尚未检测到可用的指纹或 Face ID，请先在系统设置中录入。")
-              : translate("更改系统生物特征后需重新启用。")}
+              ? translate("尚未检测到可用的设备认证，请先在系统设置中启用。")
+              : translate("重置系统认证后需重新启用。")}
         </p>
       )}
       {error && !slot && (
@@ -138,8 +138,8 @@ export function QuickAccessSettings({
             {slot === "preview" ? <Eye size={24} /> : <Fingerprint size={24} />}
             <p>
               {slot === "preview"
-                ? translate("启用后，能打开此应用的人都能查看、复制验证码。此设置只在这台手机生效，不会开放交易确认或导出权限。")
-                : translate("验证主密码后，将解锁密钥交给系统保护。以后可用指纹、Touch ID 或 Face ID 解锁，不需要重复输入主密码。")}
+                ? translate("启用后，能打开此应用的人都能查看、复制验证码。此设置只在这台设备生效，不会开放交易确认或导出权限。")
+                : translate("验证主密码后，将解锁密钥交给系统保护。以后可用 Touch ID、Windows Hello、指纹或 Face ID 解锁，不需要重复输入主密码。")}
             </p>
           </div>
           <form onSubmit={submit}>

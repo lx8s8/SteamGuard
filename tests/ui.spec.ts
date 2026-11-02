@@ -224,6 +224,15 @@ async function nativeFixture(page: Page) {
               Object.assign(syncState, { endpoint: connection.endpoint, username: connection.username }); return { ...syncState };
             }
             case "sync_connection_info": return { endpoint: syncState.endpoint, username: syncState.username, libraryId: syncState.libraryId, alias: "家庭设备", connectionQr: JSON.stringify({ version: 1, endpoint: syncState.endpoint, username: syncState.username, libraryId: syncState.libraryId }) };
+            case "cloud_providers": return ["google", "onedrive", "dropbox"].map(provider => ({ provider, name: provider, configured: params.get("oauth") !== "unconfigured", supported: true }));
+            case "cloud_auth_start": return { handle: `synthetic-${args.provider}-${commands.filter(c => c.command === "cloud_auth_start").length}`, flow: args.provider === "dropbox" ? "manual" : "browser" };
+            case "cloud_auth_cancel": return;
+            case "cloud_auth_poll": {
+              const provider = String(args.handle).split("-")[1];
+              const result = { pending: false, handle: args.handle, endpoint: `steamguard-cloud://${provider}/`, username: provider };
+              if (params.has("deferCloudAuth")) return new Promise(resolve => Object.assign(window, { __resolveCloudAuth: () => resolve(result) }));
+              return result;
+            }
             case "sync_status":
               return { ...syncState };
             case "sync_discover": {
@@ -383,10 +392,16 @@ async function nativeFixture(page: Page) {
               locked = true;
               return;
             case "quick_capabilities":
+              if (params.get("desktopAuth") === "unsigned") return {
+                supported: true,
+                biometricAvailable: false,
+                label: "Touch ID",
+                unavailableReason: "此 macOS 构建尚未配置钥匙串签名授权，请使用主密码或免密码预览。",
+              };
               return {
                 supported: true,
                 biometricAvailable: true,
-                label: "Face ID",
+                label: params.get("desktopAuth") === "windows" ? "Windows Hello" : "Face ID",
               };
             case "quick_configure":
               if (args.enabled && args.password !== "synthetic-vault-password")
@@ -2313,4 +2328,164 @@ test("scanning a Steam login QR only fills the request and still requires review
   expect(await commandCount(page, "steam_qr_approve")).toBe(0);
   await dialog.getByRole("button", { name: "批准登录", exact: true }).click();
   await expect.poll(() => commandCount(page, "steam_qr_approve")).toBe(1);
+});
+
+
+test("manual and edited OTP parameters cover the complete native range", async ({page}) => {
+  await page.getByRole("button", {name:"添加令牌",exact:true}).click();
+  const dialog=page.getByRole("dialog");
+  await dialog.getByRole("button", {name:"手动添加",exact:true}).click();
+  await dialog.getByLabel("账户或显示名称",{exact:true}).fill("Long period OTP");
+  await dialog.getByLabel("密钥（Base32）",{exact:true}).fill("GEZDGNBVGY3TQOJQ");
+  await dialog.locator("summary").filter({hasText:"高级参数"}).click();
+  await dialog.getByLabel("验证码位数",{exact:true}).selectOption("10");
+  const period=dialog.getByLabel("周期（秒）",{exact:true});
+  await period.fill("86401");
+  await dialog.getByRole("button",{name:"保存令牌",exact:true}).click();
+  expect(await page.evaluate(()=>(window as any).__testCommands.filter((c:any)=>c.command==="token_create").length)).toBe(0);
+  await period.fill("86400");
+  await dialog.getByRole("button",{name:"保存令牌",exact:true}).click();
+  await expect(dialog).toHaveCount(0);
+  expect(await page.evaluate(()=>(window as any).__testCommands.find((c:any)=>c.command==="token_create").args.input)).toMatchObject({digits:10,period:86400});
+  await page.getByRole("button",{name:"管理 Long period OTP",exact:true}).click();
+  await dialog.locator("summary").filter({hasText:"高级参数"}).click();
+  await expect(dialog.getByLabel("验证码位数",{exact:true})).toHaveValue("10");
+  await expect(dialog.getByLabel("周期（秒）",{exact:true})).toHaveValue("86400");
+  await dialog.getByLabel("验证码位数",{exact:true}).selectOption("4");
+  await dialog.getByLabel("周期（秒）",{exact:true}).fill("1");
+  await dialog.getByRole("button",{name:"保存",exact:true}).click();
+  expect(await page.evaluate(()=>(window as any).__testCommands.filter((c:any)=>c.command==="token_update").at(-1).args.parameters)).toMatchObject({digits:4,period:1});
+});
+
+test("signed updates stream progress, cancel cleanly, and require a fresh check before retry", async ({page}) => {
+  await page.addInitScript(() => {
+    const bridge=(window as any).__TAURI_INTERNALS__, original=bridge.invoke;
+    const callbacks=new Map<number,(value:unknown)=>void>();
+    let nextId=1, pending:{reject:(e:unknown)=>void,channel:number}|null=null;
+    bridge.transformCallback=(callback:(value:unknown)=>void)=>{ const id=nextId++; callbacks.set(id,callback); return id; };
+    bridge.unregisterCallback=(id:number)=>callbacks.delete(id);
+    bridge.invoke=async(command:string,args:any={})=>{
+      if(command==='update_check')return {currentVersion:'1.5.1',latestVersion:'2.0.0',available:true,canInstall:true,notes:'Synthetic update'};
+      if(command==='update_install'){
+        const channel=Number(args.progress.id);
+        callbacks.get(channel)?.({index:0,message:{phase:'download',downloaded:250,total:1000}});
+        return new Promise((_resolve,reject)=>{pending={reject,channel};});
+      }
+      if(command==='update_cancel'){
+        if(!pending)return false;
+        const {reject,channel}=pending;pending=null;
+        callbacks.get(channel)?.({index:1,end:true});reject('已取消');return true;
+      }
+      return original(command,args);
+    };
+  });
+  await page.reload();
+  await openSettings(page);
+  const panel=page.locator('.settings-panel').filter({has:page.getByRole('heading',{name:'应用更新',exact:true})});
+  await panel.getByRole('button',{name:'检查更新',exact:true}).click();
+  await panel.getByRole('button',{name:'下载并安装，完成后重启',exact:true}).click();
+  await expect(panel.getByRole('progressbar')).toHaveAttribute('value','250');
+  await expect(panel.getByRole('progressbar')).toHaveAttribute('max','1000');
+  await expect(panel.getByRole('button',{name:'检查更新',exact:true})).toBeDisabled();
+  await panel.getByRole('button',{name:'取消下载',exact:true}).click();
+  await expect(panel.getByRole('alert')).toContainText('已取消');
+  await expect(panel.getByRole('progressbar')).toHaveCount(0);
+  await expect(panel.getByRole('button',{name:'下载并安装，完成后重启',exact:true})).toHaveCount(0);
+  await expect(panel.getByRole('button',{name:'检查更新',exact:true})).toBeEnabled();
+});
+
+
+test("unprovisioned macOS keeps preview usable and explains Touch ID configuration", async ({ page }) => {
+  await page.goto("/?desktopAuth=unsigned");
+  await openSettings(page);
+  await expect(page.getByText("此 macOS 构建尚未配置钥匙串签名授权，请使用主密码或免密码预览。", { exact: true })).toBeVisible();
+  await expect(page.getByRole("switch", { name: "设备生物认证解锁" })).toBeDisabled();
+  const preview = page.getByRole("switch", { name: "免密码预览令牌" });
+  await expect(preview).toBeEnabled();
+  await preview.click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("此设置只在这台设备生效");
+  await dialog.getByLabel("确认保险库主密码").fill("synthetic-vault-password");
+  await dialog.getByRole("button", { name: "确认启用" }).click();
+  await expect(preview).toHaveAttribute("aria-checked", "true");
+});
+
+test("desktop Windows Hello configuration uses the system authentication label", async ({ page }) => {
+  await page.goto("/?desktopAuth=windows");
+  await openSettings(page);
+  await expect(page.getByRole("heading", { name: "Windows Hello 解锁", exact: true })).toBeVisible();
+  await page.getByRole("switch", { name: "设备生物认证解锁" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("Windows Hello");
+  await dialog.getByLabel("确认保险库主密码").fill("synthetic-vault-password");
+  await dialog.getByRole("button", { name: "确认启用" }).click();
+  await expect(page.getByRole("switch", { name: "设备生物认证解锁" })).toHaveAttribute("aria-checked", "true");
+});
+
+
+test("cloud login is clearly disabled without developer configuration", async ({ page }) => {
+  await page.goto("/?oauth=unconfigured"); await openSettings(page);
+  const panel = page.locator(".sync-panel");
+  await panel.getByLabel("网盘服务", { exact: true }).selectOption("google");
+  await expect(panel.getByText("此版本尚未启用此网盘登录。", { exact: true })).toBeVisible();
+  await expect(panel.getByRole("button", { name: "登录网盘", exact: true })).toHaveCount(0);
+  await expect(panel.getByLabel("网盘应用密码", { exact: true })).toHaveCount(0);
+  expect(await commandCount(page, "cloud_auth_start")).toBe(0);
+});
+
+test("cloud configuration QR preserves the target library and only sends opaque native handles", async ({ page }) => {
+  await openSettings(page);
+  const panel = page.locator(".sync-panel");
+  await panel.getByText("从另一台设备的配置二维码加入", { exact: true }).click();
+  await panel.getByLabel("或粘贴同步配置", { exact: true }).fill(JSON.stringify({ version: 1, endpoint: "steamguard-cloud://dropbox/", username: "Dropbox", libraryId: "2971a71b-042c-4f28-b8ae-3c02b713f0f0" }));
+  await panel.getByRole("button", { name: "读取配置", exact: true }).click();
+  await expect(panel.getByLabel("同步库编号", { exact: true })).toHaveValue("2971a71b-042c-4f28-b8ae-3c02b713f0f0");
+  await panel.getByRole("button", { name: "登录网盘", exact: true }).click();
+  await panel.getByLabel("粘贴浏览器显示的授权码", { exact: true }).fill("synthetic-authorization-code");
+  await panel.getByRole("button", { name: "完成登录", exact: true }).click();
+  await expect(panel.getByText("已登录网盘", { exact: true })).toBeVisible();
+  await expect(panel.getByLabel("同步库编号", { exact: true })).toHaveValue("2971a71b-042c-4f28-b8ae-3c02b713f0f0");
+  await panel.getByLabel("独立同步密码", { exact: true }).fill("synthetic-sync-password");
+  await panel.getByRole("button", { name: "加入并同步", exact: true }).click();
+  const request = await page.evaluate(() => (window as any).__testCommands.find((c: any) => c.command === "sync_connect").args.connection);
+  expect(request.password).toMatch(/^synthetic-dropbox-/);
+  expect(request.endpoint).toBe("steamguard-cloud://dropbox/");
+  expect(request.libraryId).toBe("2971a71b-042c-4f28-b8ae-3c02b713f0f0");
+  await panel.getByText("同步库名称与连接设置", { exact: true }).click();
+  await panel.getByRole("button", { name: "显示加入配置二维码", exact: true }).click();
+  const qr = await page.getByRole("dialog").locator("img").getAttribute("src");
+  expect(qr).toContain("data:image/png");
+  const info = await page.evaluate(() => (window as any).__testCommands.filter((c: any) => c.command === "sync_connection_info").length);
+  expect(info).toBe(1);
+});
+
+test("a late cloud login cannot authorize a newly selected provider", async ({ page }) => {
+  await page.goto("/?deferCloudAuth"); await openSettings(page);
+  const panel = page.locator(".sync-panel");
+  await panel.getByLabel("网盘服务", { exact: true }).selectOption("google");
+  await panel.getByRole("button", { name: "登录网盘", exact: true }).click();
+  await expect.poll(() => commandCount(page, "cloud_auth_poll")).toBeGreaterThan(0);
+  await panel.getByLabel("网盘服务", { exact: true }).selectOption("dropbox");
+  await page.evaluate(() => (window as any).__resolveCloudAuth());
+  await expect(panel.getByRole("button", { name: "登录网盘", exact: true })).toBeVisible();
+  await expect(panel.getByText("已登录网盘", { exact: true })).toHaveCount(0);
+  await expect(panel.getByRole("button", { name: "查找已有同步库", exact: true })).toBeDisabled();
+  const cancelled = await page.evaluate(() => (window as any).__testCommands.filter((c: any) => c.command === "cloud_auth_cancel"));
+  expect(cancelled).toEqual(expect.arrayContaining([expect.objectContaining({ args: { handle: "synthetic-google-1" } })]));
+});
+
+test("restarting cloud login invalidates an earlier pending result", async ({ page }) => {
+  await page.goto("/?deferCloudAuth"); await openSettings(page);
+  const panel = page.locator(".sync-panel");
+  await panel.getByLabel("网盘服务", { exact: true }).selectOption("google");
+  await panel.getByRole("button", { name: "登录网盘", exact: true }).click();
+  await expect.poll(() => commandCount(page, "cloud_auth_poll")).toBeGreaterThan(0);
+  await page.evaluate(() => { (window as any).__resolveOldCloudAuth = (window as any).__resolveCloudAuth; });
+  await panel.getByRole("button", { name: "重新登录", exact: true }).click();
+  await page.evaluate(() => (window as any).__resolveOldCloudAuth());
+  await expect(panel.getByText("请在系统浏览器完成登录。", { exact: true })).toBeVisible();
+  await expect(panel.getByText("已登录网盘", { exact: true })).toHaveCount(0);
+  await expect(panel.getByRole("button", { name: "查找已有同步库", exact: true })).toBeDisabled();
+  const cancelled = await page.evaluate(() => (window as any).__testCommands.filter((c: any) => c.command === "cloud_auth_cancel"));
+  expect(cancelled.some((c: any) => c.args.handle === "synthetic-google-2")).toBe(false);
 });

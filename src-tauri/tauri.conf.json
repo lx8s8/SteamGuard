@@ -52,6 +52,7 @@
   },
   "plugins": {
     "updater": {
+      "requireSignedVersion": true,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDI0QjI5RkNCNjYwRjY2NUMKUldSY1pnOW15NSt5SkJicExtK0grOHBuUmRDWWJWdnVYV0VFSFd1VmpDaGM1SEw5d25TS0ZoS1oK",
       "endpoints": [
         "https://github.com/lx8s8/SteamGuard/releases/latest/download/latest.json"

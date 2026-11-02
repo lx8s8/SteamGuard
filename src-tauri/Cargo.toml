@@ -23,6 +23,7 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-quick-access = { path = "plugins/quick-access" }
+tauri-plugin-cloud-auth = { path = "plugins/cloud-auth" }
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 serde = { version = "1", features = ["derive"] }
@@ -42,15 +43,16 @@ argon2 = "0.5"
 zeroize = { version = "1", features = ["derive"] }
 rand = "0.8"
 url = "2"
+percent-encoding = "2"
 reqwest = { version = "0.12", default-features = false, features = ["json", "cookies", "rustls-tls", "gzip", "system-proxy", "socks"] }
 rsa = "0.9"
 prost = "0.13"
 rmpv = { version = "1", features = ["with-serde"] }
 lz4_flex = "0.11"
 roxmltree = "0.20"
-opendal = { version = "=0.59.5", default-features = false, features = ["services-webdav", "http-transport-reqwest-rustls-no-provider", "executors-tokio"] }
+opendal = { version = "=0.59.5", default-features = false, features = ["services-webdav", "services-gdrive", "services-onedrive", "services-dropbox", "http-transport-reqwest-rustls-no-provider", "executors-tokio"] }
 automerge = "=0.12.0"
-tokio = { version = "1", features = ["macros", "time", "sync"] }
+tokio = { version = "1", features = ["macros", "time", "sync", "net", "io-util"] }
 tokio-util = { version = "0.7", features = ["rt"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 webpki-roots = "1"
@@ -63,6 +65,8 @@ image = { version = "=0.25.10", default-features = false, features = ["png"] }
 scrypt = "0.11"
 pbkdf2 = "0.12"
 semver = "1"
+flate2 = "1"
+blowfish = { version = "0.9", features = ["bcrypt", "zeroize"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21"

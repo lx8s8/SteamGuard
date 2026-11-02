@@ -12,13 +12,19 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, generateKeyPairSync, randomBytes, sign } from "node:crypto";
+import { verifyUpdaterSignature } from "../scripts/updater-signature.mjs";
 
 const script = path.resolve("scripts/collect-release.mjs");
 function fixture() {
   const root = mkdtempSync(path.join(tmpdir(), "steamguard-release-"));
   mkdirSync(path.join(root, "input"));
   mkdirSync(path.join(root, "certificates"));
+  mkdirSync(path.join(root, "src-tauri"));
+  const {publicKey, privateKey} = generateKeyPairSync('ed25519');
+  const keyId = randomBytes(8), rawKey = publicKey.export({format:'der',type:'spki'}).subarray(-32);
+  const pub = Buffer.from('untrusted comment: synthetic test key\n'+Buffer.concat([Buffer.from('Ed'),keyId,rawKey]).toString('base64')+'\n').toString('base64');
+  writeFileSync(path.join(root,'src-tauri','tauri.conf.json'), JSON.stringify({plugins:{updater:{pubkey:pub}}}));
   writeFileSync(
     path.join(root, "package.json"),
     JSON.stringify({ version: "1.0.0" }),
@@ -47,8 +53,12 @@ function fixture() {
     "simulator.zip",
   ])
     writeFileSync(path.join(root, "input", name), `synthetic ${name}`);
-  const signature = Buffer.from('untrusted comment: synthetic fixture\nTEST\ntrusted comment: timestamp:0\nTEST\n').toString('base64');
-  for (const name of ['SteamGuard_1.0.0_aarch64.app.tar.gz','SteamGuard_1.0.0_x64.app.tar.gz','SteamGuard_1.0.0_x64-setup.exe','SteamGuard_1.0.0_x64_en-US.msi']) writeFileSync(path.join(root,'input',name+'.sig'),signature);
+  for (const name of ['SteamGuard_1.0.0_aarch64.app.tar.gz','SteamGuard_1.0.0_x64.app.tar.gz','SteamGuard_1.0.0_x64-setup.exe','SteamGuard_1.0.0_x64_en-US.msi']) {
+    const signature=sign(null,createHash('blake2b512').update(readFileSync(path.join(root,'input',name))).digest(),privateKey);
+    const comment='timestamp:0\tfile:'+name+'\tversion:1.0.0';
+    const global=sign(null,Buffer.concat([signature,Buffer.from(comment)]),privateKey);
+    writeFileSync(path.join(root,'input',name+'.sig'),Buffer.from('untrusted comment: synthetic fixture\n'+Buffer.concat([Buffer.from('ED'),keyId,signature]).toString('base64')+'\ntrusted comment: '+comment+'\n'+global.toString('base64')+'\n').toString('base64'));
+  }
   return root;
 }
 function collect(root, tag = "v1.0.0") {
@@ -168,4 +178,30 @@ test("missing or malformed updater signature prevents publication", () => {
     writeFileSync(signature,Buffer.from('not a signature').toString('base64'));
     assert.notEqual(collect(root).status,0);
   } finally { rmSync(root,{recursive:true,force:true}); }
+});
+
+test("actual Tauri CLI signature verifies the payload and binds the version", () => {
+  const payload = readFileSync('tests/fixtures/updater/payload.txt');
+  const signature = readFileSync('tests/fixtures/updater/payload.sig','utf8').trim();
+  const publicKey = readFileSync('tests/fixtures/updater/public-key.txt','utf8').trim();
+  verifyUpdaterSignature(payload, signature, publicKey, '2.0.0');
+  assert.throws(() => verifyUpdaterSignature(Buffer.concat([payload,Buffer.from('tampered')]),signature,publicKey,'2.0.0'));
+  assert.throws(() => verifyUpdaterSignature(payload,signature,publicKey,'9.9.9'));
+  const tampered = Buffer.from(signature,'base64').toString().replace('version:2.0.0','version:9.9.9');
+  assert.throws(() => verifyUpdaterSignature(payload,Buffer.from(tampered).toString('base64'),publicKey,'9.9.9'));
+});
+
+test("tampered artifact or wrong signing identity blocks the entire publication", () => {
+  const root=fixture();
+  try {
+    writeFileSync(path.join(root,'input','SteamGuard_1.0.0_x64-setup.exe'),'tampered');
+    assert.notEqual(collect(root).status,0);
+  } finally { rmSync(root,{recursive:true,force:true}); }
+  const other=fixture();
+  try {
+    const conf=JSON.parse(readFileSync(path.join(other,'src-tauri','tauri.conf.json'),'utf8'));
+    conf.plugins.updater.pubkey=readFileSync('tests/fixtures/updater/public-key.txt','utf8').trim();
+    writeFileSync(path.join(other,'src-tauri','tauri.conf.json'),JSON.stringify(conf));
+    assert.notEqual(collect(other).status,0);
+  } finally { rmSync(other,{recursive:true,force:true}); }
 });

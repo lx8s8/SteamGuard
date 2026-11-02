@@ -299,7 +299,9 @@ async fn quick_configure(
     if enabled {
         let available = app.secure_access().availability()?;
         if !available.supported || slot == "biometric" && !available.biometric_available {
-            return Err("请先在手机系统设置中启用指纹或 Face ID".into());
+            return Err(available
+                .unavailable_reason
+                .unwrap_or_else(|| "请先在设备系统设置中启用生物认证或 Windows Hello".into()));
         }
     }
     q.set(&slot, false)?;
@@ -699,8 +701,10 @@ fn prepare_import_preview(
         })
         .collect::<Vec<_>>();
     let mut metadata_changes = false;
-    let mut checked = vault::VaultData::default();
-    checked.tokens = existing.clone();
+    let mut checked = vault::VaultData {
+        tokens: existing.clone(),
+        ..Default::default()
+    };
     // Dry run validates both existing duplicates and conflicting duplicates in the file.
     checked.merge_import(staged.tokens.clone(), staged.groups.clone())?;
     for incoming in &staged.tokens {
@@ -979,7 +983,7 @@ fn token_rename(s: State<AppState>, id: String, name: String) -> Result<(), Stri
 #[tauri::command]
 fn token_delete(s: State<AppState>, id: String) -> Result<(), String> {
     s.vault()?
-        .update(|d| token_commands::delete(d, &[id.clone()]))?;
+        .update(|d| token_commands::delete(d, std::slice::from_ref(&id)))?;
     s.steam.logout(&id);
     Ok(())
 }
@@ -1595,6 +1599,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_quick_access::init());
+    let builder = builder.plugin(tauri_plugin_cloud_auth::init());
     #[cfg(mobile)]
     let builder = builder.plugin(tauri_plugin_barcode_scanner::init());
     #[cfg(desktop)]
@@ -1611,6 +1616,7 @@ pub fn run() {
     builder
         .setup(|app| {
             app.manage(updates::Controller::default());
+            sync::cloud::initialize(app.handle().clone());
             backup_external::install(app.handle().clone());
             let path = app.path().app_data_dir()?.join("vault.sgvault");
             std::fs::create_dir_all(path.parent().ok_or("存储目录无效")?.join("device-only"))?;
@@ -1663,7 +1669,12 @@ pub fn run() {
                 desktop::desktop_hide,
                 updates::update_check,
                 updates::update_install,
+                updates::update_cancel,
                 updates::update_open_download,
+                sync::cloud::cloud_providers,
+                sync::cloud::cloud_auth_start,
+                sync::cloud::cloud_auth_poll,
+                sync::cloud::cloud_auth_cancel,
                 sync::commands::sync_status,
                 sync::commands::sync_update_credentials,
                 sync::commands::sync_set_alias,

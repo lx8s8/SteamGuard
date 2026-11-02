@@ -1,11 +1,12 @@
 //! Updates use GitHub Releases. Executable installation requires the embedded signature key.
 use serde::{Deserialize, Serialize};
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Mutex,
-};
-use std::time::{Duration, Instant};
-use tauri::{AppHandle, Manager, State};
+use std::sync::Mutex;
+use std::time::Duration;
+#[cfg(any(desktop, test))]
+use std::time::Instant;
+#[cfg(desktop)]
+use tauri::Manager;
+use tauri::{ipc::Channel, AppHandle, State};
 use tauri_plugin_opener::OpenerExt;
 
 const RELEASES: &str = "https://github.com/lx8s8/SteamGuard/releases/latest";
@@ -14,7 +15,67 @@ const API: &str = "https://api.github.com/repos/lx8s8/SteamGuard/releases/latest
 pub struct Controller {
     #[cfg(desktop)]
     pending: Mutex<Option<(Instant, tauri_plugin_updater::Update)>>,
-    installing: AtomicBool,
+    operation: Mutex<Operation>,
+}
+#[derive(Default)]
+enum Operation {
+    #[default]
+    Idle,
+    Downloading(Option<tokio::sync::oneshot::Sender<()>>),
+    #[cfg(any(desktop, test))]
+    Installing,
+}
+impl Controller {
+    fn busy(&self) -> Result<bool, String> {
+        Ok(!matches!(
+            *self.operation.lock().map_err(|_| "更新状态不可用")?,
+            Operation::Idle
+        ))
+    }
+    fn start(&self) -> Result<tokio::sync::oneshot::Receiver<()>, String> {
+        let mut state = self.operation.lock().map_err(|_| "更新状态不可用")?;
+        if !matches!(*state, Operation::Idle) {
+            return Err("正在安装更新".into());
+        }
+        let (send, receive) = tokio::sync::oneshot::channel();
+        *state = Operation::Downloading(Some(send));
+        Ok(receive)
+    }
+    fn cancel(&self) -> Result<bool, String> {
+        let mut state = self.operation.lock().map_err(|_| "更新状态不可用")?;
+        if let Operation::Downloading(sender) = &mut *state {
+            if let Some(sender) = sender.take() {
+                let _ = sender.send(());
+            }
+            return Ok(true);
+        }
+        Ok(false)
+    }
+    #[cfg(any(desktop, test))]
+    fn begin_install(&self) -> Result<(), String> {
+        let mut state = self.operation.lock().map_err(|_| "更新状态不可用")?;
+        // The same lock serializes cancellation with the final installation decision.
+        if !matches!(*state, Operation::Downloading(Some(_))) {
+            return Err("已取消".into());
+        }
+        *state = Operation::Installing;
+        Ok(())
+    }
+}
+struct OperationGuard<'a>(&'a Controller);
+impl Drop for OperationGuard<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut state) = self.0.operation.lock() {
+            *state = Operation::Idle;
+        }
+    }
+}
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateProgress {
+    phase: &'static str,
+    downloaded: u64,
+    total: Option<u64>,
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -35,7 +96,9 @@ struct Release {
 }
 #[derive(Deserialize)]
 struct Asset {
+    #[cfg(desktop)]
     name: String,
+    #[cfg(desktop)]
     browser_download_url: String,
 }
 fn release_version(tag: &str) -> Result<semver::Version, String> {
@@ -46,6 +109,7 @@ fn release_version(tag: &str) -> Result<semver::Version, String> {
     }
     Ok(version)
 }
+#[cfg(any(desktop, test))]
 fn trusted_asset(value: &str, version: &str) -> bool {
     let Ok(url) = url::Url::parse(value) else {
         return false;
@@ -67,7 +131,7 @@ pub async fn update_check(
     app: AppHandle,
     control: State<'_, Controller>,
 ) -> Result<UpdateInfo, String> {
-    if control.installing.load(Ordering::SeqCst) {
+    if control.busy()? {
         return Err("正在安装更新".into());
     }
     #[cfg(desktop)]
@@ -153,17 +217,13 @@ pub async fn update_check(
     })
 }
 #[tauri::command]
-pub async fn update_install(app: AppHandle, control: State<'_, Controller>) -> Result<(), String> {
-    if control.installing.swap(true, Ordering::SeqCst) {
-        return Err("正在安装更新".into());
-    }
-    struct Reset<'a>(&'a AtomicBool);
-    impl Drop for Reset<'_> {
-        fn drop(&mut self) {
-            self.0.store(false, Ordering::SeqCst);
-        }
-    }
-    let _reset = Reset(&control.installing);
+pub async fn update_install(
+    app: AppHandle,
+    control: State<'_, Controller>,
+    progress: Channel<UpdateProgress>,
+) -> Result<(), String> {
+    let mut cancel = control.start()?;
+    let _reset = OperationGuard(&control);
     #[cfg(desktop)]
     {
         let (checked, update) = control
@@ -176,10 +236,38 @@ pub async fn update_install(app: AppHandle, control: State<'_, Controller>) -> R
             return Err("更新检查已过期，请重新检查".into());
         }
         // The official updater verifies the downloaded bytes before returning them.
-        let bytes = update
-            .download(|_, _| {}, || {})
-            .await
-            .map_err(|_| "下载更新或签名校验失败，请重新检查更新")?;
+        let mut downloaded = 0u64;
+        let mut last = Instant::now();
+        let _ = progress.send(UpdateProgress {
+            phase: "download",
+            downloaded,
+            total: None,
+        });
+        let download = update.download(
+            |size, total| {
+                downloaded = downloaded.saturating_add(size as u64);
+                if last.elapsed() >= Duration::from_millis(100) {
+                    let _ = progress.send(UpdateProgress {
+                        phase: "download",
+                        downloaded,
+                        total,
+                    });
+                    last = Instant::now();
+                }
+            },
+            || {},
+        );
+        let bytes = tokio::select! {
+            biased;
+            _ = &mut cancel => return Err("已取消".into()),
+            result = download => result.map_err(|_| "下载更新或签名校验失败，请重新检查更新")?,
+        };
+        control.begin_install()?;
+        let _ = progress.send(UpdateProgress {
+            phase: "install",
+            downloaded: bytes.len() as u64,
+            total: Some(bytes.len() as u64),
+        });
         crate::vault_lock(
             app.state::<crate::AppState>(),
             app.state::<crate::quick_access::QuickAccess>(),
@@ -191,9 +279,13 @@ pub async fn update_install(app: AppHandle, control: State<'_, Controller>) -> R
     }
     #[cfg(mobile)]
     {
-        let _ = app;
+        let _ = (app, progress, &mut cancel);
         Err("请从发布页面下载移动端更新".into())
     }
+}
+#[tauri::command]
+pub fn update_cancel(control: State<'_, Controller>) -> Result<bool, String> {
+    control.cancel()
 }
 #[tauri::command]
 pub fn update_open_download(app: AppHandle) -> Result<(), String> {
@@ -204,6 +296,26 @@ pub fn update_open_download(app: AppHandle) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[tokio::test]
+    async fn cancellation_serializes_with_installation_and_failure_releases_operation() {
+        let control = Controller::default();
+        let mut receive = control.start().unwrap();
+        let guard = OperationGuard(&control);
+        assert!(control.busy().unwrap());
+        assert!(control.start().is_err());
+        assert!(control.cancel().unwrap());
+        assert_eq!(receive.try_recv(), Ok(()));
+        assert!(control.begin_install().is_err());
+        drop(guard);
+        assert!(!control.busy().unwrap());
+        let _receive = control.start().unwrap();
+        let guard = OperationGuard(&control);
+        control.begin_install().unwrap();
+        assert!(!control.cancel().unwrap());
+        assert!(control.start().is_err());
+        drop(guard);
+        assert!(!control.busy().unwrap());
+    }
     #[test]
     fn updater_rejects_prereleases_downgrades_and_untrusted_assets() {
         assert!(release_version("v2.0.0").unwrap() > release_version("1.5.1").unwrap());

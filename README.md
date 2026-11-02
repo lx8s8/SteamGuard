@@ -10,10 +10,10 @@
 
 - **本地验证码**：支持 Steam Guard、TOTP 和 HOTP，提供手动添加、搜索、自定义分组、置顶、排序与批量管理。
 - **Steam 账号**：密码或二维码登录，支持 Steam Guard、邮箱验证、手机交易确认与市场挂单查询；可扫描登录二维码后核对并审批。
-- **备份与迁移**：支持 Google Authenticator 多码导入与兼容二维码批量导出、Aegis / 2FAS 明文或密码加密备份、WattToolkit `.mpo`、Steam `.maFile` 与 OTP 链接；提供自动加密快照、外部备份目录、差异预览与逐项恢复。
+- **备份与迁移**：支持 Google Authenticator 多码导入与兼容二维码批量导出、Aegis / 2FAS 备份、WinAuth XML、WattToolkit `.mpo` / `.dat`、Steam `.maFile` 与 OTP 链接；提供自动加密快照、外部备份目录、差异预览与逐项恢复。
 - **恢复与管理**：本机加密回收站，支持撤销、还原和永久删除；可修改保险库主密码，HOTP 恢复不会降低计数。
-- **多端同步**：使用坚果云或兼容 HTTPS WebDAV 的网盘，端到端加密同步令牌与分组，可选择已有同步库、合并误建库、核对冲突，支持库别名、无密码加入配置与单独更换网盘凭据。
-- **快捷访问**：手机可选择免密码预览验证码，或使用指纹、Touch ID / Face ID 解锁完整保险库。
+- **多端同步**：使用自己的网盘，端到端加密同步令牌与分组，可选择已有同步库、合并误建库、核对冲突。支持坚果云与 HTTPS WebDAV，另提供 Google Drive、OneDrive、Dropbox 专用登录接入，需先完成客户端登记配置。
+- **快捷访问**：可选择免密码预览验证码，或通过系统设备认证解锁完整保险库；桌面平台条件见[快捷访问说明](docs/DESKTOP-AUTH.md)。
 - **简洁界面**：首页直接显示验证码，未添加 Steam 令牌时隐藏交易与市场入口；支持服务图标、自定义头像、浅色 / 深色主题与文字大小。
 - **桌面托盘**：macOS 菜单栏和 Windows 任务栏常驻，点击令牌即可复制；提供全局快捷键、键盘导航与可选开机启动。
 - **多语言**：内置 16 种语言，可跟随系统或手动切换，支持阿拉伯语从右向左布局。详见[语言说明](docs/LANGUAGES.md)。
@@ -70,6 +70,8 @@ npm run build
 - [安装与迁移](docs/INSTALLATION.md)
 - [自动备份与恢复](docs/BACKUP.md)
 - [WebDAV 多端同步](docs/SYNC.md)
+- [专用网盘登录接入](docs/cloud-oauth.md)
+- [桌面快捷访问](docs/DESKTOP-AUTH.md)
 - [导入格式兼容性](docs/import-format.md)
 - [功能范围](docs/feature-matrix.md)
 - [语言与翻译](docs/LANGUAGES.md)

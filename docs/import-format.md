@@ -10,7 +10,7 @@
 | --- | --- | --- | --- |
 | WattToolkit 2.x `.mpo` | 支持 | 支持 | 原始 MessagePack 对象映射和平台 union，原始 LZ4BlockArray / LZ4Block 压缩，内置 AES，二级密码 AES |
 | 启用本机加密的 `.mpo` | 明确拒绝 | 不生成 | 需在原电脑的 WattToolkit 关闭本机加密后重新导出 |
-| 新版本 MemoryPack 格式 | 暂不支持 | 不生成 | 不将无法识别的数据当作导入成功；此实现针对所提供 2024 年文件使用的 MessagePack 格式 |
+| WattToolkit MemoryPack 格式 | 支持已验证结构 | 不生成 | 8 字段 `AccountPlatformAuthenticator` 与 11 字段 `AuthenticatorExportDTO`，单条或列表；字符串 UTF-8 / UTF-16；不猜测未知的新结构 |
 | SDA `.maFile` / Steam Guard JSON | 支持 | 支持单个 Steam 令牌 | `shared_secret`、`identity_secret`、`steamid`、`account_name`、`device_id`；兼容嵌套 `Session.SteamID` |
 | `otpauth://` 文本 | 支持 | 支持单个令牌 | 多行、注释、TOTP/HOTP、SHA1/SHA256/SHA512、位数、周期和计数器；支持 `encoder=steam` |
 | Google Authenticator `otpauth-migration://` | 支持 | 支持兼容令牌批量导出 | 迁移格式 0/1/2；支持相机、批量图片、多码图片与多行链接，收齐同一次导出的全部二维码后确认；导出范围见下文 |
@@ -19,8 +19,9 @@
 | Aegis 密码加密备份 | 支持 | 不生成 | 外层 v1 密码槽、scrypt 与 AES-256-GCM；密码槽和派生资源有上限；不使用设备生物认证槽解密 |
 | 2FAS 密码加密备份 | 支持 | 不生成 | schema v1–v4，PBKDF2-HMAC-SHA256 与 AES-256-GCM；校验格式参考标记，支持 Unicode 密码 |
 | WinAuth 未加密 XML | 支持 | 不生成 | `WinAuthAuthenticator`、十六进制 `secretdata`、Steam/HOTP/Battle.net 和普通 TOTP 附加数据 |
-| WinAuth 加密 XML | 明确拒绝 | 不生成 | 先从 WinAuth 导出未加密 XML 或 otpauth 文本 |
-| WattToolkit v1 压缩 `.dat` | 暂不支持 | 不生成 | 可先经原软件转换为 `.mpo` 或 otpauth 文本 |
+| WinAuth 密码加密 XML | 支持 | 不生成 | 整体配置、逐个验证器及带 WINAUTH3 校验的 `secretdata` 密码保护；PBKDF2-SHA1、Blowfish / ISO10126、WINAUTH3 SHA256 校验 |
+| WinAuth 本机 / 硬件密钥保护 XML | 明确拒绝 | 不生成 | Windows 用户 / 电脑或硬件密钥绑定无法跨设备解密，需在原软件解除对应保护后导出 |
+| WattToolkit v1 压缩 `.dat` | 支持 | 不生成 | Base64 + GZip 包装的 WinAuth XML；包含密码保护时填写原导出密码 |
 | 普通 OTP JSON | 支持 | 不直接生成 | 单个对象、数组或 `{ "tokens": [...] }`，Base32 `secret`，可指定 `kind/name/issuer/algorithm/digits/period/counter` |
 | 本项目 `.sgvault` | 支持 | 支持 | 由保险库模块处理，AES-256-GCM + Argon2id 密码派生；与 `.mpo` 分开识别 |
 
@@ -57,6 +58,8 @@ Google 导出使用 `otpauth-migration://offline?data=…`，内容为 Base64 �
 
 选择 Aegis 或 2FAS 备份，在导入窗口填写原软件导出时的密码，预览后确认。无需先制作明文副本。错误密码、认证标签损坏或不兼容参数会拒绝整批导入，不保存部分记录。
 
+WinAuth 密码加密 XML 和旧 `.dat` 同样使用该密码输入框，支持整个配置或单个验证器受密码保护的文件。按原格式兼容 PBKDF2-HMAC-SHA1 2000 次与 Blowfish ECB / ISO10126 填充，WINAUTH3 文件另验证其原始 SHA256 明文摘要；旧版本的整体配置或验证器仍需通过完整 XML 结构校验。仅加密原始 `secretdata` 且没有 WINAUTH3 摘要的旧文件无法可靠区分错误密码，明确拒绝，需在原软件重新导出。不会用这种旧算法生成新备份。Windows 本机 / 用户或 YubiKey 保护不能用普通密码替代，需在原软件解除对应保护。每次最多处理 1000 个加密节点，嵌套不超过 4 层，解密和 GZip 解压结果不超过 16 MiB；解密缓冲区在离开作用域时清除。
+
 Aegis 密码派生限制峰值内存为 64 MiB，并限制密码槽数量和累计工作量。默认参数可用；超限时需在原软件使用默认加密参数重新导出。解密后的账号内容仅用于本次解析，不写入临时明文文件。格式参考 [Aegis vault 文档](https://github.com/beemdevelopment/Aegis/blob/master/docs/vault.md)与 [2FAS Android 源码](https://github.com/twofas/2fas-android)。
 
 ## 去重与恢复
@@ -82,10 +85,15 @@ WattToolkit 加密数据开头是 4 字节小端模式号：1 为内置 AES；2 
 ```sh
 cd src-tauri
 cargo test import::tests --lib
+cargo test import::legacy::tests --lib
 WATT_TEST_MPO='/absolute/path/to/private-export.mpo' cargo test real_mpo_private_import --lib -- --ignored
 ```
 
 `real_mpo_private_import` 默认跳过，避免把真实账户文件变成仓库依赖。可选 `WATT_TEST_PASSWORD` 提供原导出密码。测试仅断言密钥和 Steam 确认字段存在，不打印账户信息。
+
+WinAuth / v1 DAT 的独立合成样本和复现方法见 [`src-tauri/src/import/fixtures/README.md`](../src-tauri/src/import/fixtures/README.md)。测试覆盖整体配置、逐个验证器、旧版 secretdata、中文密码、缺失 / 错误密码、摘要篡改、系统 / 硬件保护拒绝、GZip 截断 / 尾随数据 / 解压上限及 XML DTD 拒绝。
+
+MemoryPack 支持按原始类型精确读取，不用通用猜测器。已验证当前源码的 `AccountPlatformAuthenticator` 8 字段（保留加密名称 / 值，由原 `.mpo` AES 与 MessagePack 路径解密）及 `AuthenticatorExportDTO` 11 字段（平台、发行方、哈希算法、序列号、设备标识、Steam JSON、计数、周期、密钥、位数、名称）；接受单条和同类型列表、UTF-8 / UTF-16 字符串。账户外层针对 .NET 7+ 的原始布局，Unity 或未来改变结构的导出需另行验证。单条记录、字段数量、字符串长度、截断和尾随数据均检查，未知结构明确报错。合成样本由官方 MemoryPack 1.21.4 .NET 源码生成器独立生成，未使用 Rust 读取器反向制作样本。
 
 ## 参考源码
 

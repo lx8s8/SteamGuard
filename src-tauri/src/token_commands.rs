@@ -124,10 +124,7 @@ pub fn create(data: &mut VaultData, input: &CreateInput) -> Result<String, Strin
         pinned: Some(input.pinned),
     }
     .apply(&mut token)
-    .map_err(|error| {
-        token.erase();
-        error
-    })?;
+    .inspect_err(|_| token.erase())?;
     token.group = input.group.clone();
     if data
         .tokens
@@ -433,7 +430,9 @@ mod tests {
                 Ok(())
             })
             .unwrap();
-        vault.update(|d| delete(d, &[id.clone()])).unwrap();
+        vault
+            .update(|d| delete(d, std::slice::from_ref(&id)))
+            .unwrap();
         assert!(vault.ensure().unwrap().tokens.is_empty());
         assert_eq!(vault.ensure().unwrap().trash.len(), 1);
         let bytes = std::fs::read(&vault.path).unwrap();
@@ -446,7 +445,9 @@ mod tests {
         vault.lock();
         vault.unlock("synthetic password").unwrap();
         assert!(vault.update(|d| restore(d, &["missing".into()])).is_err());
-        vault.update(|d| restore(d, &[id.clone()])).unwrap();
+        vault
+            .update(|d| restore(d, std::slice::from_ref(&id)))
+            .unwrap();
         assert_eq!(vault.ensure().unwrap().tokens[0].id, id);
         assert!(vault.ensure().unwrap().trash.is_empty());
         vault.lock();

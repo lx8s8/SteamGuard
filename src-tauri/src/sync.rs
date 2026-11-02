@@ -20,6 +20,7 @@ use std::{
 };
 use zeroize::{Zeroize, Zeroizing};
 
+pub mod cloud;
 pub mod commands;
 pub mod storage;
 const MAX_DOCUMENT: usize = 16 * 1024 * 1024;
@@ -919,6 +920,7 @@ pub fn claim_hotp(
 }
 #[derive(Default)]
 pub struct Controller {
+    pub cloud: cloud::Sessions,
     busy: AtomicBool,
     token: Mutex<Option<tokio_util::sync::CancellationToken>>,
     pub result: Mutex<(u64, Option<String>)>,
@@ -943,6 +945,7 @@ impl Controller {
         self.busy.load(Ordering::SeqCst)
     }
     pub fn cancel(&self) {
+        self.cloud.clear();
         if let Ok(t) = self.token.lock() {
             if let Some(t) = t.as_ref() {
                 t.cancel();

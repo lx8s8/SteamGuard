@@ -227,7 +227,7 @@ function nativeSourceFiles(directory) {
     return entry.isDirectory() ? nativeSourceFiles(full) : /\.(rs|kt|swift)$/.test(entry.name) ? [full] : [];
   });
 }
-const nativeRoots = ["src-tauri/src", "src-tauri/plugins/quick-access/src", "src-tauri/plugins/quick-access/android/src/main/java", "src-tauri/plugins/quick-access/ios/Sources"];
+const nativeRoots = ["src-tauri/src", ...["quick-access", "cloud-auth"].flatMap(plugin => [`src-tauri/plugins/${plugin}/src`, `src-tauri/plugins/${plugin}/android/src/main/java`, `src-tauri/plugins/${plugin}/ios/Sources`])];
 const allNativeSourceFiles = () => nativeRoots.flatMap((directory) => nativeSourceFiles(path.join(root, directory)));
 export function placeholders(text) {
   return [...text.matchAll(/{{\s*([^{}\s]+)\s*}}/g)].map((match) => match[1]).sort();

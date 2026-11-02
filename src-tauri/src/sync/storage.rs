@@ -29,6 +29,8 @@ fn jianguoyun_compatibility(endpoint: &str) -> bool {
 struct StrictTransport {
     inner: ReqwestTransport,
     missing_parent_conflict: bool,
+    onedrive_app_root: Option<String>,
+    cloud_service: bool,
 }
 impl HttpTransport for StrictTransport {
     async fn fetch(&self, req: http::Request<Buffer>) -> opendal::Result<http::Response<HttpBody>> {
@@ -40,7 +42,11 @@ impl HttpTransport for StrictTransport {
             "DELETE" => "清理同步旧版本",
             _ => "访问同步网盘",
         };
-        let limit = if req.method() == http::Method::GET {
+        let graph_listing = self.onedrive_app_root.is_some()
+            && req.method() == http::Method::GET
+            && req.uri().host() == Some("graph.microsoft.com")
+            && onedrive_children_path(req.uri().path());
+        let limit = if req.method() == http::Method::GET && !graph_listing {
             MAX_DOCUMENT * 2
         } else {
             2 * 1024 * 1024
@@ -51,7 +57,27 @@ impl HttpTransport for StrictTransport {
                 "redirects are disabled",
             ));
         }
-        let response = self.inner.fetch(req).await?;
+        let graph_content = self.onedrive_app_root.is_some()
+            && req.method() == http::Method::GET
+            && req.uri().host() == Some("graph.microsoft.com")
+            && req.uri().path().ends_with("/content");
+        let range = req.headers().get(http::header::RANGE).cloned();
+        let mut response = self.inner.fetch(req).await?;
+        // Graph content downloads use a short-lived HTTPS URL. Never forward the
+        // bearer token to that host; follow one authenticated Graph response only.
+        if graph_content && response.status() == http::StatusCode::FOUND {
+            let location = response
+                .headers()
+                .get(http::header::LOCATION)
+                .and_then(|v| v.to_str().ok())
+                .ok_or_else(|| {
+                    opendal::Error::new(ErrorKind::Unexpected, "Invalid cloud download URL")
+                })?;
+            response = self
+                .inner
+                .fetch(cloud_download_request(location, range)?)
+                .await?;
+        }
         let status = response.status().as_u16();
         // Jianguoyun reports a missing parent collection as 409 for PROPFIND.
         // OpenDAL's recursive MKCOL walks parents only for NotFound errors.
@@ -64,7 +90,9 @@ impl HttpTransport for StrictTransport {
         if status == 429 {
             return Err(http_failure(operation, status, ErrorKind::RateLimited));
         }
-        if (300..400).contains(&status) || (status >= 400 && ![404, 405].contains(&status)) {
+        if (300..400).contains(&status)
+            || (!self.cloud_service && status >= 400 && ![404, 405].contains(&status))
+        {
             return Err(http_failure(operation, status, ErrorKind::Unexpected));
         }
         if response
@@ -90,8 +118,126 @@ impl HttpTransport for StrictTransport {
                 Ok(chunk)
             }))
         });
-        Ok(http::Response::from_parts(parts, body))
+        let response = http::Response::from_parts(parts, body);
+        if graph_listing && response.status().is_success() {
+            normalize_onedrive_listing(response, self.onedrive_app_root.as_deref().unwrap()).await
+        } else {
+            Ok(response)
+        }
     }
+}
+
+fn onedrive_children_path(path: &str) -> bool {
+    if !path.starts_with("/v1.0/") {
+        return false;
+    }
+    if path.ends_with(":/children") || path.ends_with("/root/children") {
+        return true;
+    }
+    let parts = path.split('/').collect::<Vec<_>>();
+    matches!(parts.as_slice(), [.., "items", id, "children"] if !id.is_empty())
+}
+
+async fn normalize_onedrive_listing(
+    response: http::Response<HttpBody>,
+    root: &str,
+) -> opendal::Result<http::Response<HttpBody>> {
+    const LIMIT: usize = 2 * 1024 * 1024;
+    let invalid = || opendal::Error::new(ErrorKind::Unexpected, "Invalid OneDrive listing path");
+    let (mut parts, body) = response.into_parts();
+    let mut body = body.map_inner(|stream| {
+        let mut remaining = LIMIT;
+        Box::new(stream.map(move |chunk| {
+            let chunk = chunk?;
+            remaining = remaining.checked_sub(chunk.len()).ok_or_else(|| {
+                opendal::Error::new(ErrorKind::Unexpected, "OneDrive listing exceeds size limit")
+            })?;
+            Ok(chunk)
+        }))
+    });
+    let buffer = body.to_buffer().await?;
+    let mut document: serde_json::Value =
+        serde_json::from_slice(&buffer.to_vec()).map_err(|_| invalid())?;
+    if let Some(next) = document.get("@odata.nextLink").filter(|v| !v.is_null()) {
+        let url = next
+            .as_str()
+            .and_then(|v| url::Url::parse(v).ok())
+            .ok_or_else(invalid)?;
+        if url.scheme() != "https"
+            || url.host_str() != Some("graph.microsoft.com")
+            || url.port_or_known_default() != Some(443)
+            || !url.username().is_empty()
+            || url.password().is_some()
+            || url.fragment().is_some()
+            || !onedrive_children_path(url.path())
+            || url.as_str().len() > 8192
+        {
+            return Err(invalid());
+        }
+    }
+    let entries = document
+        .get_mut("value")
+        .and_then(|v| v.as_array_mut())
+        .ok_or_else(invalid)?;
+    for item in entries {
+        let original = item["parentReference"]["path"]
+            .as_str()
+            .ok_or_else(invalid)?;
+        let parent = super::cloud::onedrive_parent_path(original).map_err(|_| invalid())?;
+        if parent != root.trim_end_matches('/') && !parent.starts_with(root) {
+            return Err(invalid());
+        }
+        let name = item["name"].as_str().ok_or_else(invalid)?;
+        if name.is_empty()
+            || name.len() > 255
+            || [".", ".."].contains(&name)
+            || name.contains(['/', '\\'])
+            || name.chars().any(char::is_control)
+        {
+            return Err(invalid());
+        }
+        // OpenDAL 0.59.5 expects decoded parent paths and only strips this one
+        // prefix. Graph can return a drive-ID prefix or escaped Unicode/spaces.
+        let normalized = format!("/drive/root:{parent}");
+        if normalized != original {
+            item["parentReference"]["path"] = normalized.into();
+        }
+    }
+    let bytes = serde_json::to_vec(&document).map_err(|_| invalid())?;
+    if bytes.len() > LIMIT {
+        return Err(invalid());
+    }
+    parts.headers.insert(
+        http::header::CONTENT_LENGTH,
+        http::HeaderValue::from_str(&bytes.len().to_string()).map_err(|_| invalid())?,
+    );
+    let size = bytes.len() as u64;
+    let body = HttpBody::new(
+        futures::stream::iter(vec![Ok(Buffer::from(bytes))]),
+        Some(size),
+    );
+    Ok(http::Response::from_parts(parts, body))
+}
+fn cloud_download_request(
+    location: &str,
+    range: Option<http::HeaderValue>,
+) -> opendal::Result<http::Request<Buffer>> {
+    let location = url::Url::parse(location)
+        .ok()
+        .filter(|u| {
+            u.scheme() == "https"
+                && u.host_str().is_some()
+                && u.username().is_empty()
+                && u.password().is_none()
+        })
+        .ok_or_else(|| opendal::Error::new(ErrorKind::Unexpected, "Invalid cloud download URL"))?;
+    let mut download = http::Request::get(location.as_str());
+    if let Some(range) = range {
+        download = download.header(http::header::RANGE, range);
+    }
+    download
+        .body(Buffer::new())
+        .map_err(|_| opendal::Error::new(ErrorKind::Unexpected, "Invalid cloud download request"))
 }
 
 fn error(e: opendal::Error) -> String {
@@ -99,7 +245,7 @@ fn error(e: opendal::Error) -> String {
     while let Some(current) = cause {
         if let Some(f) = current.downcast_ref::<HttpFailure>() {
             let reason = match f.status {
-                401 | 403 => "网盘拒绝访问，请检查账号、应用密码和目录权限",
+                401 | 403 => "网盘拒绝访问，请检查登录凭据和目录权限",
                 429 => "网盘请求过于频繁，请稍后重试",
                 300..=399 => "网盘地址发生重定向，请填写最终 HTTPS WebDAV 地址",
                 400 => "网盘不接受此目录或请求格式，请检查 WebDAV 地址和服务兼容性",
@@ -119,7 +265,7 @@ fn error(e: opendal::Error) -> String {
         cause = current.source();
     }
     match e.kind() {
-        ErrorKind::PermissionDenied => "网盘拒绝访问，请检查账号、应用密码和目录权限",
+        ErrorKind::PermissionDenied => "网盘拒绝访问，请检查登录凭据和目录权限",
         ErrorKind::NotFound => "未找到同步库，请核对地址和同步库编号",
         ErrorKind::RateLimited => "网盘请求过于频繁，请稍后重试",
         ErrorKind::AlreadyExists => "同步目录已存在",
@@ -128,6 +274,9 @@ fn error(e: opendal::Error) -> String {
     .into()
 }
 pub fn validate_endpoint(endpoint: &str) -> Result<String, String> {
+    if super::cloud::provider(endpoint).is_some() {
+        return Ok(endpoint.into());
+    }
     let mut url = url::Url::parse(endpoint.trim()).map_err(|_| "请输入完整的 HTTPS WebDAV 地址")?;
     let allowed = url.scheme() == "https";
     #[cfg(test)]
@@ -173,6 +322,22 @@ fn client_with_compatibility(
     missing_parent_conflict: bool,
 ) -> Result<Operator, String> {
     let endpoint = validate_endpoint(endpoint)?;
+    let transport = transport(network, missing_parent_conflict, None, false)?;
+    let op = Operator::new(
+        Webdav::default()
+            .endpoint(endpoint.trim_end_matches('/'))
+            .username(username)
+            .password(password),
+    )
+    .map_err(error)?;
+    Ok(op.with_context(OperationContext::new().with_http_transport(transport)))
+}
+fn transport(
+    network: &NetworkSettings,
+    missing_parent_conflict: bool,
+    onedrive_app_root: Option<&str>,
+    cloud_service: bool,
+) -> Result<HttpTransporter, String> {
     // Use the same WebPKI trust roots as the Steam client on every platform.
     // reqwest 0.13's default Android verifier otherwise needs an extra JVM component.
     let provider = rustls::crypto::ring::default_provider();
@@ -211,20 +376,39 @@ fn client_with_compatibility(
         }
     };
     let client = builder.build().map_err(|_| "无法创建同步网络连接")?;
-    let op = Operator::new(
-        Webdav::default()
-            .endpoint(endpoint.trim_end_matches('/'))
-            .username(username)
-            .password(password),
-    )
-    .map_err(error)?;
-    Ok(op.with_context(
-        OperationContext::new().with_http_transport(HttpTransporter::new(StrictTransport {
-            inner: ReqwestTransport::new(client),
-            missing_parent_conflict,
-        })),
-    ))
+    Ok(HttpTransporter::new(StrictTransport {
+        inner: ReqwestTransport::new(client),
+        missing_parent_conflict,
+        onedrive_app_root: onedrive_app_root.map(str::to_owned),
+        cloud_service,
+    }))
 }
+pub fn cloud_client(
+    provider: super::cloud::Provider,
+    access: &str,
+    root: &str,
+    network: &NetworkSettings,
+) -> Result<Operator, String> {
+    use super::cloud::Provider;
+    use opendal::services::{Dropbox, Gdrive, Onedrive};
+    let op = match provider {
+        Provider::Google => {
+            Operator::new(Gdrive::default().root("/SteamGuard/").access_token(access))
+        }
+        Provider::Onedrive => Operator::new(Onedrive::default().root(root).access_token(access)),
+        Provider::Dropbox => Operator::new(Dropbox::default().root("/").access_token(access)),
+    }
+    .map_err(error)?;
+    Ok(
+        op.with_context(OperationContext::new().with_http_transport(transport(
+            network,
+            false,
+            (provider == Provider::Onedrive).then_some(root),
+            true,
+        )?)),
+    )
+}
+
 fn root(library: &str) -> Result<String, String> {
     let id = uuid::Uuid::parse_str(library).map_err(|_| "同步库编号无效")?;
     Ok(format!("steamguard-sync-v1/{id}/"))
@@ -396,6 +580,170 @@ pub async fn compact(
 
 #[cfg(test)]
 pub(crate) mod tests {
+    #[test]
+    fn graph_listing_paths_do_not_include_stat_or_content_requests() {
+        for path in [
+            "/v1.0/me/drive/root:/Apps/Test/steamguard-sync-v1:/children",
+            "/v1.0/me/drive/root/children",
+            "/v1.0/drives/drive/items/item/children",
+        ] {
+            assert!(super::onedrive_children_path(path));
+        }
+        for path in [
+            "/v1.0/me/drive/root:/Apps/children",
+            "/v1.0/me/drive/root:/Apps/Test/children:/content",
+            "/v1.0/me/drive/items/item/content",
+            "/v1.0/me/messages",
+        ] {
+            assert!(!super::onedrive_children_path(path));
+        }
+    }
+    const GRAPH_LIST: &str = r#"{
+      "value": [{
+        "id": "synthetic-item",
+        "name": "11111111-1111-4111-8111-111111111111",
+        "lastModifiedDateTime": "2026-01-01T00:00:00Z",
+        "eTag": "synthetic-etag",
+        "size": 0,
+        "parentReference": {
+          "path": "/drives/synthetic-drive/root:/Moved%20Folder/%E5%B7%A5%E4%BD%9C/steamguard-sync-v1",
+          "driveId": "synthetic-drive",
+          "id": "synthetic-parent"
+        },
+        "folder": {"childCount": 0}
+      }]
+    }"#;
+    fn graph_response(bytes: Vec<u8>) -> http::Response<HttpBody> {
+        let length = bytes.len() as u64;
+        http::Response::builder()
+            .status(200)
+            .body(HttpBody::new(
+                futures::stream::iter(vec![Ok(Buffer::from(bytes))]),
+                Some(length),
+            ))
+            .unwrap()
+    }
+    struct GraphMock;
+    impl HttpTransport for GraphMock {
+        async fn fetch(
+            &self,
+            request: http::Request<Buffer>,
+        ) -> opendal::Result<http::Response<HttpBody>> {
+            assert_eq!(request.uri().host(), Some("graph.microsoft.com"));
+            assert!(request
+                .uri()
+                .path()
+                .contains("/Moved%20Folder/%E5%B7%A5%E4%BD%9C/"));
+            if !request.uri().path().ends_with("/children") {
+                // OpenDAL stats the listed directory itself after fetching a page.
+                let listing: serde_json::Value = serde_json::from_str(GRAPH_LIST).unwrap();
+                let mut item = listing["value"][0].clone();
+                item["name"] = "steamguard-sync-v1".into();
+                return Ok(graph_response(serde_json::to_vec(&item).unwrap()));
+            }
+            super::normalize_onedrive_listing(
+                graph_response(GRAPH_LIST.as_bytes().to_vec()),
+                "/Moved Folder/工作/",
+            )
+            .await
+        }
+    }
+    #[tokio::test]
+    async fn graph_listing_adapter_keeps_moved_unicode_paths_compatible_with_opendal() {
+        let op = Operator::new(
+            opendal::services::Onedrive::default()
+                .root("/Moved Folder/工作/")
+                .access_token("synthetic-access"),
+        )
+        .unwrap()
+        .with_context(OperationContext::new().with_http_transport(HttpTransporter::new(GraphMock)));
+        assert_eq!(
+            libraries(&op).await.unwrap(),
+            vec!["11111111-1111-4111-8111-111111111111"]
+        );
+        let mut response = super::normalize_onedrive_listing(
+            graph_response(GRAPH_LIST.as_bytes().to_vec()),
+            "/Moved Folder/工作/",
+        )
+        .await
+        .unwrap();
+        let buffer = response.body_mut().to_buffer().await.unwrap();
+        assert_eq!(
+            response
+                .headers()
+                .get(http::header::CONTENT_LENGTH)
+                .unwrap(),
+            buffer.len().to_string().as_str()
+        );
+        let value: serde_json::Value = serde_json::from_slice(&buffer.to_vec()).unwrap();
+        assert_eq!(
+            value["value"][0]["parentReference"]["path"],
+            "/drive/root:/Moved Folder/工作/steamguard-sync-v1"
+        );
+        assert_eq!(value["value"][0]["eTag"], "synthetic-etag");
+    }
+    #[tokio::test]
+    async fn graph_listing_adapter_rejects_outside_paths_bad_escapes_and_foreign_pagination() {
+        for path in [
+            "/drive/root:/Outside",
+            "/drive/root:/Moved%20Folder/%2E%2E",
+            "/drive/root:/Moved%2FFolder",
+            "/evil/root:/Moved%20Folder/%E5%B7%A5%E4%BD%9C",
+        ] {
+            let mut value: serde_json::Value = serde_json::from_str(GRAPH_LIST).unwrap();
+            value["value"][0]["parentReference"]["path"] = path.into();
+            assert!(super::normalize_onedrive_listing(
+                graph_response(serde_json::to_vec(&value).unwrap()),
+                "/Moved Folder/工作/"
+            )
+            .await
+            .is_err());
+        }
+        for next in [
+            "https://evil.example/children",
+            "http://graph.microsoft.com/v1.0/me/drive/root/children",
+            "https://graph.microsoft.com/v1.0/me/messages",
+        ] {
+            let mut value: serde_json::Value = serde_json::from_str(GRAPH_LIST).unwrap();
+            value["@odata.nextLink"] = next.into();
+            assert!(super::normalize_onedrive_listing(
+                graph_response(serde_json::to_vec(&value).unwrap()),
+                "/Moved Folder/工作/"
+            )
+            .await
+            .is_err());
+        }
+        assert!(super::normalize_onedrive_listing(
+            graph_response(vec![b' '; 2 * 1024 * 1024 + 1]),
+            "/Moved Folder/工作/"
+        )
+        .await
+        .is_err());
+    }
+    #[test]
+    fn cloud_content_redirect_never_forwards_the_authorization_header() {
+        let request = super::cloud_download_request(
+            "https://public.dm.files.1drv.com/synthetic-file?authkey=synthetic-presigned",
+            Some(http::HeaderValue::from_static("bytes=0-99")),
+        )
+        .unwrap();
+        assert_eq!(request.method(), http::Method::GET);
+        assert_eq!(
+            request.headers().get(http::header::RANGE).unwrap(),
+            "bytes=0-99"
+        );
+        assert!(request.headers().get(http::header::AUTHORIZATION).is_none());
+        assert!(request.headers().get(http::header::COOKIE).is_none());
+        assert_eq!(request.headers().len(), 1);
+        for bad in [
+            "http://example.test/file",
+            "file:///private/file",
+            "https://user:password@example.test/file",
+            "//example.test/file",
+        ] {
+            assert!(super::cloud_download_request(bad, None).is_err());
+        }
+    }
     use super::*;
     use std::{
         collections::BTreeMap,

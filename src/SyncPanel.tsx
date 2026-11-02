@@ -4,6 +4,7 @@ import { Cloud, Copy, RefreshCw } from "lucide-react";
 import { api, errorText, native } from "./api";
 import { Modal } from "./Modal";
 import QRCode from "qrcode";
+import { CloudLogin, cloudProvider } from "./CloudLogin";
 import { SyncSetup } from "./SyncSetup";
 import type { SyncStatus, TokenView } from "./types";
 const CONFIG = "steamguard:sync-config";
@@ -138,11 +139,11 @@ export function SyncPanel({
           </div>
           <details className="token-details"><summary>{status.alias || translate("同步库名称与连接设置")}</summary>
             <form onSubmit={e => { e.preventDefault(); void run(() => api.syncSetAlias(alias.trim()), true); }}><label className="field-label" htmlFor="sync-alias">{translate("同步库别名")}</label><input id="sync-alias" value={alias} maxLength={80} placeholder={status.alias || translate("例如 我的手机和电脑")} disabled={working} onChange={e => setAlias(e.target.value)}/><div className="sync-actions"><button className="button secondary" disabled={working || !alias.trim()}>{translate("保存别名")}</button></div></form>
-            <div className="sync-actions"><button className="button secondary" disabled={working} onClick={() => { setBusy(true); setError(""); void api.syncConnectionInfo().then(async info => { setConfigText(info.connectionQr); setConfigImage(await QRCode.toDataURL(info.connectionQr, { width: 280, margin: 2 })); }).catch(e => setError(errorText(e))).finally(() => setBusy(false)); }}>{translate("显示加入配置二维码")}</button><button className="button secondary" disabled={working} onClick={() => { setCredentialEndpoint(status.endpoint); setCredentialUsername(status.username); setCredentialPassword(""); setError(""); setEditingCredentials(true); }}>{translate("更新网盘应用密码")}</button></div>
+            <div className="sync-actions"><button className="button secondary" disabled={working} onClick={() => { setBusy(true); setError(""); void api.syncConnectionInfo().then(async info => { setConfigText(info.connectionQr); setConfigImage(await QRCode.toDataURL(info.connectionQr, { width: 280, margin: 2 })); }).catch(e => setError(errorText(e))).finally(() => setBusy(false)); }}>{translate("显示加入配置二维码")}</button><button className="button secondary" disabled={working} onClick={() => { setCredentialEndpoint(status.endpoint); setCredentialUsername(status.username); setCredentialPassword(""); setError(""); setEditingCredentials(true); }}>{cloudProvider(status.endpoint) ? translate("重新登录网盘") : translate("更新网盘应用密码")}</button></div>
           </details>
           <dl className="sync-details">
-            <dt>WebDAV</dt>
-            <dd>{status.endpoint}</dd>
+            <dt>{cloudProvider(status.endpoint) ? translate("网盘服务") : "WebDAV"}</dt>
+            <dd>{cloudProvider(status.endpoint) ? status.username : status.endpoint}</dd>
             <dt>{translate("网盘账号")}</dt>
             <dd>{status.username}</dd>
             <dt>{translate("同步库编号")}</dt>
@@ -270,7 +271,16 @@ export function SyncPanel({
         </p>
       )}
       {configImage && <Modal title={translate("加入这个同步库")} onClose={() => { setConfigImage(""); setConfigText(""); }}><p className="dialog-intro">{translate("在另一台设备的同步设置中读取此配置二维码，再填写网盘应用密码和独立同步密码。二维码包含地址、账号和库编号，不含密码或令牌密钥。")}</p><div className="qr-login-panel"><img src={configImage} width={280} height={280} alt={translate("不含密码的同步配置二维码")}/></div><button className="button secondary full-width" onClick={() => void navigator.clipboard.writeText(configText).then(() => setMessage(translate("同步配置已复制。")), () => setError(translate("无法访问剪贴板。")))}>{translate("复制同步配置")}</button></Modal>}
-      {editingCredentials && <Modal title={translate("更新网盘应用密码")} onClose={() => { if (!busy) { setEditingCredentials(false); setCredentialPassword(""); } }}><form onSubmit={e => { e.preventDefault(); void run(async () => { const next = await api.syncUpdateCredentials({ endpoint: credentialEndpoint, username: credentialUsername, password: credentialPassword }); setCredentialPassword(""); setEditingCredentials(false); setMessage(translate("网盘连接已更新，同步库和历史已保留。")); return next; }, true); }}><p className="dialog-intro">{translate("更新当前库的连接凭据，保留同步库编号、独立同步密码和历史。")}</p><label className="field-label" htmlFor="sync-update-endpoint">{translate("WebDAV 地址")}</label><input id="sync-update-endpoint" type="url" required value={credentialEndpoint} disabled={working} onChange={e => setCredentialEndpoint(e.target.value)}/><label className="field-label" htmlFor="sync-update-user">{translate("网盘账号")}</label><input id="sync-update-user" required value={credentialUsername} disabled={working} onChange={e => setCredentialUsername(e.target.value)}/><label className="field-label" htmlFor="sync-update-password">{translate("新的网盘应用密码")}</label><input id="sync-update-password" type="password" autoComplete="off" required value={credentialPassword} disabled={working} onChange={e => setCredentialPassword(e.target.value)}/>{error && <p className="form-error" role="alert">{error}</p>}<div className="modal-actions"><button className="button primary" disabled={working || !credentialPassword}>{translate("验证并更新连接")}</button></div></form></Modal>}
+      {editingCredentials && cloudProvider(credentialEndpoint) ? <Modal title={translate("重新登录网盘")} onClose={() => { if (!busy) setEditingCredentials(false); }}>
+        <CloudLogin provider={cloudProvider(credentialEndpoint)!} disabled={working} onAuthorized={async authorization => {
+          setBusy(true); setError("");
+          try {
+            const next = await api.syncUpdateCredentials({endpoint: authorization.endpoint, username: authorization.username, password: authorization.handle});
+            setStatus(next); setEditingCredentials(false); setMessage(translate("网盘连接已更新，同步库和历史已保留。")); changed(); await onChange();
+          } catch (e) { setError(errorText(e)); throw e; }
+          finally { setBusy(false); }
+        }}/>{error && <p className="form-error" role="alert">{error}</p>}
+      </Modal> : editingCredentials && <Modal title={translate("更新网盘应用密码")} onClose={() => { if (!busy) { setEditingCredentials(false); setCredentialPassword(""); } }}><form onSubmit={e => { e.preventDefault(); void run(async () => { const next = await api.syncUpdateCredentials({ endpoint: credentialEndpoint, username: credentialUsername, password: credentialPassword }); setCredentialPassword(""); setEditingCredentials(false); setMessage(translate("网盘连接已更新，同步库和历史已保留。")); return next; }, true); }}><p className="dialog-intro">{translate("更新当前库的连接凭据，保留同步库编号、独立同步密码和历史。")}</p><label className="field-label" htmlFor="sync-update-endpoint">{translate("WebDAV 地址")}</label><input id="sync-update-endpoint" type="url" required value={credentialEndpoint} disabled={working} onChange={e => setCredentialEndpoint(e.target.value)}/><label className="field-label" htmlFor="sync-update-user">{translate("网盘账号")}</label><input id="sync-update-user" required value={credentialUsername} disabled={working} onChange={e => setCredentialUsername(e.target.value)}/><label className="field-label" htmlFor="sync-update-password">{translate("新的网盘应用密码")}</label><input id="sync-update-password" type="password" autoComplete="off" required value={credentialPassword} disabled={working} onChange={e => setCredentialPassword(e.target.value)}/>{error && <p className="form-error" role="alert">{error}</p>}<div className="modal-actions"><button className="button primary" disabled={working || !credentialPassword}>{translate("验证并更新连接")}</button></div></form></Modal>}
       {choosingLibrary && status?.configured && (
         <Modal
           title={translate("选择同步库并合并")}

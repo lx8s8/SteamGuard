@@ -263,6 +263,9 @@ name = "asyncband"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d2050892d4691cf110586070786712b504985a4d37ed64a9cd8a402718e1706"
+dependencies = [
+ "hashbrown 0.17.1",
+]
 
 [[package]]
 name = "atk"
@@ -447,6 +450,16 @@ dependencies = [
  "futures-io",
  "futures-lite",
  "piper",
+]
+
+[[package]]
+name = "blowfish"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e412e2cd0f2b2d93e02543ceae7917b3c70331573df19ee046bcbc35e45e87d7"
+dependencies = [
+ "byteorder",
+ "cipher",
 ]
 
 [[package]]
@@ -679,6 +692,7 @@ checksum = "773f3b9af64447d2ce9850330c473515014aa235e6a783b02db81ff39e4a3dad"
 dependencies = [
  "crypto-common 0.1.7",
  "inout",
+ "zeroize",
 ]
 
 [[package]]
@@ -3162,6 +3176,9 @@ checksum = "46081824c74bac9f68f0bc4408077f77b0e315c006514719c97af1c2227ac2d2"
 dependencies = [
  "opendal-core",
  "opendal-http-transport-reqwest",
+ "opendal-service-dropbox",
+ "opendal-service-gdrive",
+ "opendal-service-onedrive",
  "opendal-service-webdav",
 ]
 
@@ -3202,6 +3219,51 @@ dependencies = [
  "http-body",
  "opendal-core",
  "reqwest 0.13.5",
+]
+
+[[package]]
+name = "opendal-service-dropbox"
+version = "0.59.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6952471840ddbe7f622ab5e9d96d376edfe67d2d50a3d8dfa8de813909df6c4b"
+dependencies = [
+ "asyncband",
+ "bytes",
+ "http",
+ "opendal-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "opendal-service-gdrive"
+version = "0.59.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "451769a355989f8e5695f5158a47833162fdb34a3d2c1db06ffad1fb21e85ec4"
+dependencies = [
+ "asyncband",
+ "bytes",
+ "http",
+ "log",
+ "opendal-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "opendal-service-onedrive"
+version = "0.59.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b229d9fcb8e1ea2a467ac8a14e056658f835e014756844801cb5284b469e15f8"
+dependencies = [
+ "asyncband",
+ "bytes",
+ "http",
+ "log",
+ "opendal-core",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -4759,9 +4821,11 @@ dependencies = [
  "argon2",
  "automerge",
  "base64 0.22.1",
+ "blowfish",
  "cbc",
  "crc32fast",
  "data-encoding",
+ "flate2",
  "futures",
  "hmac",
  "http",
@@ -4773,6 +4837,7 @@ dependencies = [
  "opendal",
  "opendal-http-transport-reqwest",
  "pbkdf2",
+ "percent-encoding",
  "prost",
  "rand 0.8.8",
  "reqwest 0.12.28",
@@ -4793,6 +4858,7 @@ dependencies = [
  "tauri-plugin-autostart",
  "tauri-plugin-barcode-scanner",
  "tauri-plugin-clipboard-manager",
+ "tauri-plugin-cloud-auth",
  "tauri-plugin-dialog",
  "tauri-plugin-fs",
  "tauri-plugin-global-shortcut",
@@ -5184,6 +5250,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-plugin-cloud-auth"
+version = "0.1.0"
+dependencies = [
+ "plist",
+ "serde",
+ "tauri",
+ "tauri-plugin",
+ "zeroize",
+]
+
+[[package]]
 name = "tauri-plugin-dialog"
 version = "2.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5266,10 +5343,17 @@ dependencies = [
 name = "tauri-plugin-quick-access"
 version = "0.1.0"
 dependencies = [
+ "aes-gcm",
  "base64 0.22.1",
+ "cc",
+ "rand 0.8.8",
  "serde",
+ "serde_json",
+ "sha2 0.10.9",
  "tauri",
  "tauri-plugin",
+ "windows",
+ "zeroize",
 ]
 
 [[package]]

@@ -1,0 +1,15 @@
+[package]
+name = "tauri-plugin-cloud-auth"
+version = "0.1.0"
+edition = "2021"
+links = "tauri-plugin-cloud-auth"
+license = "GPL-3.0-only"
+
+[dependencies]
+tauri = "2"
+serde = { version = "1", features = ["derive"] }
+zeroize = { version = "1", features = ["derive"] }
+
+[build-dependencies]
+tauri-plugin = { version = "2", features = ["build"] }
+plist = "1"

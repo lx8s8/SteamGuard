@@ -10,6 +10,8 @@ use std::io::Cursor;
 
 mod encrypted;
 mod foreign;
+mod legacy;
+mod memorypack;
 pub mod qr;
 
 const MAX_IMPORT_BYTES: usize = 16 * 1024 * 1024;
@@ -30,7 +32,10 @@ pub fn parse_import(
     if data.is_empty() || data.len() > MAX_IMPORT_BYTES {
         return Err("导入文件为空或超过 16 MiB 限制".into());
     }
-    let mut result = if let Ok(text) = std::str::from_utf8(data) {
+    let mut result = if filename.to_ascii_lowercase().ends_with(".dat") {
+        let text = legacy::dat(data)?;
+        import_winauth_xml(&text, password)
+    } else if let Ok(text) = std::str::from_utf8(data) {
         let text = text.trim_start_matches('\u{feff}').trim();
         let first = text
             .lines()
@@ -42,7 +47,7 @@ pub fn parse_import(
         } else if text.starts_with('{') || text.starts_with('[') {
             import_json(text, password, filename)
         } else if text.starts_with('<') {
-            import_winauth_xml(text)
+            import_winauth_xml(text, password)
         } else {
             import_watt(data, password)
         }
@@ -215,76 +220,90 @@ fn decrypt_watt(data: &[u8], password: Option<&str>) -> Result<Vec<u8>, String> 
 }
 
 fn import_watt(data: &[u8], password: Option<&str>) -> Result<Vec<Token>, String> {
+    if let Some(result) = memorypack::detect(data, password) {
+        return result;
+    }
     let value = decode_mp(data, 0)?;
-    let rows = value.as_array().ok_or("WattToolkit 导出内容不是令牌列表")?;
+    import_watt_rows(value, password)
+}
+
+fn import_watt_rows(value: Mp, password: Option<&str>) -> Result<Vec<Token>, String> {
+    let value = legacy::SecretMp(value);
+    let rows = value
+        .0
+        .as_array()
+        .ok_or("WattToolkit 导出内容不是令牌列表")?;
     if rows.len() > MAX_RECORDS {
         return Err("令牌数量超过限制".into());
     }
-    rows.iter()
-        .map(|row| {
-            if map_get(row, "IsNotLocal").and_then(Mp::as_bool) == Some(false) {
-                return Err("此文件绑定原电脑，请关闭原软件的本机加密后重新导出".into());
+    let mut result = legacy::SecretTokens::default();
+    for row in rows {
+        if map_get(row, "IsNotLocal").and_then(Mp::as_bool) == Some(false) {
+            return Err("此文件绑定原电脑，请关闭原软件的本机加密后重新导出".into());
+        }
+        let name_data = map_get(row, "Name")
+            .and_then(mp_bytes)
+            .ok_or("导出记录缺少名称")?;
+        let name = String::from_utf8(decrypt_watt(&name_data, password)?)
+            .map_err(|_| "令牌名称不是有效 UTF-8")?;
+        let token_data = map_get(row, "Value")
+            .and_then(mp_bytes)
+            .ok_or("导出记录缺少令牌数据")?;
+        let plaintext = zeroize::Zeroizing::new(decrypt_watt(&token_data, password)?);
+        let token_value = legacy::SecretMp(decode_mp(&plaintext, 0)?);
+        let union = token_value
+            .0
+            .as_array()
+            .filter(|v| v.len() == 2)
+            .ok_or("令牌类型数据无效")?;
+        let platform = union[0].as_u64().ok_or("令牌平台无效")?;
+        let fields = &union[1];
+        let kind = match platform {
+            1 => "steam",
+            13 => "hotp",
+            11 => "battlenet",
+            5 | 12 | 14 => "totp",
+            _ => return Err("导出包含暂不支持的令牌平台".into()),
+        };
+        let secret = map_get(fields, "SecretKey")
+            .and_then(mp_bytes)
+            .ok_or("令牌密钥缺失")?;
+        let mut token = legacy::SecretToken::new(Token::new(name, kind.into(), secret));
+        token.issuer = field_str(fields, "Issuer").unwrap_or_else(|| {
+            if kind == "steam" {
+                "Steam".into()
+            } else {
+                String::new()
             }
-            let name_data = map_get(row, "Name")
-                .and_then(mp_bytes)
-                .ok_or("导出记录缺少名称")?;
-            let name = String::from_utf8(decrypt_watt(&name_data, password)?)
-                .map_err(|_| "令牌名称不是有效 UTF-8")?;
-            let token_data = map_get(row, "Value")
-                .and_then(mp_bytes)
-                .ok_or("导出记录缺少令牌数据")?;
-            let token_value = decode_mp(&decrypt_watt(&token_data, password)?, 0)?;
-            let union = token_value
-                .as_array()
-                .filter(|v| v.len() == 2)
-                .ok_or("令牌类型数据无效")?;
-            let platform = union[0].as_u64().ok_or("令牌平台无效")?;
-            let fields = &union[1];
-            let kind = match platform {
-                1 => "steam",
-                13 => "hotp",
-                11 => "battlenet",
-                5 | 12 | 14 => "totp",
-                _ => return Err("导出包含暂不支持的令牌平台".into()),
-            };
-            let secret = map_get(fields, "SecretKey")
-                .and_then(mp_bytes)
-                .ok_or("令牌密钥缺失")?;
-            let mut token = Token::new(name, kind.into(), secret);
-            token.issuer = field_str(fields, "Issuer").unwrap_or_else(|| {
-                if kind == "steam" {
-                    "Steam".into()
-                } else {
-                    String::new()
-                }
-            });
-            token.digits =
-                field_u64(fields, "CodeDigits").unwrap_or(if kind == "steam" { 5 } else { 6 })
-                    as u32;
-            token.period = field_u64(fields, "Period").unwrap_or(30);
-            token.counter = field_u64(fields, "Counter").unwrap_or(0);
-            token.algorithm = match field_u64(fields, "HMACType").unwrap_or(0) {
-                0 => "SHA1",
-                1 => "SHA256",
-                2 => "SHA512",
-                _ => return Err("未知的令牌哈希算法".into()),
+        });
+        token.digits =
+            field_u64(fields, "CodeDigits").unwrap_or(if kind == "steam" { 5 } else { 6 }) as u32;
+        token.period = field_u64(fields, "Period").unwrap_or(30);
+        token.counter = field_u64(fields, "Counter").unwrap_or(0);
+        token.algorithm = match field_u64(fields, "HMACType").unwrap_or(0) {
+            0 => "SHA1",
+            1 => "SHA256",
+            2 => "SHA512",
+            _ => return Err("未知的令牌哈希算法".into()),
+        }
+        .into();
+        token.device_id = field_str(fields, "DeviceId");
+        if let Some(text) = field_str(fields, "SteamData") {
+            let text = zeroize::Zeroizing::new(text);
+            let mut steam = encrypted::SecretJson(
+                serde_json::from_str(&text).map_err(|_| "Steam 令牌附加数据损坏")?,
+            );
+            apply_steam_data(&mut token, &steam.0);
+            token.steam_data = Some(std::mem::take(&mut steam.0));
+        }
+        if kind == "battlenet" {
+            if let Some(serial) = field_str(fields, "Serial") {
+                token.steam_data = Some(serde_json::json!({"serial": serial}));
             }
-            .into();
-            token.device_id = field_str(fields, "DeviceId");
-            if let Some(text) = field_str(fields, "SteamData") {
-                let steam: Json =
-                    serde_json::from_str(&text).map_err(|_| "Steam 令牌附加数据损坏")?;
-                apply_steam_data(&mut token, &steam);
-                token.steam_data = Some(steam);
-            }
-            if kind == "battlenet" {
-                if let Some(serial) = field_str(fields, "Serial") {
-                    token.steam_data = Some(serde_json::json!({"serial": serial}));
-                }
-            }
-            Ok(token)
-        })
-        .collect()
+        }
+        result.0.push(token.take());
+    }
+    Ok(std::mem::take(&mut result.0))
 }
 
 fn mp_map(fields: Vec<(&str, Mp)>) -> Mp {
@@ -444,17 +463,10 @@ fn decode_hex(text: &str) -> Result<Vec<u8>, String> {
         .collect()
 }
 
-fn import_winauth_xml(text: &str) -> Result<Vec<Token>, String> {
+fn import_winauth_xml(text: &str, password: Option<&str>) -> Result<Vec<Token>, String> {
+    let text = legacy::xml(text, password)?;
     let document =
-        roxmltree::Document::parse(text).map_err(|_| "WinAuth XML 格式错误（不允许 DTD）")?;
-    if document.descendants().filter(|n| n.is_element()).any(|n| {
-        n.attribute("encrypted")
-            .is_some_and(|v| !v.is_empty() && v != "false")
-    }) {
-        return Err(
-            "暂不支持加密的 WinAuth XML，请先在 WinAuth 中导出未加密 XML 或 otpauth 文本".into(),
-        );
-    }
+        roxmltree::Document::parse(&text).map_err(|_| "WinAuth XML 格式错误（不允许 DTD）")?;
     let rows: Vec<_> = document
         .descendants()
         .filter(|n| {
@@ -467,7 +479,10 @@ fn import_winauth_xml(text: &str) -> Result<Vec<Token>, String> {
     if rows.is_empty() {
         return Err("XML 中没有 WinAuthAuthenticator 记录".into());
     }
-    let mut result = Vec::new();
+    if rows.len() > MAX_RECORDS {
+        return Err("令牌数量超过限制".into());
+    }
+    let mut result = legacy::SecretTokens::default();
     for row in rows {
         let value_node = row
             .descendants()
@@ -503,7 +518,11 @@ fn import_winauth_xml(text: &str) -> Result<Vec<Token>, String> {
         let secret_data = find_text("secretdata").ok_or("WinAuth 记录缺少 secretdata")?;
         let parts: Vec<&str> = secret_data.split('|').collect();
         let options: Vec<&str> = parts[0].split('\t').collect();
-        let mut token = Token::new(name.into(), kind.into(), decode_hex(options[0])?);
+        let mut token = legacy::SecretToken::new(Token::new(
+            name.into(),
+            kind.into(),
+            decode_hex(options[0])?,
+        ));
         token.digits = options
             .get(1)
             .filter(|v| !v.is_empty())
@@ -559,9 +578,9 @@ fn import_winauth_xml(text: &str) -> Result<Vec<Token>, String> {
             token.issuer = "Battle.net".into();
             token.steam_data = Some(serde_json::json!({"serial": hex_text(1)?}));
         }
-        result.push(token);
+        result.0.push(token.take());
     }
-    Ok(result)
+    Ok(std::mem::take(&mut result.0))
 }
 
 fn json_string(v: &Json, keys: &[&str]) -> Option<String> {
@@ -908,7 +927,7 @@ mod tests {
         assert!(tokens[0].steam_id.is_none());
     }
     #[test]
-    fn imports_plain_winauth_xml_and_rejects_encrypted() {
+    fn imports_plain_winauth_xml_and_rejects_corrupt_encryption() {
         let tokens = parse_import(br#"<WinAuth><WinAuthAuthenticator type="WinAuth.GoogleAuthenticator"><name>Fixture</name><authenticatordata><secretdata>31323334353637383930</secretdata></authenticatordata></WinAuthAuthenticator></WinAuth>"#, None, "fixture.xml").unwrap();
         assert_eq!(tokens[0].name, "Fixture");
         assert_eq!(tokens[0].secret, b"1234567890");
@@ -919,7 +938,7 @@ mod tests {
         )
         .err()
         .unwrap()
-        .contains("加密"));
+        .contains("解密"));
     }
 
     #[test]

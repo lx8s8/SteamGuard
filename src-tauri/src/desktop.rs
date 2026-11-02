@@ -1,7 +1,9 @@
 //! Desktop-only tray and a deliberately small, read-only token popup.
 use crate::{models::TokenView, quick_access::QuickAccess, AppState};
 use serde::Serialize;
-use tauri::{AppHandle, Manager, State};
+#[cfg(desktop)]
+use tauri::Manager;
+use tauri::{AppHandle, State};
 
 pub const POPUP: &str = "quick-tokens";
 pub fn allowed_invoke(label: &str, command: &str) -> bool {
@@ -366,7 +368,7 @@ mod platform {
                     let _ = window.hide();
                 }
                 #[cfg(target_os = "macos")]
-                let _ = app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+                app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             }
             // The same popup can also be opened from the native application menu.
             if let Some(menu) = app.menu() {
