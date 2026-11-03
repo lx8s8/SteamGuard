@@ -1,0 +1,84 @@
+name: Resume verified release publication
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing stable release tag (for example v1.6.0)
+        required: true
+        type: string
+      run_id:
+        description: Completed package.yml tag-push run with all 7 build/test jobs successful
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-resume-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Verify existing build artifacts and publish draft
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ inputs.tag }}
+      SOURCE_RUN: ${{ inputs.run_id }}
+    steps:
+      - name: Check out publication guards
+        uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Verify tag source and all original build/test results
+        id: source
+        run: node scripts/verify-release-source.mjs "$TAG" "$SOURCE_RUN"
+      - name: Check out the exact verified source commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.source.outputs.source_sha }}
+          path: source
+          persist-credentials: false
+      - name: Download only the verified immutable original artifacts
+        uses: actions/download-artifact@v8
+        with:
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.source.outputs.run_id }}
+          artifact-ids: ${{ steps.source.outputs.artifact_ids }}
+          digest-mismatch: error
+          path: downloaded-artifacts
+      - name: Collect installers and verify updater signatures again
+        working-directory: source
+        run: GITHUB_REF_NAME="$TAG" node scripts/collect-release.mjs ../downloaded-artifacts ../release
+      - name: Upload to the existing draft, verify every asset, then publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view "$TAG" --json apiUrl,isDraft > "$RUNNER_TEMP/resume-draft.json"
+          api_url=$(node --input-type=module - "$RUNNER_TEMP/resume-draft.json" <<'JS'
+          import fs from 'node:fs';
+          const value=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          const expected=`${process.env.GITHUB_API_URL}/repos/${process.env.GITHUB_REPOSITORY}/releases/`;
+          if(value.isDraft!==true || typeof value.apiUrl!=='string' || !value.apiUrl.startsWith(expected) || !/^[1-9]\d*$/.test(value.apiUrl.slice(expected.length))) throw new Error('Expected an existing draft release in this repository');
+          process.stdout.write(value.apiUrl);
+          JS
+          )
+          gh release upload "$TAG" release/* --clobber
+          node scripts/verify-release-source.mjs "$TAG" "$SOURCE_RUN"
+          gh api "$api_url" > "$RUNNER_TEMP/resume-release.json"
+          node --input-type=module - "$RUNNER_TEMP/resume-release.json" <<'JS'
+          import fs from 'node:fs';
+          const value=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          if(value.draft!==true || value.tag_name!==process.env.TAG) throw new Error('Draft release identity changed');
+          JS
+          node scripts/verify-release-assets.mjs "$RUNNER_TEMP/resume-release.json" release
+          gh release edit "$TAG" --draft=false --prerelease=false --latest

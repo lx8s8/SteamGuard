@@ -318,6 +318,7 @@ jobs:
             gh release create "$tag" --verify-tag --draft --title "SteamGuard $tag" --notes-file "$RUNNER_TEMP/release-notes.md"
           fi
           gh release upload "$tag" release/* --clobber
-          gh api "repos/$GH_REPO/releases/tags/$tag" > "$RUNNER_TEMP/release-rest.json"
+          release_api=$(gh release view "$tag" --json apiUrl --jq '.apiUrl')
+          gh api "$release_api" > "$RUNNER_TEMP/release-rest.json"
           node scripts/verify-release-assets.mjs "$RUNNER_TEMP/release-rest.json" release
           gh release edit "$tag" --draft=false --prerelease=false --latest
