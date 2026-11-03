@@ -1,7 +1,7 @@
 {
   "name": "steamguard",
   "private": true,
-  "version": "1.6.0",
+  "version": "1.6.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -37,6 +37,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-i18next": "17.1.11",
+    "simple-icons": "^16.36.0",
     "zxing-wasm": "3.1.6"
   },
   "devDependencies": {

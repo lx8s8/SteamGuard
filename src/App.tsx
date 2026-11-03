@@ -23,7 +23,6 @@ import {
   Download,
   Ellipsis,
   FileKey2,
-  FolderOpen,
   Fingerprint,
   Globe2,
   KeyRound,
@@ -142,7 +141,6 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [entryTarget, setEntryTarget] = useState<string | null>(null);
   const [groups, setGroups] = useState<string[]>([]);
-  const [groupFilter, setGroupFilter] = useState("all");
   const [groupsOpen, setGroupsOpen] = useState(false);
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("name");
@@ -276,12 +274,11 @@ export default function App() {
   }, [notification]);
   useEffect(() => {
     if (
-      groupFilter !== "all" &&
-      groupFilter !== "ungrouped" &&
-      !groups.includes(groupFilter.slice(6))
+      filter.startsWith("group:") &&
+      !groups.includes(filter.slice(6))
     )
-      setGroupFilter("all");
-  }, [groups, groupFilter]);
+      setFilter("all");
+  }, [groups, filter]);
   useEffect(() => {
     setSelected(previous => {
       const next = previous.filter(id => tokens.some(token => token.id === id));
@@ -298,7 +295,7 @@ export default function App() {
       setPage((value) =>
         value === "market" || value === "confirmations" ? "tokens" : value,
       );
-      setFilter("all");
+      setFilter((value) => value === "steam" || value === "other" ? "all" : value);
     }
   }, [hasSteam]);
   const active = steamTokens.find((t) => t.id === account) ?? steamTokens[0];
@@ -322,7 +319,7 @@ export default function App() {
         const next = await call<{ action: "open" | "copy"; id: string | null } | null>("system_entry_take");
         if (!next || disposed || epoch !== accessEpoch.current || statusRef.current?.locked) return;
         setPage("tokens");
-        setGroupFilter("all"); setFilter("all"); setSelecting(false);
+        setFilter("all"); setSelecting(false);
         if (next.id) {
           const token = tokens.find(token => token.id === next.id);
           if (token) { setSearch(token.name); setEntryTarget(token.id); }
@@ -455,11 +452,9 @@ export default function App() {
       (t) =>
         (filter === "all" ||
           (filter === "other" && t.kind !== "steam") ||
-          t.kind === filter) &&
-        (groupFilter === "all" ||
-          (groupFilter === "ungrouped"
-            ? !t.group
-            : t.group === groupFilter.slice(6))) &&
+          (filter === "steam" && t.kind === "steam") ||
+          (filter === "ungrouped" && !t.group) ||
+          (filter.startsWith("group:") && t.group === filter.slice(6))) &&
         `${t.name} ${t.issuer} ${t.accountName ?? ""}`
           .toLowerCase()
           .includes(search.toLowerCase()),
@@ -485,6 +480,23 @@ export default function App() {
       if (success) notify(success);
       await refresh();
     } catch (e) {
+      notify(errorText(e), true);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const unlockFromPreview = async () => {
+    if (busy) return;
+    if (!status?.biometricEnabled) {
+      setShowUnlock(true);
+      return;
+    }
+    setBusy(true);
+    try {
+      await api.biometricUnlock();
+      await refresh();
+    } catch (e) {
+      setShowUnlock(true);
       notify(errorText(e), true);
     } finally {
       setBusy(false);
@@ -600,10 +612,14 @@ export default function App() {
           <div className="page-heading">
             <div>
               <h1>{current.label}</h1>
+              {page === "tokens" && previewMode && !showUnlock && <span className="preview-heading-label">{translate("只读预览")}</span>}
             </div>
             <div className="heading-actions">
               {page === "tokens" && (
                 <>
+                  {previewMode && !showUnlock && <button className="button secondary preview-unlock" disabled={busy} onClick={() => void unlockFromPreview()}>
+                    {busy ? <Spinner /> : <LockKeyhole size={16} />}{translate("解锁")}
+                  </button>}
                   <button
                     className="button secondary desktop-export"
                     disabled={!unlocked || !tokens.length}
@@ -653,91 +669,46 @@ export default function App() {
             <>
               {page === "tokens" && (
                 <>
-                  {previewMode && (
-                    <div className="preview-notice">
-                      <span>{translate("只读预览")}</span>
-                      <button
-                        className="button secondary"
-                        onClick={() => setShowUnlock(true)}
-                      >{translate("解锁")}</button>
-                    </div>
-                  )}
                   <div className="section-toolbar">
-                    {hasSteam && (
-                      <div className="token-tabs">
-                        <button
-                          className={filter === "all" ? "selected" : ""}
-                          onClick={() => setFilter("all")}
-                        >{translate("全部")}</button>
-                        <button
-                          className={filter === "steam" ? "selected" : ""}
-                          onClick={() => setFilter("steam")}
-                        >
-                          Steam
-                        </button>
-                        <button
-                          className={filter === "other" ? "selected" : ""}
-                          onClick={() =>
-                            setFilter(filter === "other" ? "all" : "other")
-                          }
-                        >{translate("其他令牌")}</button>
-                      </div>
-                    )}
+                    <div className="token-tabs" role="group" aria-label={translate("分组筛选")}>
+                      <button className={filter === "all" ? "selected" : ""} onClick={() => setFilter("all")}>{translate("全部")}</button>
+                      {hasSteam && <>
+                        <button className={filter === "steam" ? "selected" : ""} onClick={() => setFilter("steam")}>Steam</button>
+                        <button className={filter === "other" ? "selected" : ""} onClick={() => setFilter("other")}>{translate("其他令牌")}</button>
+                      </>}
+                      {!!groups.length && <button className={filter === "ungrouped" ? "selected" : ""} onClick={() => setFilter("ungrouped")}>{translate("未分组")}</button>}
+                      {groups.map((group) => <button key={group} className={filter === "group:" + group ? "selected" : ""} onClick={() => setFilter("group:" + group)}>{group}</button>)}
+                    </div>
                     <div className="toolbar-right">
                       <label className="search-box">
                         <Search size={16} />
                         <input
                           value={search}
                           onChange={(e) => setSearch(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
                           placeholder={translate("搜索")}
                           aria-label={translate("搜索令牌")}
                         />
                       </label>
                       <label className="sort-select" title={translate("排序")}>
                         <SlidersHorizontal size={16} />
-                        <select
-                          value={sort}
-                          onChange={(e) => setSort(e.target.value)}
-                          aria-label={translate("令牌排序")}
-                        >
+                        <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label={translate("令牌排序")}>
                           <option value="manual">{translate("手动排序")}</option>
                           <option value="name">{translate("按名称")}</option>
                           <option value="type">{translate("按类型")}</option>
                         </select>
                         <ChevronDown size={12} />
                       </label>
+                      {unlocked && <details className="token-tools" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.removeAttribute("open"); }} onKeyDown={(e) => { if (e.key === "Escape") e.currentTarget.removeAttribute("open"); }}>
+                        <summary role="button" className="icon-button" aria-label={translate("管理令牌")} title={translate("管理令牌")}><Ellipsis size={20} /></summary>
+                        <div className="token-tools-menu">
+                          <button onClick={(e) => { e.currentTarget.closest("details")?.removeAttribute("open"); setGroupsOpen(true); }}>{translate("管理分组")}</button>
+                          <button disabled={busy || !tokens.length} onClick={(e) => { e.currentTarget.closest("details")?.removeAttribute("open"); setSelecting(!selecting); setSelected([]); }}>{selecting ? translate("退出批量选择") : translate("批量管理")}</button>
+                          <button onClick={(e) => { e.currentTarget.closest("details")?.removeAttribute("open"); setTrashOpen(true); }}>{translate("回收站")}</button>
+                        </div>
+                      </details>}
                     </div>
                   </div>
-                  <div className="group-toolbar">
-                    <label>
-                      <FolderOpen size={17} />
-                      <select
-                        aria-label={translate("分组筛选")}
-                        value={groupFilter}
-                        onChange={(e) => setGroupFilter(e.target.value)}
-                      >
-                        <option value="all">{translate("全部分组")}</option>
-                        <option value="ungrouped">{translate("未分组")}</option>
-                        {groups.map((g) => (
-                          <option key={g} value={"group:" + g}>
-                            {g}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <button
-                      className="icon-button"
-                      aria-label={translate("管理分组")}
-                      disabled={!unlocked}
-                      onClick={() => setGroupsOpen(true)}
-                    >
-                      <Settings2 size={19} />
-                    </button>
-                  </div>
-                  {unlocked && <div className="token-management-toolbar">
-                    <button className="button text" disabled={busy || !tokens.length} onClick={() => { setSelecting(!selecting); setSelected([]); }}>{selecting ? translate("退出批量选择") : translate("批量管理")}</button>
-                    <button className="button text" onClick={() => setTrashOpen(true)}>{translate("回收站")}</button>
-                  </div>}
                   {selecting && <div className="batch-toolbar" role="region" aria-label={translate("批量管理令牌")}>
                     <label><input type="checkbox" aria-label={translate("选择当前筛选的全部令牌")} disabled={busy} ref={node => { if (node) node.indeterminate = visibleTokens.some(token => selected.includes(token.id)) && !visibleTokens.every(token => selected.includes(token.id)); }} checked={!!visibleTokens.length && visibleTokens.every(t => selected.includes(t.id))} onChange={e => setSelected(e.target.checked ? [...new Set([...selected, ...visibleTokens.map(t => t.id)])] : selected.filter(id => !visibleTokens.some(t => t.id === id)))} />{translate("已选 {{count}} 项", { count: selected.length })}</label>
                     <select aria-label={translate("批量目标分组")} disabled={busy} value={batchGroup} onChange={e => setBatchGroup(e.target.value)}><option value="">{translate("未分组")}</option>{groups.map(g => <option key={g}>{g}</option>)}</select>
@@ -746,13 +717,9 @@ export default function App() {
                     <button className="button secondary" disabled={busy || !selected.length} onClick={() => void batch("pin", { pinned: false })}>{translate("取消置顶")}</button>
                     <button className="button text danger-text" disabled={busy || !selected.length} onClick={() => setBatchDelete(true)}>{translate("删除")}</button>
                   </div>}
-                  {visibleTokens.filter(
-                    (t) => filter !== "other" || t.kind !== "steam",
-                  ).length ? (
+                  {visibleTokens.length ? (
                     <div className="token-grid">
-                      {visibleTokens
-                        .filter((t) => filter !== "other" || t.kind !== "steam")
-                        .map((token) => (
+                      {visibleTokens.map((token) => (
                           <article data-token-id={token.id} className={`token-card ${selected.includes(token.id) ? "token-selected" : ""}`} key={token.id}
                             draggable={unlocked && !busy && sort === "manual" && !selecting}
                             onDragStart={e => { dragging.current = token.id; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", token.id); }}
@@ -836,7 +803,7 @@ export default function App() {
                                   onClick={() =>
                                     unlocked
                                       ? setLoginToken(token)
-                                      : setShowUnlock(true)
+                                      : void unlockFromPreview()
                                   }
                                 >
                                   {previewMode ? (
@@ -877,7 +844,6 @@ export default function App() {
                         onClick={() => {
                           setSearch("");
                           setFilter("all");
-                          setGroupFilter("all");
                         }}
                       >{translate("清除筛选")}</button>
                     </div>

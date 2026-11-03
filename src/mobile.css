@@ -722,9 +722,16 @@
     left: calc(16px + env(safe-area-inset-left));
     right: calc(16px + env(safe-area-inset-right));
     bottom: calc(86px + env(safe-area-inset-bottom));
+    width: auto;
+    transform: none;
     font-size: 14px;
     padding: 14px 16px;
     max-width: none;
+  }
+  .toast > span {
+    min-width: 0;
+    flex: 1;
+    overflow-wrap: anywhere;
   }
   .preview-notice {
     flex-direction: column;

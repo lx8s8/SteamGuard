@@ -157,6 +157,14 @@ body {
 .token-tabs button.selected::after {
   display: none;
 }
+.token-tabs button > span {
+  color: var(--text);
+  background: var(--soft);
+}
+.token-tabs button.selected > span {
+  color: var(--text);
+  background: var(--panel);
+}
 .search-box {
   flex: 1;
   width: auto;
@@ -697,6 +705,7 @@ textarea::placeholder {
 .icon-options button.selected {
   background: var(--accent-soft);
   border-color: var(--accent-line);
+  color: var(--text);
 }
 .icon-options button > span:last-child {
   max-width: 100%;
@@ -1142,3 +1151,64 @@ textarea {
 @media (max-width:700px), (pointer:coarse) { .import-tabs { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 /* Dialog actions stay above transient notifications. */
 .toast { z-index:90; }
+
+.preview-heading-label {
+  display: inline-block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+@media (max-width: 900px), (max-width: 1200px) and (pointer: coarse) {
+  .page-heading .preview-unlock {
+    min-height: 40px;
+    padding: 8px 12px;
+    white-space: nowrap;
+  }
+}
+
+/* Keep token filters together and leave room for the list on small screens. */
+.token-tabs {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.token-tabs::-webkit-scrollbar { display: none; }
+.token-tabs button { flex: 0 0 auto; }
+.token-tools { position: relative; flex: 0 0 auto; }
+.token-tools summary { display: grid; place-items: center; cursor: pointer; list-style: none; }
+.token-tools summary::-webkit-details-marker { display: none; }
+.token-tools-menu {
+  position: absolute;
+  z-index: 10;
+  right: 0;
+  top: calc(100% + 4px);
+  min-width: 150px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px #0003;
+}
+.token-tools-menu button {
+  display: block;
+  width: 100%;
+  padding: 9px 10px;
+  text-align: left;
+  color: var(--text);
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  white-space: nowrap;
+}
+.token-tools-menu button:hover, .token-tools-menu button:focus-visible { background: var(--soft); }
+.token-tools-menu button:disabled { opacity: .45; }
+@media (max-width: 700px) {
+  .section-toolbar { gap: 6px; margin-bottom: 10px; }
+  .token-tabs { width: 100%; height: auto; gap: 4px; }
+  .token-tabs button { min-height: 36px; padding: 6px 9px; font-size: 13px; }
+  .toolbar-right { gap: 6px; }
+  .search-box, .sort-select { height: 40px; }
+  .search-box input { min-height: 38px; }
+  .sort-select select { max-width: 100px; }
+}

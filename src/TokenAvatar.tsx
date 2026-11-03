@@ -48,7 +48,10 @@ import {
   faWeixin,
   faQq,
   faAlipay,
+  faPlaystation,
+  faXbox,
 } from "@fortawesome/free-brands-svg-icons";
+import { siSony, siEpicgames, siUbisoft, siEa, siRiotgames, siGogdotcom } from "simple-icons";
 import type { TokenView } from "./types";
 import { errorText } from "./api";
 
@@ -56,11 +59,21 @@ type Brand = {
   id: string;
   name: string;
   color: string;
-  icon: typeof faSteam;
+  icon: typeof faSteam | { path: string };
   aliases: string;
 };
 export const brands: Brand[] = [
   ["steam", "Steam", "#173b63", faSteam, "steam 蒸汽"],
+  // A simple Joy-Con silhouette for Nintendo, which is not in the icon packages.
+  ["nintendo", "Nintendo", "#e60012", { path: "M9 2H7a5 5 0 0 0-5 5v10a5 5 0 0 0 5 5h2V2zm-2 2v16a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3zm-1 3a1.25 1.25 0 1 0 0 2.5A1.25 1.25 0 0 0 6 7zm5-5v20h6a5 5 0 0 0 5-5V7a5 5 0 0 0-5-5h-6zm5.5 11a1.75 1.75 0 1 1 0 3.5 1.75 1.75 0 0 1 0-3.5z" }, "nintendo nintendoswitch 任天堂 ns"],
+  ["sony", "Sony", "#333333", siSony, "sony 索尼"],
+  ["playstation", "PlayStation", "#006fcd", faPlaystation, "playstation playstationnetwork psn ps"],
+  ["xbox", "Xbox", "#107c10", faXbox, "xbox xboxlive"],
+  ["epicgames", "Epic Games", "#313131", siEpicgames, "epic epicgames 堡垒之夜"],
+  ["ubisoft", "Ubisoft", "#2367d1", siUbisoft, "ubisoft uplay 育碧"],
+  ["ea", "EA", "#e43229", siEa, "ea electronicarts origin"],
+  ["riotgames", "Riot Games", "#eb0029", siRiotgames, "riot riotgames 拳头"],
+  ["gog", "GOG", "#86328a", siGogdotcom, "gog gog.com"],
   ["google", "Google", "#4285f4", faGoogle, "google gmail 谷歌"],
   [
     "microsoft",
@@ -178,14 +191,14 @@ export function TokenAvatar({
         aria-label={brand.name}
       >
         <svg
-          viewBox={`0 0 ${brand.icon.icon[0]} ${brand.icon.icon[1]}`}
+          viewBox={"icon" in brand.icon ? `0 0 ${brand.icon.icon[0]} ${brand.icon.icon[1]}` : "0 0 24 24"}
           aria-hidden="true"
         >
-          {(Array.isArray(brand.icon.icon[4])
-            ? brand.icon.icon[4]
-            : [brand.icon.icon[4]]
+          {("icon" in brand.icon
+            ? (Array.isArray(brand.icon.icon[4]) ? brand.icon.icon[4] : [brand.icon.icon[4]])
+            : [brand.icon.path]
           ).map((path, i) => (
-            <path key={i} d={path} fill="currentColor" />
+            <path key={i} d={path} fill="currentColor" fillRule={brand.id === "nintendo" ? "evenodd" : undefined} />
           ))}
         </svg>
       </span>

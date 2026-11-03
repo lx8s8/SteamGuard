@@ -102,9 +102,9 @@ async function nativeFixture(page: Page) {
       });
     const quickScenario = new URLSearchParams(location.search).get("quick");
     let locked = !!quickScenario;
-    let previewEnabled = quickScenario === "preview";
+    let previewEnabled = ["preview", "preview-biometric", "preview-cancel"].includes(quickScenario ?? "");
     let biometricEnabled =
-      quickScenario === "biometric" || quickScenario === "cancel";
+      ["biometric", "cancel", "preview-biometric", "preview-cancel"].includes(quickScenario ?? "");
     let previewActive = false;
     const groups: string[] = [];
     let autoBackup = true;
@@ -493,7 +493,7 @@ async function nativeFixture(page: Page) {
                   }))
                 : [];
             case "quick_biometric_unlock":
-              if (quickScenario === "cancel")
+              if (quickScenario === "cancel" || quickScenario === "preview-cancel")
                 throw new Error("验证已取消，请使用主密码");
               locked = false;
               previewActive = false;
@@ -1137,6 +1137,25 @@ test("startup preview exposes codes while keeping privileged actions locked", as
   expect(await commandCount(page, "vault_unlock")).toBe(1);
 });
 
+test("preview unlock starts device authentication immediately and keeps password fallback", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/?quick=preview-biometric");
+  await expect(page.getByText("只读预览", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "解锁", exact: true }).click();
+  await expect(page.getByText("只读预览", { exact: true })).toHaveCount(0);
+  expect(await commandCount(page, "quick_biometric_unlock")).toBe(1);
+  expect(await commandCount(page, "vault_unlock")).toBe(0);
+
+  await page.goto("/?quick=preview-cancel");
+  await page.getByRole("button", { name: "解锁", exact: true }).click();
+  await expect(page.getByLabel("解锁密码", { exact: true })).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("验证已取消");
+  expect(await commandCount(page, "quick_biometric_unlock")).toBe(1);
+  await page.getByLabel("解锁密码", { exact: true }).fill("synthetic-vault-password");
+  await page.getByRole("button", { name: "解锁保险库", exact: true }).click();
+  await expect(page.getByLabel("解锁密码", { exact: true })).toHaveCount(0);
+});
+
 test("device authentication opens the vault and cancellation leaves the password fallback usable", async ({
   page,
 }) => {
@@ -1214,6 +1233,7 @@ for (const width of [320, 390, 768, 844]) {
 test("custom groups can be created, assigned, renamed and deleted without deleting tokens", async ({
   page,
 }) => {
+  await page.getByRole("button", { name: "管理令牌", exact: true }).click();
   await page.getByRole("button", { name: "管理分组", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("新建分组", { exact: true }).fill("邮箱");
@@ -1226,11 +1246,12 @@ test("custom groups can be created, assigned, renamed and deleted without deleti
   await dialog.getByLabel("分组", { exact: true }).selectOption("邮箱");
   await dialog.getByRole("button", { name: "保存", exact: true }).click();
   await expect(dialog).toHaveCount(0);
-  await page.getByLabel("分组筛选").selectOption("group:邮箱");
+  await page.getByLabel("分组筛选").getByRole("button", { name: "邮箱", exact: true }).click();
   await expect(page.locator(".token-card")).toHaveCount(1);
   await expect(
     page.getByRole("heading", { name: "测试 · 通用 OTP", exact: true }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "管理令牌", exact: true }).click();
   await page.getByRole("button", { name: "管理分组", exact: true }).click();
   await dialog
     .getByRole("button", { name: "重命名分组 邮箱", exact: true })
@@ -1246,7 +1267,7 @@ test("custom groups can be created, assigned, renamed and deleted without deleti
     .click();
   await expect(dialog.getByText("工作", { exact: true })).toHaveCount(0);
   await dialog.getByRole("button", { name: "关闭", exact: true }).click();
-  await page.getByLabel("分组筛选").selectOption("ungrouped");
+  await expect(page.getByLabel("分组筛选").getByRole("button", { name: "全部", exact: true })).toHaveClass(/selected/);
   await expect(
     page.getByRole("heading", { name: "测试 · 通用 OTP", exact: true }),
   ).toBeVisible();
@@ -1319,7 +1340,7 @@ test("an encrypted import can merge groups even when every token already exists"
   ).toBeEnabled();
   await dialog.getByRole("button", { name: "确认导入", exact: true }).click();
   await expect(dialog).toHaveCount(0);
-  await page.getByLabel("分组筛选").selectOption("group:恢复分组");
+  await page.getByLabel("分组筛选").getByRole("button", { name: "恢复分组", exact: true }).click();
   await expect(page.locator(".token-card")).toHaveCount(1);
 });
 
@@ -1933,6 +1954,17 @@ test("service icons and custom avatars save with token edits, can be cancelled a
   await manage();
   let dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: "更换头像", exact: true }).click();
+  for (const [query, name] of [["任天堂", "Nintendo"], ["索尼", "Sony"], ["psn", "PlayStation"], ["微软", "Microsoft"], ["xbox", "Xbox"], ["育碧", "Ubisoft"]]) {
+    await dialog.getByLabel("搜索图标").fill(query);
+    await expect(dialog.getByLabel(`选择 ${name} 图标`, { exact: true })).toBeVisible();
+  }
+  await dialog.getByLabel("搜索图标").fill("任天堂");
+  await dialog.getByLabel("选择 Nintendo 图标", { exact: true }).click();
+  await dialog.getByRole("button", { name: "保存", exact: true }).click();
+  const nintendoCard = page.locator(".token-card").filter({ hasText: "测试 · 通用 OTP" });
+  await expect(nintendoCard.getByLabel("Nintendo", { exact: true })).toBeVisible();
+  await manage();
+  await dialog.getByRole("button", { name: "更换头像", exact: true }).click();
   await dialog.getByLabel("搜索图标").fill("github");
   await dialog.getByLabel("选择 GitHub 图标", { exact: true }).click();
   await dialog.getByRole("button", { name: "保存", exact: true }).click();
@@ -2099,6 +2131,7 @@ test("manual HOTP creation and generic parameter editing preserve advanced value
 });
 
 test("batch deletion can be undone and trash permanent deletion requires review", async ({ page }) => {
+  await page.getByRole("button", { name: "管理令牌", exact: true }).click();
   await page.getByRole("button", { name: "批量管理", exact: true }).click();
   await page.getByLabel("选择 测试 · 通用 OTP", { exact: true }).check();
   await page.getByRole("region", { name: "批量管理令牌" }).getByRole("button", { name: "删除", exact: true }).click();
@@ -2110,6 +2143,7 @@ test("batch deletion can be undone and trash permanent deletion requires review"
   await page.getByRole("button", { name: "管理 测试 · 通用 OTP", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "删除令牌", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "确认删除", exact: true }).click();
+  await page.getByRole("button", { name: "管理令牌", exact: true }).click();
   await page.getByRole("button", { name: "回收站", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("checkbox").check();
@@ -2710,4 +2744,22 @@ test("iCloud retries a metadata change skipped while busy and stops watching whe
     document.dispatchEvent(new Event("visibilitychange"));
   });
   await expect.poll(async()=>page.evaluate(()=>(window as any).__testCommands.filter((c:any)=>c.command==="icloud_watch").at(-1)?.args.enabled)).toBe(false);
+});
+
+test("mobile toast stays centered and wraps within the viewport", async ({ page }) => {
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 720 });
+    await page.goto("/?quick=cancel");
+    const toast = page.locator(".toast");
+    await expect(toast).toBeVisible();
+    await toast.locator("span").evaluate((element) => {
+      element.textContent = "A long notification message with an unbroken path: " + "example".repeat(30);
+    });
+    const bounds = await toast.boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds!.x).toBeGreaterThanOrEqual(0);
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
+    expect(Math.abs(bounds!.x - (width - bounds!.x - bounds!.width))).toBeLessThanOrEqual(1);
+    expect(await toast.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+  }
 });

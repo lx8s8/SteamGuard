@@ -44,6 +44,9 @@ Service artwork: Font Awesome Free Brands 7.3.1, Fonticons, Inc.
 https://fontawesome.com
 SVG artwork is licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).
 Brand SVG paths are rendered without changes; original colors are chosen by this app.
+Additional service artwork: Simple Icons 16.36.0, Simple Icons Contributors.
+https://simpleicons.org — CC0 1.0 Universal (https://creativecommons.org/publicdomain/zero/1.0/).
+The Nintendo icon is a simplified Joy-Con silhouette created for this app.
 Brand names and logos remain the trademarks of their respective owners.
 
 Desktop clipboard integration: official Tauri clipboard-manager plugin (Apache-2.0 / MIT).
