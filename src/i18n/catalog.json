@@ -2,13 +2,13 @@
   " · 未登录": [
     {
       "file": "src/App.tsx",
-      "line": 914
+      "line": 915
     }
   ],
   " · 已登录": [
     {
       "file": "src/App.tsx",
-      "line": 914
+      "line": 915
     }
   ],
   " · 有待上传的变更": [
@@ -20,13 +20,13 @@
   "（如已设置）": [
     {
       "file": "src/App.tsx",
-      "line": 1731
+      "line": 1732
     }
   ],
   "{{duplicates}} 个已有令牌将保留，可补充分组与 HOTP 计数": [
     {
       "file": "src/App.tsx",
-      "line": 1608
+      "line": 1609
     }
   ],
   "{{length}} 个 HOTP 在本机只读，验证码由主设备生成。": [
@@ -44,7 +44,7 @@
   "{{period}} 秒": [
     {
       "file": "src/App.tsx",
-      "line": 2650
+      "line": 2651
     },
     {
       "file": "src/ClipboardSettings.tsx",
@@ -66,7 +66,7 @@
   "{{value1}} KB · 点击重新选择": [
     {
       "file": "src/App.tsx",
-      "line": 1713
+      "line": 1714
     }
   ],
   "{{value1}}本机现有 {{tokenCount}} 个令牌会保留；重复令牌自动匹配，同字段冲突需选择保留版本。Steam 登录会话留在本机。": [
@@ -132,13 +132,13 @@
   "按类型": [
     {
       "file": "src/App.tsx",
-      "line": 704
+      "line": 705
     }
   ],
   "按名称": [
     {
       "file": "src/App.tsx",
-      "line": 703
+      "line": 704
     }
   ],
   "按用途整理 Steam 和其他令牌。删除分组会将其中的令牌移到「未分组」。": [
@@ -150,31 +150,31 @@
   "把令牌带到这里": [
     {
       "file": "src/App.tsx",
-      "line": 1587
+      "line": 1588
     }
   ],
   "绑定新令牌": [
     {
       "file": "src/App.tsx",
-      "line": 1966
+      "line": 1967
     }
   ],
   "包含令牌密钥的迁移二维码": [
     {
       "file": "src/App.tsx",
-      "line": 2586
+      "line": 2587
     }
   ],
   "包含密钥的明文文件": [
     {
       "file": "src/App.tsx",
-      "line": 2675
+      "line": 2676
     }
   ],
   "保存": [
     {
       "file": "src/App.tsx",
-      "line": 2718
+      "line": 2719
     },
     {
       "file": "src/SystemEntrySettings.tsx",
@@ -276,7 +276,7 @@
   "保险库已锁定": [
     {
       "file": "src/App.tsx",
-      "line": 499
+      "line": 500
     },
     {
       "file": "src-tauri/src/vault.rs",
@@ -328,7 +328,7 @@
   "备份包含 {{groupCount}} 个分组，已有令牌的缺失分组可一并补回。": [
     {
       "file": "src/App.tsx",
-      "line": 1604
+      "line": 1605
     }
   ],
   "备份包含暂不支持的 OTP 类型，请改用标准 OTP 二维码或链接导出": [
@@ -370,7 +370,7 @@
   "备份格式": [
     {
       "file": "src/App.tsx",
-      "line": 2762
+      "line": 2763
     }
   ],
   "备份含重复分组": [
@@ -398,11 +398,11 @@
   "备份密码": [
     {
       "file": "src/App.tsx",
-      "line": 1731
+      "line": 1732
     },
     {
       "file": "src/App.tsx",
-      "line": 2776
+      "line": 2777
     }
   ],
   "备份密码至少需要 8 个字符": [
@@ -492,7 +492,7 @@
   "备份已导出：{{path}}": [
     {
       "file": "src/App.tsx",
-      "line": 1304
+      "line": 1305
     }
   ],
   "备份预览缓存不可用": [
@@ -872,31 +872,31 @@
   "查看 {{name}}": [
     {
       "file": "src/App.tsx",
-      "line": 1082
+      "line": 1083
     }
   ],
   "查看本机自动备份": [
     {
       "file": "src/App.tsx",
-      "line": 1490
+      "line": 1491
     }
   ],
   "查看并确认": [
     {
       "file": "src/App.tsx",
-      "line": 1002
+      "line": 1003
     }
   ],
   "查看待处理的交易": [
     {
       "file": "src/App.tsx",
-      "line": 1016
+      "line": 1017
     }
   ],
   "查看你的在售物品": [
     {
       "file": "src/App.tsx",
-      "line": 1103
+      "line": 1104
     }
   ],
   "查找已有同步库": [
@@ -908,7 +908,7 @@
   "撤销": [
     {
       "file": "src/App.tsx",
-      "line": 1229
+      "line": 1230
     }
   ],
   "冲突已变化，请刷新": [
@@ -926,13 +926,13 @@
   "创建保险库": [
     {
       "file": "src/App.tsx",
-      "line": 1481
+      "line": 1482
     }
   ],
   "创建并发送短信": [
     {
       "file": "src/App.tsx",
-      "line": 2004
+      "line": 2005
     }
   ],
   "创建并同步": [
@@ -1020,13 +1020,13 @@
   "此操作会关闭账号上的手机令牌保护。删除本地令牌不会解除远端绑定；请仅在确实需要解绑时继续。": [
     {
       "file": "src/App.tsx",
-      "line": 2169
+      "line": 2170
     }
   ],
   "此操作会在 Steam 账号上创建手机令牌，并向已绑定的手机号发送激活短信。完成后请保存恢复代码和加密备份。": [
     {
       "file": "src/App.tsx",
-      "line": 1988
+      "line": 1989
     }
   ],
   "此导出需要二级密码，请输入导出密码": [
@@ -1062,7 +1062,7 @@
   "此令牌将移入本机回收站，可撤销或稍后还原。Steam 登录会话会被移除。": [
     {
       "file": "src/App.tsx",
-      "line": 2578
+      "line": 2579
     }
   ],
   "此令牌类型不支持修改高级参数": [
@@ -1160,13 +1160,13 @@
   "此账户已建立 Steam 会话，可以读取交易确认和市场信息。": [
     {
       "file": "src/App.tsx",
-      "line": 2207
+      "line": 2208
     }
   ],
   "从 Steam 获取确认列表，再逐笔核对交易信息。": [
     {
       "file": "src/App.tsx",
-      "line": 1021
+      "line": 1022
     }
   ],
   "从另一台设备的配置二维码加入": [
@@ -1178,13 +1178,13 @@
   "从文件导入": [
     {
       "file": "src/App.tsx",
-      "line": 1676
+      "line": 1677
     }
   ],
   "从原手机转移到本机": [
     {
       "file": "src/App.tsx",
-      "line": 1972
+      "line": 1973
     }
   ],
   "存储目录无效": [
@@ -1210,7 +1210,7 @@
   "打开社区市场": [
     {
       "file": "src/App.tsx",
-      "line": 1054
+      "line": 1055
     }
   ],
   "打开相机扫码": [
@@ -1276,13 +1276,13 @@
   "待你确认": [
     {
       "file": "src/App.tsx",
-      "line": 978
+      "line": 979
     }
   ],
   "当前 Steam 账户": [
     {
       "file": "src/App.tsx",
-      "line": 900
+      "line": 901
     }
   ],
   "当前版本 {{current}} · 最新版本 {{latest}}": [
@@ -1312,13 +1312,13 @@
   "当前令牌账号：{{value1}} · SteamID：{{value2}}": [
     {
       "file": "src/App.tsx",
-      "line": 1915
+      "line": 1916
     }
   ],
   "当前没有在售物品": [
     {
       "file": "src/App.tsx",
-      "line": 1103
+      "line": 1104
     }
   ],
   "当前设备无法读取图片": [
@@ -1342,19 +1342,19 @@
   "导出": [
     {
       "file": "src/App.tsx",
-      "line": 1148
+      "line": 1149
     }
   ],
   "导出 maFile": [
     {
       "file": "src/App.tsx",
-      "line": 2673
+      "line": 2674
     }
   ],
   "导出 OTP 链接": [
     {
       "file": "src/App.tsx",
-      "line": 2673
+      "line": 2674
     }
   ],
   "导出包含暂不支持的令牌平台": [
@@ -1370,7 +1370,7 @@
   "导出备份": [
     {
       "file": "src/App.tsx",
-      "line": 611
+      "line": 612
     }
   ],
   "导出记录缺少令牌数据": [
@@ -1396,7 +1396,7 @@
   "导出加密备份": [
     {
       "file": "src/App.tsx",
-      "line": 2759
+      "line": 2760
     }
   ],
   "导出密码过长": [
@@ -1470,19 +1470,19 @@
   "导入": [
     {
       "file": "src/App.tsx",
-      "line": 1157
+      "line": 1158
     }
   ],
   "导入 Steam 令牌": [
     {
       "file": "src/App.tsx",
-      "line": 951
+      "line": 952
     }
   ],
   "导入包含 Steam 身份密钥的令牌，再登录账户即可使用此功能。": [
     {
       "file": "src/App.tsx",
-      "line": 946
+      "line": 947
     }
   ],
   "导入缓存不可用": [
@@ -1494,13 +1494,13 @@
   "导入令牌或备份": [
     {
       "file": "src/App.tsx",
-      "line": 1152
+      "line": 1153
     }
   ],
   "导入完成": [
     {
       "file": "src/App.tsx",
-      "line": 1269
+      "line": 1270
     }
   ],
   "导入文件为空或超过 16 MiB 限制": [
@@ -1512,35 +1512,35 @@
   "导入与导出": [
     {
       "file": "src/App.tsx",
-      "line": 1139
+      "line": 1140
     }
   ],
   "登录": [
     {
       "file": "src/App.tsx",
-      "line": 965
+      "line": 966
     },
     {
       "file": "src/App.tsx",
-      "line": 2425
+      "line": 2426
     }
   ],
   "登录 Steam": [
     {
       "file": "src/App.tsx",
-      "line": 927
+      "line": 928
     }
   ],
   "登录 Steam 添加令牌": [
     {
       "file": "src/App.tsx",
-      "line": 1656
+      "line": 1657
     }
   ],
   "登录后即可查看{{value1}}。": [
     {
       "file": "src/App.tsx",
-      "line": 959
+      "line": 960
     }
   ],
   "登录网盘": [
@@ -1552,13 +1552,13 @@
   "登录位置与近期使用位置不一致，请仔细核对。": [
     {
       "file": "src/App.tsx",
-      "line": 2105
+      "line": 2106
     }
   ],
   "登录已完成。请选择账号当前的令牌状态，继续添加本地令牌。": [
     {
       "file": "src/App.tsx",
-      "line": 1962
+      "line": 1963
     }
   ],
   "独立同步密码": [
@@ -1610,19 +1610,19 @@
   "短信激活码": [
     {
       "file": "src/App.tsx",
-      "line": 1934
+      "line": 1935
     }
   ],
   "短信验证码": [
     {
       "file": "src/App.tsx",
-      "line": 2037
+      "line": 2038
     }
   ],
   "短信转移现有令牌": [
     {
       "file": "src/App.tsx",
-      "line": 1971
+      "line": 1972
     }
   ],
   "断开同步": [
@@ -1644,7 +1644,7 @@
   "多端同步": [
     {
       "file": "src/App.tsx",
-      "line": 1123
+      "line": 1124
     },
     {
       "file": "src/SyncPanel.tsx",
@@ -1654,7 +1654,7 @@
   "二维码包含令牌密钥。仅在受信任的设备上扫描，不要分享或截图发送给他人。": [
     {
       "file": "src/App.tsx",
-      "line": 2582
+      "line": 2583
     }
   ],
   "二维码不是支持的验证器格式，请使用 Google 导出码或 otpauth 设置码": [
@@ -1666,7 +1666,7 @@
   "二维码登录": [
     {
       "file": "src/App.tsx",
-      "line": 2267
+      "line": 2268
     }
   ],
   "二维码来自不同的 Google 导出批次，请继续扫描同一次导出的二维码，或清空后重新开始": [
@@ -1702,7 +1702,7 @@
   "发送转移短信": [
     {
       "file": "src/App.tsx",
-      "line": 2070
+      "line": 2071
     }
   ],
   "发行方": [
@@ -1720,27 +1720,27 @@
   "返回": [
     {
       "file": "src/App.tsx",
-      "line": 1639
+      "line": 1640
     },
     {
       "file": "src/App.tsx",
-      "line": 1993
+      "line": 1994
     },
     {
       "file": "src/App.tsx",
-      "line": 2052
+      "line": 2053
     },
     {
       "file": "src/App.tsx",
-      "line": 2116
+      "line": 2117
     },
     {
       "file": "src/App.tsx",
-      "line": 2189
+      "line": 2190
     },
     {
       "file": "src/App.tsx",
-      "line": 2690
+      "line": 2691
     },
     {
       "file": "src/SyncSetup.tsx",
@@ -1758,19 +1758,19 @@
   "返回登录": [
     {
       "file": "src/App.tsx",
-      "line": 1894
+      "line": 1895
     }
   ],
   "返回核对": [
     {
       "file": "src/App.tsx",
-      "line": 1326
+      "line": 1327
     }
   ],
   "返回密码登录": [
     {
       "file": "src/App.tsx",
-      "line": 2454
+      "line": 2455
     }
   ],
   "返回选择": [
@@ -1794,7 +1794,7 @@
   "分组": [
     {
       "file": "src/App.tsx",
-      "line": 2628
+      "line": 2629
     },
     {
       "file": "src/TokenManagement.tsx",
@@ -1846,7 +1846,7 @@
   "分组筛选": [
     {
       "file": "src/App.tsx",
-      "line": 714
+      "line": 715
     }
   ],
   "分组无效或超过 100 个": [
@@ -1874,7 +1874,7 @@
   "服务名称": [
     {
       "file": "src/App.tsx",
-      "line": 2644
+      "line": 2645
     },
     {
       "file": "src/TokenManagement.tsx",
@@ -1890,7 +1890,7 @@
   "复制 {{name}} 验证码": [
     {
       "file": "src/App.tsx",
-      "line": 796
+      "line": 797
     },
     {
       "file": "src/TrayApp.tsx",
@@ -1900,7 +1900,7 @@
   "复制 OTP 链接": [
     {
       "file": "src/App.tsx",
-      "line": 2598
+      "line": 2599
     }
   ],
   "复制标识不可用": [
@@ -1990,7 +1990,7 @@
   "复制验证码": [
     {
       "file": "src/App.tsx",
-      "line": 804
+      "line": 805
     }
   ],
   "高级参数": [
@@ -2018,11 +2018,11 @@
   "更换头像": [
     {
       "file": "src/App.tsx",
-      "line": 2605
+      "line": 2606
     },
     {
       "file": "src/App.tsx",
-      "line": 2609
+      "line": 2610
     }
   ],
   "更新版本信息无效": [
@@ -2142,31 +2142,31 @@
   "关闭提示": [
     {
       "file": "src/App.tsx",
-      "line": 1230
+      "line": 1231
     }
   ],
   "管理 {{name}}": [
     {
       "file": "src/App.tsx",
-      "line": 784
+      "line": 785
     }
   ],
   "管理 Steam 绑定手机号": [
     {
       "file": "src/App.tsx",
-      "line": 1982
+      "line": 1983
     }
   ],
   "管理绑定手机号": [
     {
       "file": "src/App.tsx",
-      "line": 2224
+      "line": 2225
     }
   ],
   "管理分组": [
     {
       "file": "src/App.tsx",
-      "line": 729
+      "line": 730
     },
     {
       "file": "src/TokenGroups.tsx",
@@ -2176,7 +2176,7 @@
   "管理令牌": [
     {
       "file": "src/App.tsx",
-      "line": 2559
+      "line": 2560
     }
   ],
   "还没有自定义分组，先创建一个。": [
@@ -2200,19 +2200,19 @@
   "合并已有令牌信息": [
     {
       "file": "src/App.tsx",
-      "line": 1601
+      "line": 1602
     }
   ],
   "核对并批准电脑端登录请求": [
     {
       "file": "src/App.tsx",
-      "line": 2212
+      "line": 2213
     }
   ],
   "核对登录请求": [
     {
       "file": "src/App.tsx",
-      "line": 2159
+      "line": 2160
     }
   ],
   "恢复会添加缺失令牌，并将所选已有令牌的设置还原到备份版本。未选令牌保留，HOTP 计数不会回退。Steam 账号可能需要重新登录。": [
@@ -2254,7 +2254,7 @@
   "回收站": [
     {
       "file": "src/App.tsx",
-      "line": 738
+      "line": 739
     }
   ],
   "回收站令牌": [
@@ -2278,7 +2278,7 @@
   "或使用主密码": [
     {
       "file": "src/App.tsx",
-      "line": 1441
+      "line": 1442
     }
   ],
   "或粘贴同步配置": [
@@ -2290,25 +2290,25 @@
   "获取交易确认": [
     {
       "file": "src/App.tsx",
-      "line": 1028
+      "line": 1029
     }
   ],
   "获取市场列表": [
     {
       "file": "src/App.tsx",
-      "line": 1114
+      "line": 1115
     }
   ],
   "激活令牌": [
     {
       "file": "src/App.tsx",
-      "line": 1955
+      "line": 1956
     }
   ],
   "计数 {{value1}}": [
     {
       "file": "src/App.tsx",
-      "line": 828
+      "line": 829
     }
   ],
   "计数版本": [
@@ -2330,7 +2330,7 @@
   "继续激活": [
     {
       "file": "src/App.tsx",
-      "line": 846
+      "line": 847
     }
   ],
   "继续扫码": [
@@ -2342,7 +2342,7 @@
   "加密备份": [
     {
       "file": "src/App.tsx",
-      "line": 1142
+      "line": 1143
     }
   ],
   "加密备份包含无效的 Base64 参数": [
@@ -2444,13 +2444,13 @@
   "加载中…": [
     {
       "file": "src/App.tsx",
-      "line": 1237
+      "line": 1238
     }
   ],
   "价格": [
     {
       "file": "src/App.tsx",
-      "line": 1062
+      "line": 1063
     }
   ],
   "坚果云": [
@@ -2462,7 +2462,7 @@
   "兼容 Watt Toolkit V2，使用原格式的二级密码保护。": [
     {
       "file": "src/App.tsx",
-      "line": 2774
+      "line": 2775
     }
   ],
   "剪贴板清除时间无效": [
@@ -2480,11 +2480,11 @@
   "检查登录状态": [
     {
       "file": "src/App.tsx",
-      "line": 2424
+      "line": 2425
     },
     {
       "file": "src/App.tsx",
-      "line": 2464
+      "line": 2465
     }
   ],
   "检查更新": [
@@ -2496,13 +2496,13 @@
   "检查网络与代理": [
     {
       "file": "src/App.tsx",
-      "line": 2475
+      "line": 2476
     }
   ],
   "将 {{length}} 个令牌移入本机回收站，可撤销或稍后还原。Steam 登录会话会被移除。": [
     {
       "file": "src/App.tsx",
-      "line": 1241
+      "line": 1242
     }
   ],
   "将二维码放入取景框": [
@@ -2526,7 +2526,7 @@
   "交易确认": [
     {
       "file": "src/App.tsx",
-      "line": 87
+      "line": 88
     }
   ],
   "较大": [
@@ -2538,21 +2538,21 @@
   "解除 Steam 手机令牌": [
     {
       "file": "src/App.tsx",
-      "line": 2168
+      "line": 2169
     },
     {
       "file": "src/App.tsx",
-      "line": 2231
+      "line": 2232
     }
   ],
   "解锁": [
     {
       "file": "src/App.tsx",
-      "line": 661
+      "line": 662
     },
     {
       "file": "src/App.tsx",
-      "line": 1422
+      "line": 1423
     },
     {
       "file": "src/TrayApp.tsx",
@@ -2562,7 +2562,7 @@
   "解锁保险库": [
     {
       "file": "src/App.tsx",
-      "line": 1481
+      "line": 1482
     }
   ],
   "解锁保险库后可合并恢复。无法解锁时，可先导出备份，在新安装的应用中导入。": [
@@ -2580,13 +2580,13 @@
   "解锁后连接": [
     {
       "file": "src/App.tsx",
-      "line": 843
+      "line": 844
     }
   ],
   "解锁密码": [
     {
       "file": "src/App.tsx",
-      "line": 1446
+      "line": 1447
     }
   ],
   "解锁已取消，请重试": [
@@ -2616,7 +2616,7 @@
   "仅主设备": [
     {
       "file": "src/App.tsx",
-      "line": 799
+      "line": 800
     },
     {
       "file": "src/TokenManagement.tsx",
@@ -2636,23 +2636,23 @@
   "拒绝": [
     {
       "file": "src/App.tsx",
-      "line": 996
+      "line": 997
     },
     {
       "file": "src/App.tsx",
-      "line": 2132
+      "line": 2133
     }
   ],
   "拒绝交易": [
     {
       "file": "src/App.tsx",
-      "line": 1351
+      "line": 1352
     }
   ],
   "拒绝这笔交易？": [
     {
       "file": "src/App.tsx",
-      "line": 1310
+      "line": 1311
     }
   ],
   "开机启动": [
@@ -2668,23 +2668,23 @@
   "开源双重验证器，支持 TOTP 与 HOTP。": [
     {
       "file": "src/App.tsx",
-      "line": 1192
+      "line": 1193
     }
   ],
   "开源双重验证器，支持通用 OTP、Steam 令牌、交易确认与社区市场。": [
     {
       "file": "src/App.tsx",
-      "line": 1191
+      "line": 1192
     }
   ],
   "开源许可": [
     {
       "file": "src/App.tsx",
-      "line": 1201
+      "line": 1202
     },
     {
       "file": "src/App.tsx",
-      "line": 1236
+      "line": 1237
     }
   ],
   "可一次选择多张图片，也能读取一张图片中的多个码。Google 多张二维码请使用同一次导出的全部图片。": [
@@ -2824,7 +2824,7 @@
   "类型": [
     {
       "file": "src/App.tsx",
-      "line": 2648
+      "line": 2649
     }
   ],
   "立即备份": [
@@ -2860,7 +2860,7 @@
   "连接 Steam": [
     {
       "file": "src/App.tsx",
-      "line": 852
+      "line": 853
     }
   ],
   "连接方式": [
@@ -2882,7 +2882,7 @@
   "连接你的 Steam 账户": [
     {
       "file": "src/App.tsx",
-      "line": 958
+      "line": 959
     }
   ],
   "连接同步网盘超时，请检查网络或代理后重试": [
@@ -2924,11 +2924,11 @@
   "两次输入的密码不一致": [
     {
       "file": "src/App.tsx",
-      "line": 1404
+      "line": 1405
     },
     {
       "file": "src/App.tsx",
-      "line": 2742
+      "line": 2743
     }
   ],
   "两次输入的新密码不一致。": [
@@ -2940,7 +2940,7 @@
   "令牌": [
     {
       "file": "src/App.tsx",
-      "line": 86
+      "line": 87
     },
     {
       "file": "src/i18n.ts",
@@ -3136,7 +3136,7 @@
   "令牌密钥已加密保存。输入 Steam 发往 {{value1}} 的短信验证码，完成激活。": [
     {
       "file": "src/App.tsx",
-      "line": 1921
+      "line": 1922
     }
   ],
   "令牌名称不是有效 UTF-8": [
@@ -3154,7 +3154,7 @@
   "令牌排序": [
     {
       "file": "src/App.tsx",
-      "line": 700
+      "line": 701
     }
   ],
   "令牌平台无效": [
@@ -3166,7 +3166,7 @@
   "令牌迁移二维码": [
     {
       "file": "src/App.tsx",
-      "line": 2558
+      "line": 2559
     },
     {
       "file": "src/BatchQrExport.tsx",
@@ -3192,7 +3192,7 @@
   "令牌详情": [
     {
       "file": "src/App.tsx",
-      "line": 2646
+      "line": 2647
     }
   ],
   "令牌已存在，请先处理重复项": [
@@ -3226,13 +3226,13 @@
   "令牌已移入本机回收站": [
     {
       "file": "src/App.tsx",
-      "line": 1287
+      "line": 1288
     }
   ],
   "令牌已转移，请保存恢复代码": [
     {
       "file": "src/App.tsx",
-      "line": 2013
+      "line": 2014
     }
   ],
   "令牌周期或位数无效": [
@@ -3266,7 +3266,7 @@
   "没有找到匹配的令牌": [
     {
       "file": "src/App.tsx",
-      "line": 872
+      "line": 873
     }
   ],
   "每个令牌最多保存 100 个备用恢复码": [
@@ -3288,7 +3288,7 @@
   "密码": [
     {
       "file": "src/App.tsx",
-      "line": 2393
+      "line": 2394
     }
   ],
   "密码错误或备份已损坏": [
@@ -3300,7 +3300,7 @@
   "密码仅用于向 Steam 建立登录会话，不会存入保险库。": [
     {
       "file": "src/App.tsx",
-      "line": 2383
+      "line": 2384
     }
   ],
   "密钥（Base32）": [
@@ -3366,7 +3366,7 @@
   "目前没有待确认的交易": [
     {
       "file": "src/App.tsx",
-      "line": 1015
+      "line": 1016
     }
   ],
   "内置加密参数无效": [
@@ -3378,7 +3378,7 @@
   "你的社区市场": [
     {
       "file": "src/App.tsx",
-      "line": 1038
+      "line": 1039
     }
   ],
   "排列顺序": [
@@ -3394,7 +3394,7 @@
   "排序": [
     {
       "file": "src/App.tsx",
-      "line": 695
+      "line": 696
     }
   ],
   "配置包含密码，请使用另一台设备生成的无密码配置二维码。": [
@@ -3412,31 +3412,31 @@
   "批量管理": [
     {
       "file": "src/App.tsx",
-      "line": 737
+      "line": 738
     }
   ],
   "批量管理令牌": [
     {
       "file": "src/App.tsx",
-      "line": 740
+      "line": 741
     }
   ],
   "批量目标分组": [
     {
       "file": "src/App.tsx",
-      "line": 742
+      "line": 743
     }
   ],
   "批准登录": [
     {
       "file": "src/App.tsx",
-      "line": 2147
+      "line": 2148
     }
   ],
   "批准二维码登录": [
     {
       "file": "src/App.tsx",
-      "line": 2211
+      "line": 2212
     }
   ],
   "屏幕不可用": [
@@ -3458,7 +3458,7 @@
   "其他令牌": [
     {
       "file": "src/App.tsx",
-      "line": 682
+      "line": 683
     }
   ],
   "其他设备版本 {{value1}}": [
@@ -3470,7 +3470,7 @@
   "其他添加方式": [
     {
       "file": "src/App.tsx",
-      "line": 1661
+      "line": 1662
     }
   ],
   "启用后，能打开此应用的人都能查看、复制验证码。此设置只在这台设备生效，不会开放交易确认或导出权限。": [
@@ -3494,17 +3494,17 @@
   "启用原设备保护的 .mpo 需要先在原设备导出可迁移备份。": [
     {
       "file": "src/App.tsx",
-      "line": 1742
+      "line": 1743
     }
   ],
   "迁移二维码": [
     {
       "file": "src/App.tsx",
-      "line": 1150
+      "line": 1151
     },
     {
       "file": "src/App.tsx",
-      "line": 2662
+      "line": 2663
     },
     {
       "file": "src/BatchQrExport.tsx",
@@ -3526,7 +3526,7 @@
   "前往 Steam 官方页面": [
     {
       "file": "src/App.tsx",
-      "line": 2225
+      "line": 2226
     }
   ],
   "前往下载": [
@@ -3538,7 +3538,7 @@
   "钱包余额 {{walletBalance}}": [
     {
       "file": "src/App.tsx",
-      "line": 1041
+      "line": 1042
     }
   ],
   "浅色": [
@@ -3562,7 +3562,7 @@
   "清除筛选": [
     {
       "file": "src/App.tsx",
-      "line": 881
+      "line": 882
     }
   ],
   "清空本次收集": [
@@ -3596,7 +3596,7 @@
   "请核对交易内容。此操作将直接提交至 Steam。": [
     {
       "file": "src/App.tsx",
-      "line": 1320
+      "line": 1321
     }
   ],
   "请确认旧设备已停止使用此 HOTP 令牌": [
@@ -3668,13 +3668,13 @@
   "请妥善保存恢复代码": [
     {
       "file": "src/App.tsx",
-      "line": 1924
+      "line": 1925
     }
   ],
   "请完成 Steam 返回的验证方式：令牌验证码、邮箱验证码或手机应用批准。": [
     {
       "file": "src/App.tsx",
-      "line": 2316
+      "line": 2317
     }
   ],
   "请完成当前导入，再扫描另一种验证器二维码": [
@@ -3798,7 +3798,7 @@
   "请选择不超过 10 MB 的令牌文件": [
     {
       "file": "src/App.tsx",
-      "line": 1548
+      "line": 1549
     }
   ],
   "请选择不超过 10 MB 的图片": [
@@ -3876,19 +3876,19 @@
   "取消": [
     {
       "file": "src/App.tsx",
-      "line": 1241
+      "line": 1242
     },
     {
       "file": "src/App.tsx",
-      "line": 1749
+      "line": 1750
     },
     {
       "file": "src/App.tsx",
-      "line": 2410
+      "line": 2411
     },
     {
       "file": "src/App.tsx",
-      "line": 2800
+      "line": 2801
     },
     {
       "file": "src/QuickAccessSettings.tsx",
@@ -3922,7 +3922,7 @@
   "取消置顶": [
     {
       "file": "src/App.tsx",
-      "line": 745
+      "line": 746
     },
     {
       "file": "src-tauri/src/sync.rs",
@@ -3938,19 +3938,19 @@
   "全部": [
     {
       "file": "src/App.tsx",
-      "line": 670
+      "line": 671
     }
   ],
   "全部分组": [
     {
       "file": "src/App.tsx",
-      "line": 718
+      "line": 719
     }
   ],
   "确认": [
     {
       "file": "src/App.tsx",
-      "line": 938
+      "line": 939
     }
   ],
   "确认保险库主密码": [
@@ -3962,23 +3962,23 @@
   "确认编号 {{id}}": [
     {
       "file": "src/App.tsx",
-      "line": 982
+      "line": 983
     },
     {
       "file": "src/App.tsx",
-      "line": 1318
+      "line": 1319
     }
   ],
   "确认导入": [
     {
       "file": "src/App.tsx",
-      "line": 1647
+      "line": 1648
     }
   ],
   "确认导入令牌": [
     {
       "file": "src/App.tsx",
-      "line": 1584
+      "line": 1585
     }
   ],
   "确认断开": [
@@ -3990,23 +3990,23 @@
   "确认后保存到本机加密保险库": [
     {
       "file": "src/App.tsx",
-      "line": 1609
+      "line": 1610
     }
   ],
   "确认解除令牌": [
     {
       "file": "src/App.tsx",
-      "line": 2201
+      "line": 2202
     }
   ],
   "确认密码": [
     {
       "file": "src/App.tsx",
-      "line": 1463
+      "line": 1464
     },
     {
       "file": "src/App.tsx",
-      "line": 2787
+      "line": 2788
     }
   ],
   "确认启用": [
@@ -4018,7 +4018,7 @@
   "确认删除": [
     {
       "file": "src/App.tsx",
-      "line": 2696
+      "line": 2697
     }
   ],
   "确认删除分组": [
@@ -4030,19 +4030,19 @@
   "确认提交": [
     {
       "file": "src/App.tsx",
-      "line": 1351
+      "line": 1352
     }
   ],
   "确认这笔交易？": [
     {
       "file": "src/App.tsx",
-      "line": 1310
+      "line": 1311
     }
   ],
   "确认转移令牌": [
     {
       "file": "src/App.tsx",
-      "line": 2070
+      "line": 2071
     }
   ],
   "认证正在进行": [
@@ -4068,7 +4068,7 @@
   "扫码 / 图片": [
     {
       "file": "src/App.tsx",
-      "line": 1671
+      "line": 1672
     }
   ],
   "扫码导入令牌": [
@@ -4116,7 +4116,7 @@
   "扫描验证器二维码": [
     {
       "file": "src/App.tsx",
-      "line": 1586
+      "line": 1587
     },
     {
       "file": "src/QrImportPanel.tsx",
@@ -4138,7 +4138,7 @@
   "删除": [
     {
       "file": "src/App.tsx",
-      "line": 746
+      "line": 747
     }
   ],
   "删除「{{removing}}」？其中的令牌会保留并移到未分组。": [
@@ -4168,7 +4168,7 @@
   "删除令牌": [
     {
       "file": "src/App.tsx",
-      "line": 2712
+      "line": 2713
     },
     {
       "file": "src-tauri/src/sync.rs",
@@ -4178,13 +4178,13 @@
   "删除所选令牌？": [
     {
       "file": "src/App.tsx",
-      "line": 1241
+      "line": 1242
     }
   ],
   "删除这个令牌？": [
     {
       "file": "src/App.tsx",
-      "line": 2556
+      "line": 2557
     }
   ],
   "上传同步文件": [
@@ -4214,7 +4214,7 @@
   "上移": [
     {
       "file": "src/App.tsx",
-      "line": 2643
+      "line": 2644
     }
   ],
   "尚未保存备用恢复码": [
@@ -4316,7 +4316,7 @@
   "稍后激活": [
     {
       "file": "src/App.tsx",
-      "line": 1944
+      "line": 1945
     }
   ],
   "设备标识无效": [
@@ -4406,7 +4406,7 @@
   "设备平台 {{value1}}": [
     {
       "file": "src/App.tsx",
-      "line": 2097
+      "line": 2098
     }
   ],
   "设备认证标识无效": [
@@ -4474,7 +4474,7 @@
   "设置": [
     {
       "file": "src/App.tsx",
-      "line": 89
+      "line": 90
     }
   ],
   "设置变更": [
@@ -4486,19 +4486,19 @@
   "设置解锁密码": [
     {
       "file": "src/App.tsx",
-      "line": 1446
+      "line": 1447
     }
   ],
   "设置密码": [
     {
       "file": "src/App.tsx",
-      "line": 1422
+      "line": 1423
     }
   ],
   "社区市场": [
     {
       "file": "src/App.tsx",
-      "line": 88
+      "line": 89
     }
   ],
   "深色": [
@@ -4516,19 +4516,19 @@
   "剩余 {{remaining}} 秒": [
     {
       "file": "src/App.tsx",
-      "line": 818
+      "line": 819
     }
   ],
   "时间已同步": [
     {
       "file": "src/App.tsx",
-      "line": 1172
+      "line": 1173
     }
   ],
   "识别到 {{length}} 个令牌": [
     {
       "file": "src/App.tsx",
-      "line": 1600
+      "line": 1601
     }
   ],
   "识别到 {{tokenCount}} 个令牌{{value2}}": [
@@ -4540,7 +4540,7 @@
   "使用 Argon2id 与 AES-GCM 加密，可包含本地登录会话。": [
     {
       "file": "src/App.tsx",
-      "line": 2773
+      "line": 2774
     }
   ],
   "使用 Face ID 解锁本机保险库。": [
@@ -4552,25 +4552,25 @@
   "使用 Steam 绑定手机的短信验证码转移现有令牌。提交验证码后，原手机的令牌将被替换，Steam 可能对交易施加冷却限制。": [
     {
       "file": "src/App.tsx",
-      "line": 2034
+      "line": 2035
     }
   ],
   "使用 Steam 服务器时间生成最新验证码并直接提交，无需复制；邮箱验证仍需输入邮件中的验证码。": [
     {
       "file": "src/App.tsx",
-      "line": 2331
+      "line": 2332
     }
   ],
   "使用 Steam 手机应用扫描，并在手机上批准登录。": [
     {
       "file": "src/App.tsx",
-      "line": 2284
+      "line": 2285
     }
   ],
   "使用当前令牌验证": [
     {
       "file": "src/App.tsx",
-      "line": 2330
+      "line": 2331
     }
   ],
   "使用当前系统 iCloud 账号，无需网盘密码。": [
@@ -4594,7 +4594,7 @@
   "市场": [
     {
       "file": "src/App.tsx",
-      "line": 938
+      "line": 939
     }
   ],
   "手动代理": [
@@ -4606,11 +4606,11 @@
   "手动排序": [
     {
       "file": "src/App.tsx",
-      "line": 702
+      "line": 703
     },
     {
       "file": "src/App.tsx",
-      "line": 2643
+      "line": 2644
     }
   ],
   "手动输入同步库编号": [
@@ -4622,7 +4622,7 @@
   "手动添加": [
     {
       "file": "src/App.tsx",
-      "line": 1666
+      "line": 1667
     }
   ],
   "手动新增仅支持 TOTP 或 HOTP": [
@@ -4646,13 +4646,13 @@
   "输入 Steam 验证码": [
     {
       "file": "src/App.tsx",
-      "line": 2365
+      "line": 2366
     }
   ],
   "输入短信验证码": [
     {
       "file": "src/App.tsx",
-      "line": 2044
+      "line": 2045
     }
   ],
   "输入绝对路径": [
@@ -4664,25 +4664,25 @@
   "输入密码": [
     {
       "file": "src/App.tsx",
-      "line": 1458
+      "line": 1459
     }
   ],
   "数量": [
     {
       "file": "src/App.tsx",
-      "line": 1061
+      "line": 1062
     }
   ],
   "刷新": [
     {
       "file": "src/App.tsx",
-      "line": 938
+      "line": 939
     }
   ],
   "刷新二维码": [
     {
       "file": "src/App.tsx",
-      "line": 2294
+      "line": 2295
     }
   ],
   "刷新同步库列表": [
@@ -4694,13 +4694,13 @@
   "刷新以获取当前账户的社区市场信息。": [
     {
       "file": "src/App.tsx",
-      "line": 1107
+      "line": 1108
     }
   ],
   "搜索": [
     {
       "file": "src/App.tsx",
-      "line": 691
+      "line": 692
     },
     {
       "file": "src/TrayApp.tsx",
@@ -4716,7 +4716,7 @@
   "搜索令牌": [
     {
       "file": "src/App.tsx",
-      "line": 692
+      "line": 693
     },
     {
       "file": "src/TrayApp.tsx",
@@ -4732,7 +4732,7 @@
   "算法": [
     {
       "file": "src/App.tsx",
-      "line": 2653
+      "line": 2654
     },
     {
       "file": "src/TokenManagement.tsx",
@@ -4776,27 +4776,27 @@
   "锁定保险库": [
     {
       "file": "src/App.tsx",
-      "line": 628
+      "line": 629
     }
   ],
   "提交验证码": [
     {
       "file": "src/App.tsx",
-      "line": 2423
+      "line": 2424
     }
   ],
   "添加 Steam 令牌": [
     {
       "file": "src/App.tsx",
-      "line": 1257
+      "line": 1258
     },
     {
       "file": "src/App.tsx",
-      "line": 1662
+      "line": 1663
     },
     {
       "file": "src/App.tsx",
-      "line": 1900
+      "line": 1901
     }
   ],
   "添加恢复码，每行一个": [
@@ -4808,15 +4808,15 @@
   "添加令牌": [
     {
       "file": "src/App.tsx",
-      "line": 614
+      "line": 615
     },
     {
       "file": "src/App.tsx",
-      "line": 619
+      "line": 620
     },
     {
       "file": "src/App.tsx",
-      "line": 891
+      "line": 892
     }
   ],
   "填写服务提供的设置密钥，空格会自动忽略。": [
@@ -4848,7 +4848,7 @@
   "通过 Steam 官方认证接口登录": [
     {
       "file": "src/App.tsx",
-      "line": 1909
+      "line": 1910
     }
   ],
   "通过系统认证解锁。": [
@@ -4860,13 +4860,13 @@
   "同步": [
     {
       "file": "src/App.tsx",
-      "line": 1175
+      "line": 1176
     }
   ],
   "同步 Steam 时间": [
     {
       "file": "src/App.tsx",
-      "line": 1167
+      "line": 1168
     }
   ],
   "同步备用恢复码编号无效": [
@@ -5360,13 +5360,13 @@
   "退出会话": [
     {
       "file": "src/App.tsx",
-      "line": 2243
+      "line": 2244
     }
   ],
   "退出批量选择": [
     {
       "file": "src/App.tsx",
-      "line": 737
+      "line": 738
     }
   ],
   "外部备份格式无效": [
@@ -5418,11 +5418,11 @@
   "完成": [
     {
       "file": "src/App.tsx",
-      "line": 2029
+      "line": 2030
     },
     {
       "file": "src/App.tsx",
-      "line": 2244
+      "line": 2245
     }
   ],
   "完成登录": [
@@ -5730,21 +5730,21 @@
   "为备份设置独立密码，并与备份文件分开保管。": [
     {
       "file": "src/App.tsx",
-      "line": 2760
+      "line": 2761
     }
   ],
   "未分组": [
     {
       "file": "src/App.tsx",
-      "line": 719
+      "line": 720
     },
     {
       "file": "src/App.tsx",
-      "line": 742
+      "line": 743
     },
     {
       "file": "src/App.tsx",
-      "line": 2635
+      "line": 2636
     },
     {
       "file": "src/TokenManagement.tsx",
@@ -5766,7 +5766,7 @@
   "未加密的备份可留空": [
     {
       "file": "src/App.tsx",
-      "line": 1739
+      "line": 1740
     }
   ],
   "未能启用快捷访问，请确认设备已设置指纹或 Face ID，并完成系统验证": [
@@ -5878,7 +5878,7 @@
   "我确认解除此账号的 Steam 手机令牌保护": [
     {
       "file": "src/App.tsx",
-      "line": 2184
+      "line": 2185
     }
   ],
   "我需要另外创建一个独立库，不与上面的库同步": [
@@ -5890,13 +5890,13 @@
   "我已保存恢复代码": [
     {
       "file": "src/App.tsx",
-      "line": 2020
+      "line": 2021
     }
   ],
   "我已将恢复代码保存在安全位置": [
     {
       "file": "src/App.tsx",
-      "line": 1931
+      "line": 1932
     }
   ],
   "无法保存本机设置": [
@@ -6320,7 +6320,7 @@
   "无法读取许可文件": [
     {
       "file": "src/App.tsx",
-      "line": 135
+      "line": 136
     }
   ],
   "无法读取自动备份": [
@@ -6360,7 +6360,7 @@
   "无法复制链接": [
     {
       "file": "src/App.tsx",
-      "line": 2595
+      "line": 2596
     }
   ],
   "无法复制验证码": [
@@ -6384,7 +6384,7 @@
   "无法复制验证码：{{value1}}": [
     {
       "file": "src/App.tsx",
-      "line": 511
+      "line": 512
     }
   ],
   "无法更新菜单": [
@@ -6656,7 +6656,7 @@
   "下一验证码": [
     {
       "file": "src/App.tsx",
-      "line": 862
+      "line": 863
     }
   ],
   "下一张": [
@@ -6668,7 +6668,7 @@
   "下移": [
     {
       "file": "src/App.tsx",
-      "line": 2643
+      "line": 2644
     }
   ],
   "下载并安装，完成后重启": [
@@ -6704,13 +6704,13 @@
   "先添加一个 Steam 令牌": [
     {
       "file": "src/App.tsx",
-      "line": 945
+      "line": 946
     }
   ],
   "显示 OTP 密钥链接": [
     {
       "file": "src/App.tsx",
-      "line": 2663
+      "line": 2664
     }
   ],
   "显示恢复码": [
@@ -6728,7 +6728,7 @@
   "显示名称": [
     {
       "file": "src/App.tsx",
-      "line": 2621
+      "line": 2622
     },
     {
       "file": "src-tauri/src/sync.rs",
@@ -6812,7 +6812,7 @@
   "新的交易或市场上架确认会在刷新后显示。": [
     {
       "file": "src/App.tsx",
-      "line": 1020
+      "line": 1021
     }
   ],
   "新的网盘应用密码": [
@@ -6842,7 +6842,7 @@
   "新令牌已加密保存在本机。请在设置中导出一份加密备份。": [
     {
       "file": "src/App.tsx",
-      "line": 2022
+      "line": 2023
     }
   ],
   "新增": [
@@ -6896,13 +6896,13 @@
   "选择": [
     {
       "file": "src/App.tsx",
-      "line": 761
+      "line": 762
     }
   ],
   "选择 {{name}}": [
     {
       "file": "src/App.tsx",
-      "line": 761
+      "line": 762
     }
   ],
   "选择 {{name}} 图标": [
@@ -6926,7 +6926,7 @@
   "选择当前筛选的全部令牌": [
     {
       "file": "src/App.tsx",
-      "line": 741
+      "line": 742
     }
   ],
   "选择二维码图片": [
@@ -6946,7 +6946,7 @@
   "选择令牌": [
     {
       "file": "src/App.tsx",
-      "line": 1150
+      "line": 1151
     }
   ],
   "选择目录": [
@@ -6970,19 +6970,19 @@
   "选择头像": [
     {
       "file": "src/App.tsx",
-      "line": 2554
+      "line": 2555
     }
   ],
   "选择位置并导出": [
     {
       "file": "src/App.tsx",
-      "line": 2802
+      "line": 2803
     }
   ],
   "选择文件，或拖放到这里": [
     {
       "file": "src/App.tsx",
-      "line": 1709
+      "line": 1710
     }
   ],
   "选择要迁出的通用令牌。Steam 和非标准周期令牌请使用加密备份迁移。": [
@@ -7012,7 +7012,7 @@
   "验证方式": [
     {
       "file": "src/App.tsx",
-      "line": 2336
+      "line": 2337
     }
   ],
   "验证后解锁 SteamGuard": [
@@ -7024,7 +7024,7 @@
   "验证码": [
     {
       "file": "src/App.tsx",
-      "line": 2359
+      "line": 2360
     }
   ],
   "验证码复制": [
@@ -7046,7 +7046,7 @@
   "验证码已提交，正在等待 Steam 完成登录。": [
     {
       "file": "src/App.tsx",
-      "line": 2315
+      "line": 2316
     }
   ],
   "验证已取消或设备密钥不可用，请使用主密码解锁；更改系统生物特征后需重新启用。": [
@@ -7094,7 +7094,7 @@
   "移动端导航": [
     {
       "file": "src/App.tsx",
-      "line": 1210
+      "line": 1211
     }
   ],
   "移动端外部目录需要系统文件授权，请先使用导出备份": [
@@ -7106,35 +7106,35 @@
   "移入回收站": [
     {
       "file": "src/App.tsx",
-      "line": 1241
+      "line": 1242
     }
   ],
   "移至分组": [
     {
       "file": "src/App.tsx",
-      "line": 743
+      "line": 744
     }
   ],
   "已撤销删除": [
     {
       "file": "src/App.tsx",
-      "line": 1229
+      "line": 1230
     }
   ],
   "已导出：{{path}}": [
     {
       "file": "src/App.tsx",
-      "line": 2543
+      "line": 2544
     }
   ],
   "已登录": [
     {
       "file": "src/App.tsx",
-      "line": 849
+      "line": 850
     },
     {
       "file": "src/App.tsx",
-      "line": 1912
+      "line": 1913
     }
   ],
   "已登录网盘": [
@@ -7164,13 +7164,13 @@
   "已将 {{length}} 个令牌移入本机回收站": [
     {
       "file": "src/App.tsx",
-      "line": 527
+      "line": 528
     }
   ],
   "已拒绝交易": [
     {
       "file": "src/App.tsx",
-      "line": 1346
+      "line": 1347
     }
   ],
   "已连接此同步库，请使用立即同步": [
@@ -7192,7 +7192,7 @@
   "已确认交易": [
     {
       "file": "src/App.tsx",
-      "line": 1346
+      "line": 1347
     }
   ],
   "已删除令牌只保留在这台设备，可还原到保险库。Steam 登录会话需要重新建立。": [
@@ -7240,7 +7240,7 @@
   "已选 {{count}} 项": [
     {
       "file": "src/App.tsx",
-      "line": 741
+      "line": 742
     }
   ],
   "已允许 iOS 系统备份收录加密保险库。请在系统设置中开启 iCloud 备份；应用无法检测云端是否已完成。LiveContainer 还取决于容器的数据备份支持。": [
@@ -7258,13 +7258,13 @@
   "已在手机批准，检查登录状态": [
     {
       "file": "src/App.tsx",
-      "line": 2379
+      "line": 2380
     }
   ],
   "已置顶": [
     {
       "file": "src/App.tsx",
-      "line": 765
+      "line": 766
     }
   ],
   "隐藏恢复码": [
@@ -7276,7 +7276,7 @@
   "隐藏密钥并返回": [
     {
       "file": "src/App.tsx",
-      "line": 2705
+      "line": 2706
     }
   ],
   "应用更新": [
@@ -7316,13 +7316,13 @@
   "用于登录的账户名": [
     {
       "file": "src/App.tsx",
-      "line": 2391
+      "line": 2392
     }
   ],
   "邮箱验证码 {{associatedMessage}}": [
     {
       "file": "src/App.tsx",
-      "line": 2355
+      "line": 2356
     }
   ],
   "有 {{length}} 项冲突待确认": [
@@ -7392,11 +7392,11 @@
   "预览令牌": [
     {
       "file": "src/App.tsx",
-      "line": 1438
+      "line": 1439
     },
     {
       "file": "src/App.tsx",
-      "line": 1755
+      "line": 1756
     },
     {
       "file": "src/QrImportPanel.tsx",
@@ -7456,13 +7456,13 @@
   "再次输入备份密码": [
     {
       "file": "src/App.tsx",
-      "line": 2796
+      "line": 2797
     }
   ],
   "再次输入解锁密码": [
     {
       "file": "src/App.tsx",
-      "line": 1474
+      "line": 1475
     }
   ],
   "再次输入新主密码": [
@@ -7498,7 +7498,7 @@
   "在售物品": [
     {
       "file": "src/App.tsx",
-      "line": 1060
+      "line": 1061
     }
   ],
   "在系统快捷入口显示所选令牌": [
@@ -7510,7 +7510,7 @@
   "在这里查看在售物品，前往 Steam 完成市场操作。": [
     {
       "file": "src/App.tsx",
-      "line": 1042
+      "line": 1043
     }
   ],
   "暂不支持 Google 迁移格式版本 {{value1}}，请更新应用": [
@@ -7548,13 +7548,13 @@
   "暂无 Steam 令牌": [
     {
       "file": "src/App.tsx",
-      "line": 909
+      "line": 910
     }
   ],
   "暂无令牌": [
     {
       "file": "src/App.tsx",
-      "line": 885
+      "line": 886
     },
     {
       "file": "src/TrayApp.tsx",
@@ -7564,7 +7564,7 @@
   "粘贴 Steam 电脑端登录二维码中的链接，先核对设备和位置，再决定是否批准。": [
     {
       "file": "src/App.tsx",
-      "line": 2079
+      "line": 2080
     }
   ],
   "粘贴浏览器显示的授权码": [
@@ -7576,19 +7576,19 @@
   "粘贴密钥 / 链接": [
     {
       "file": "src/App.tsx",
-      "line": 1681
+      "line": 1682
     }
   ],
   "账号密码": [
     {
       "file": "src/App.tsx",
-      "line": 2257
+      "line": 2258
     }
   ],
   "账号尚未启用手机令牌": [
     {
       "file": "src/App.tsx",
-      "line": 1967
+      "line": 1968
     }
   ],
   "账户或显示名称": [
@@ -7684,7 +7684,7 @@
   "正在加载…": [
     {
       "file": "src/App.tsx",
-      "line": 635
+      "line": 636
     }
   ],
   "正在添加…": [
@@ -7738,7 +7738,7 @@
   "只读预览": [
     {
       "file": "src/App.tsx",
-      "line": 657
+      "line": 658
     }
   ],
   "只恢复勾选项。已有令牌的名称、分组、头像及通用参数会恢复到备份版本，HOTP 计数不会降低。冲突项无法恢复，请核对说明。": [
@@ -7768,7 +7768,7 @@
   "指纹 / Face ID 解锁": [
     {
       "file": "src/App.tsx",
-      "line": 1431
+      "line": 1432
     }
   ],
   "至少 12 个字符，用于加密云端令牌，与网盘应用密码区分。请妥善保管，无法找回。": [
@@ -7786,17 +7786,17 @@
   "至少 8 位": [
     {
       "file": "src/App.tsx",
-      "line": 1458
+      "line": 1459
     },
     {
       "file": "src/App.tsx",
-      "line": 2785
+      "line": 2786
     }
   ],
   "置顶": [
     {
       "file": "src/App.tsx",
-      "line": 744
+      "line": 745
     },
     {
       "file": "src-tauri/src/sync.rs",
@@ -7806,7 +7806,7 @@
   "置顶显示": [
     {
       "file": "src/App.tsx",
-      "line": 2642
+      "line": 2643
     }
   ],
   "置顶状态": [
@@ -7874,7 +7874,7 @@
   "重新输入账号": [
     {
       "file": "src/App.tsx",
-      "line": 2443
+      "line": 2444
     }
   ],
   "重新选择备份": [
@@ -7898,7 +7898,7 @@
   "周期": [
     {
       "file": "src/App.tsx",
-      "line": 2650
+      "line": 2651
     },
     {
       "file": "src-tauri/src/backup_commands.rs",
@@ -7924,7 +7924,7 @@
   "主导航": [
     {
       "file": "src/App.tsx",
-      "line": 580
+      "line": 581
     }
   ],
   "主密码错误": [
@@ -8004,7 +8004,7 @@
   "自动备份": [
     {
       "file": "src/App.tsx",
-      "line": 1126
+      "line": 1127
     },
     {
       "file": "src/BackupPanel.tsx",
@@ -8520,7 +8520,7 @@
   "OTP 链接或令牌 JSON": [
     {
       "file": "src/App.tsx",
-      "line": 1720
+      "line": 1721
     }
   ],
   "OTP 位数无效": [
@@ -8550,55 +8550,55 @@
   "otpauth://totp/… 或粘贴 Steam maFile JSON": [
     {
       "file": "src/App.tsx",
-      "line": 1726
+      "line": 1727
     }
   ],
   "R 开头的恢复代码": [
     {
       "file": "src/App.tsx",
-      "line": 2177
+      "line": 2178
     }
   ],
   "Steam 标记此请求为频繁登录，请核对是否由你发起。": [
     {
       "file": "src/App.tsx",
-      "line": 2108
+      "line": 2109
     }
   ],
   "Steam 登录二维码，请使用 Steam 手机应用扫描": [
     {
       "file": "src/App.tsx",
-      "line": 2275
+      "line": 2276
     }
   ],
   "Steam 登录二维码链接": [
     {
       "file": "src/App.tsx",
-      "line": 2080
+      "line": 2081
     }
   ],
   "Steam 登录设备": [
     {
       "file": "src/App.tsx",
-      "line": 2095
+      "line": 2096
     }
   ],
   "Steam 短信验证码": [
     {
       "file": "src/App.tsx",
-      "line": 1941
+      "line": 1942
     }
   ],
   "Steam 恢复代码": [
     {
       "file": "src/App.tsx",
-      "line": 2171
+      "line": 2172
     }
   ],
   "Steam 会话已更新": [
     {
       "file": "src/App.tsx",
-      "line": 1279
+      "line": 1280
     }
   ],
   "Steam 令牌附加数据损坏": [
@@ -8618,13 +8618,13 @@
   "Steam 令牌验证码": [
     {
       "file": "src/App.tsx",
-      "line": 2354
+      "line": 2355
     }
   ],
   "Steam 社区市场": [
     {
       "file": "src/App.tsx",
-      "line": 1073
+      "line": 1074
     }
   ],
   "Steam 身份资料": [
@@ -8648,25 +8648,25 @@
   "Steam 网络设置": [
     {
       "file": "src/App.tsx",
-      "line": 1888
+      "line": 1889
     }
   ],
   "Steam 账户": [
     {
       "file": "src/App.tsx",
-      "line": 1900
+      "line": 1901
     }
   ],
   "Steam 账户密码": [
     {
       "file": "src/App.tsx",
-      "line": 2401
+      "line": 2402
     }
   ],
   "Steam 账户名": [
     {
       "file": "src/App.tsx",
-      "line": 2384
+      "line": 2385
     }
   ],
   "Steam shared_secret 不是有效 Base64": [
@@ -8678,7 +8678,7 @@
   "SteamGuard 加密备份（.sgvault）": [
     {
       "file": "src/App.tsx",
-      "line": 2768
+      "line": 2769
     }
   ],
   "TOTP · 基于时间": [
@@ -8712,7 +8712,7 @@
   "Watt Toolkit 原始格式（.mpo）": [
     {
       "file": "src/App.tsx",
-      "line": 2769
+      "line": 2770
     }
   ],
   "WattToolkit 导出内容不是令牌列表": [

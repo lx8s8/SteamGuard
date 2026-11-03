@@ -1,3 +1,4 @@
+import { version as appVersion } from "../package.json";
 import { AppMark } from "./AppMark";
 import { SystemEntrySettings } from "./SystemEntrySettings";
 import { t as translate, formatDateTime } from "./i18n";
@@ -1184,7 +1185,7 @@ export default function App() {
                     </span>
                     <div>
                       <h2>
-                        SteamGuard <span>1.5.1</span>
+                        SteamGuard <span>{appVersion}</span>
                       </h2>
                       <p>
                         {hasSteam

@@ -16,7 +16,7 @@ python3 scripts/create-signing.py
 
 将生成的配置写入仓库 Actions Secret `STEAMGUARD_SIGNING`。正式版本构建从 Secret 加载配置并写入 runner 临时目录；运行日志对敏感字段进行遮蔽。缺少配置或校验失败时，正式发布任务会停止。
 
-仓库的 `certificates/` 仅供维护者与 CI 核对构建身份，不作为 Releases 附件。发布收集脚本只允许平台安装包、`LICENSE.txt` 和 `SHA256SUMS`，发现额外文件时会停止。
+仓库的 `certificates/` 仅供维护者与 CI 核对构建身份，不作为 Releases 附件。发布收集脚本只允许平台安装包、桌面更新归档、`latest.json`、`LICENSE.txt` 和 `SHA256SUMS`，发现额外文件时会停止。上传完成后再次核对远端附件的名称、大小和可用的 SHA-256 摘要，通过后才发布。
 
 ## 平台分发
 

@@ -72,7 +72,7 @@ Steam 接口、风控、地区与冷却规则可能影响账号操作。
 
 桌面设备认证的签名条件、重置恢复和验证范围见[桌面快捷访问](DESKTOP-AUTH.md)。当前 macOS 默认临时签名配置保留主密码及预览，不能启用依赖 Apple 授权的 Touch ID 存储。
 
-各平台已有构建工程和既往版本构建记录。新增功能的本地测试不等于 Android / Windows / iOS 的实机验收；本轮尚未生成新安装包。构建流程见 [BUILDING.md](BUILDING.md)，历史 CI 见 [Actions](https://github.com/lx8s8/SteamGuard/actions/workflows/package.yml)。
+各平台已有构建工程和既往版本构建记录。新增功能的本地测试不等于 Android / Windows / iOS 的实机验收；最新正式包以 Releases 为准。构建流程见 [BUILDING.md](BUILDING.md)，历史 CI 见 [Actions](https://github.com/lx8s8/SteamGuard/actions/workflows/package.yml)。
 
 ## 验证方法
 
@@ -87,7 +87,7 @@ Steam 接口、风控、地区与冷却规则可能影响账号操作。
 
 ## 下次发版前的待验收项
 
-以下是运行与分发验收，不代表已有源码功能缺失。本轮不创建新版本包。
+以下是运行与分发验收，不代表已有源码功能缺失。多端实机验收另行安排。
 
 - Android SAF 与 iOS 文件夹授权在真机和实际网盘提供方上往返测试，覆盖重启、离线、授权失效及恢复。
 - Windows 安装、网络登录与托盘快捷操作，以及 LiveContainer 中相机、设备认证和文件选择器的实际运行。

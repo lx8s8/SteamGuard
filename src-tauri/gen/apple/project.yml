@@ -63,8 +63,8 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        CFBundleShortVersionString: "1.5.1"
-        CFBundleVersion: "1.5.1"
+        CFBundleShortVersionString: "1.6.0"
+        CFBundleVersion: "1.6.0"
         SteamGuardAppGroup: $(STEAMGUARD_APP_GROUP)
         CFBundleURLTypes:
           - CFBundleURLName: steamguard.system-entry
@@ -121,8 +121,8 @@ targets:
       path: SystemEntriesWidget/Info.plist
       properties:
         CFBundleDisplayName: SteamGuard
-        CFBundleShortVersionString: "1.5.1"
-        CFBundleVersion: "1.5.1"
+        CFBundleShortVersionString: "1.6.0"
+        CFBundleVersion: "1.6.0"
         SteamGuardAppGroup: $(STEAMGUARD_APP_GROUP)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
