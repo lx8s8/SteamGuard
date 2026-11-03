@@ -2,7 +2,9 @@
 import PackageDescription
 let package = Package(
     name: "tauri-plugin-cloud-auth",
-    platforms: [.iOS(.v15)],
+    // swift-rs also resolves the host platform while planning an iOS cross
+    // build. Match Google's package minimum instead of SwiftPM's macOS default.
+    platforms: [.iOS(.v15), .macOS(.v12)],
     products: [.library(name: "tauri-plugin-cloud-auth", type: .static, targets: ["tauri-plugin-cloud-auth"])],
     dependencies: [
         .package(name: "Tauri", path: "../.tauri/tauri-api"),

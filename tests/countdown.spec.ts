@@ -116,13 +116,18 @@ test("reduced motion repaints a fresh native remaining value instead of retainin
   await fixture(page, true);
   await page.goto("/");
   await expect(page.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "24");
+  const before = await scale(page, ".otp-progress-fill");
   await page.waitForTimeout(1000);
   await page.evaluate(() => {
     (window as any).__otpSample({ remaining: 23 });
     window.dispatchEvent(new Event("steamguard:sync-updated"));
   });
   await expect(page.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "23");
-  expect(await scale(page, ".otp-progress-fill")).toBeLessThan(0.74);
+  // Browser startup can cross the fixture's fractional-second boundary.
+  // Verify the real decrease from its first paint, rather than assuming that
+  // the first React commit happened within 50 ms of list_tokens returning.
+  await expect.poll(() => scale(page, ".otp-progress-fill")).toBeLessThan(before - 0.025);
+  expect(await scale(page, ".otp-progress-fill")).toBeLessThanOrEqual(23 / 30 + 0.000001);
   expect(await page.locator(".otp-progress-fill").evaluate(node => node.getAnimations().length)).toBe(0);
 });
 
