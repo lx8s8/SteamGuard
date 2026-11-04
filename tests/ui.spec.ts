@@ -58,6 +58,7 @@ async function nativeFixture(page: Page) {
     ];
     const trash: (typeof tokens[number] & { deletedAt: number })[] = [];
     const syncScenario = new URLSearchParams(location.search).get("sync");
+    if (new URLSearchParams(location.search).has("tokenUuid")) tokens[2].id = "ec2ed188-254b-47c6-907c-1e8ea221d633";
     const cloudScenario = new URLSearchParams(location.search).get("cloud");
     const cloudLibraries =
       cloudScenario === "empty"
@@ -212,6 +213,13 @@ async function nativeFixture(page: Page) {
               return { clearAfter: args.clearAfter };
             }
             case "clipboard_housekeeping": return;
+            case "token_id_copy": {
+              if (locked || previewActive) throw new Error("请先解锁保险库");
+              const token = tokens.find(t => t.id === args.id);
+              if (!token) throw new Error("令牌不存在");
+              await navigator.clipboard.writeText(token.id);
+              return;
+            }
             case "token_current_code":
             case "token_copy": {
               if (locked && !previewActive) throw new Error("保险库已锁定");
@@ -2762,4 +2770,22 @@ test("mobile toast stays centered and wraps within the viewport", async ({ page 
     expect(Math.abs(bounds!.x - (width - bounds!.x - bounds!.width))).toBeLessThanOrEqual(1);
     expect(await toast.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   }
+});
+
+test("token details expose an exact read-only identifier and copy it through native clipboard policy", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.goto("/?tokenUuid");
+  await page.getByRole("button", { name: "管理 测试 · 通用 OTP", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.locator("summary").filter({ hasText: /^令牌详情$/ }).click();
+  const identifier = dialog.getByLabel("令牌 ID", { exact: true });
+  await expect(identifier).toHaveValue("ec2ed188-254b-47c6-907c-1e8ea221d633");
+  await expect(identifier).toHaveAttribute("readonly", "");
+  await dialog.getByRole("button", { name: "复制令牌 ID", exact: true }).click();
+  await expect(dialog.getByRole("status")).toHaveText("令牌 ID 已复制");
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("ec2ed188-254b-47c6-907c-1e8ea221d633");
+  expect(await commandCount(page, "token_id_copy")).toBe(1);
+  expect(await commandCount(page, "token_copy")).toBe(0);
+  expect(await commandCount(page, "token_uri")).toBe(0);
+  expect(await page.evaluate(() => (window as any).__testCommands.find((item: any) => item.command === "token_id_copy").args)).toEqual({ id: "ec2ed188-254b-47c6-907c-1e8ea221d633" });
 });

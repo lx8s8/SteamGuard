@@ -1,5 +1,7 @@
 #[cfg(target_os = "android")]
 mod android_proxy;
+#[cfg(desktop)]
+mod automation_otp;
 mod avatar;
 mod backup;
 mod backup_commands;
@@ -1666,7 +1668,10 @@ pub fn run() {
             });
             system_entries::initialize(app.handle())?;
             #[cfg(desktop)]
-            desktop::setup(app)?;
+            {
+                desktop::setup(app)?;
+                automation_otp::initialize(app.handle().clone()).map_err(std::io::Error::other)?;
+            }
             Ok(())
         })
         .on_window_event(|_window, _event| {
@@ -1698,6 +1703,7 @@ pub fn run() {
                 clipboard::clipboard_configure,
                 clipboard::clipboard_housekeeping,
                 clipboard::token_copy,
+                clipboard::token_id_copy,
                 clipboard::token_recovery_copy,
                 clipboard::token_uri_copy,
                 token_commands::token_private_details,
@@ -1803,6 +1809,12 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("SteamGuard runtime failed")
         .run(|app, event| {
+            #[cfg(desktop)]
+            if let tauri::RunEvent::Exit = &event {
+                if let Some(service) = app.try_state::<automation_otp::Controller>() {
+                    service.stop();
+                }
+            }
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Reopen {
                 has_visible_windows: false,

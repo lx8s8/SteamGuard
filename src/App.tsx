@@ -2472,6 +2472,7 @@ function EditDialog({
   const [showQr, setShowQr] = useState(false);
   const [qrImage, setQrImage] = useState("");
   const [exported, setExported] = useState("");
+  const [idCopied, setIdCopied] = useState(false);
   const act = async (remove: boolean) => {
     setBusy(true);
     setError("");
@@ -2508,6 +2509,19 @@ function EditDialog({
     try {
       const path = await api.tokenExport(token.id, format);
       if (path) setExported(translate("已导出：{{path}}", { path: path }));
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const copyId = async () => {
+    setBusy(true);
+    setError("");
+    setIdCopied(false);
+    try {
+      await api.copyTokenId(token.id);
+      setIdCopied(true);
     } catch (e) {
       setError(errorText(e));
     } finally {
@@ -2611,6 +2625,10 @@ function EditDialog({
           {token.kind !== "steam" && <><label className="field-label" htmlFor="token-issuer">{translate("服务名称")}</label><input id="token-issuer" value={parameters.issuer ?? ""} disabled={busy} maxLength={120} onChange={e => setParameters({ ...parameters, issuer: e.target.value })}/><OtpParameters kind={token.kind} value={parameters} onChange={setParameters} disabled={busy} counterReadOnly={token.hotpReadOnly}/></>}
           <details className="token-details">
             <summary>{translate("令牌详情")}</summary>
+            <label className="field-label" htmlFor="token-identifier">{translate("令牌 ID")}</label>
+            <input id="token-identifier" value={token.id} readOnly dir="ltr" autoComplete="off" spellCheck={false} />
+            <button type="button" className="button secondary" disabled={busy} onClick={() => void copyId()}><Copy size={15} />{translate("复制令牌 ID")}</button>
+            {idCopied && <p role="status">{translate("令牌 ID 已复制")}</p>}
             <div className="token-metadata">
               <span>{translate("类型")}<strong>{token.kind.toUpperCase()}</strong>
               </span>

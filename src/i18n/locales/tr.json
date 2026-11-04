@@ -1266,5 +1266,10 @@
   "使用当前系统 iCloud 账号，无需网盘密码。": "Geçerli sistem iCloud hesabını kullanır. Bulut depolama parolası gerekmez.",
   "系统 iCloud 账号": "Sistem iCloud hesabı",
   "iCloud 同步仅支持 macOS 和 iOS。其他平台请选择其他网盘。": "iCloud eşitlemesi yalnızca macOS ve iOS’u destekler. Diğer platformlarda başka bir bulut sağlayıcısı seçin.",
-  "iCloud 暂不可用，请检查系统账号、iCloud Drive 和应用授权。": "iCloud kullanılamıyor. Sistem hesabını, iCloud Drive’ı ve uygulama izinlerini kontrol edin."
+  "iCloud 暂不可用，请检查系统账号、iCloud Drive 和应用授权。": "iCloud kullanılamıyor. Sistem hesabını, iCloud Drive’ı ve uygulama izinlerini kontrol edin.",
+  "令牌 ID": "Belirteç kimliği",
+  "复制令牌 ID": "Belirteç kimliğini kopyala",
+  "令牌 ID 已复制": "Belirteç kimliği kopyalandı",
+  "自动化 OTP 配置无效，请检查独立配置文件与环境变量": "Otomasyon OTP yapılandırması geçersiz. Yapılandırma dosyasını ve ortam değişkenlerini kontrol edin",
+  "无法启动自动化 OTP 本机服务，请检查端口是否被占用": "Yerel otomasyon OTP hizmeti başlatılamıyor. Bağlantı noktasının kullanımda olup olmadığını kontrol edin"
 }

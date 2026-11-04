@@ -210,6 +210,25 @@ pub async fn token_copy(
     })
 }
 #[tauri::command]
+pub async fn token_id_copy(
+    app: AppHandle,
+    s: State<'_, AppState>,
+    id: String,
+) -> Result<(), String> {
+    let epoch = s.epoch.load(std::sync::atomic::Ordering::SeqCst);
+    let mut vault = s.vault()?;
+    let token = vault
+        .ensure()?
+        .tokens
+        .iter()
+        .find(|t| t.id == id)
+        .ok_or("令牌不存在")?;
+    // Reuse ownership-based expiry even though an identifier is not an OTP seed.
+    write(&app, &token.id, epoch)?;
+    vault.touch();
+    Ok(())
+}
+#[tauri::command]
 pub async fn token_recovery_copy(
     app: AppHandle,
     s: State<'_, AppState>,

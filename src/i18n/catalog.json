@@ -8872,5 +8872,35 @@
       "file": "src-tauri/src/import.rs",
       "line": 480
     }
+  ],
+  "令牌 ID": [
+    {
+      "file": "src/App.tsx",
+      "line": 2628
+    }
+  ],
+  "复制令牌 ID": [
+    {
+      "file": "src/App.tsx",
+      "line": 2630
+    }
+  ],
+  "令牌 ID 已复制": [
+    {
+      "file": "src/App.tsx",
+      "line": 2631
+    }
+  ],
+  "自动化 OTP 配置无效，请检查独立配置文件与环境变量": [
+    {
+      "file": "src-tauri/src/automation_otp.rs",
+      "line": 30
+    }
+  ],
+  "无法启动自动化 OTP 本机服务，请检查端口是否被占用": [
+    {
+      "file": "src-tauri/src/automation_otp.rs",
+      "line": 31
+    }
   ]
 }

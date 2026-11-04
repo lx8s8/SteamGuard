@@ -93,6 +93,7 @@ export const api = {
   tokenCodes: () => call<{ revision: string; codes: TokenCode[] }>("token_codes"),
   currentCode: (id: string) => call<Omit<TokenCode, "id">>("token_current_code", { id }),
   copyCode: (id: string) => call<Omit<TokenCode, "id">>("token_copy", { id }),
+  copyTokenId: (id: string) => call<void>("token_id_copy", { id }),
   createToken: (input: ManualTokenInput) => call<string>("token_create", { input }),
   tokenBatch: (action: "group" | "pin" | "delete", ids: string[], options?: { group?: string; pinned?: boolean }) => call<number>("token_batch", { action, ids, ...options }),
   reorderTokens: (ids: string[]) => call<void>("token_reorder", { ids }),

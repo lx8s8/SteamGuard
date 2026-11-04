@@ -81,6 +81,7 @@ npm run build
 - [功能范围](docs/feature-matrix.md)
 - [语言与翻译](docs/LANGUAGES.md)
 - [Steam 集成](docs/steam.md)
+- [自动化 OTP 接口](docs/automation-otp.md)
 - [问题反馈](https://github.com/lx8s8/SteamGuard/issues)
 
 ## 来源与许可

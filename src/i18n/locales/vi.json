@@ -1266,5 +1266,10 @@
   "使用当前系统 iCloud 账号，无需网盘密码。": "Dùng tài khoản iCloud hiện tại của hệ thống. Không cần mật khẩu lưu trữ đám mây.",
   "系统 iCloud 账号": "Tài khoản iCloud hệ thống",
   "iCloud 同步仅支持 macOS 和 iOS。其他平台请选择其他网盘。": "Đồng bộ iCloud chỉ hỗ trợ macOS và iOS. Hãy chọn dịch vụ đám mây khác trên các nền tảng khác.",
-  "iCloud 暂不可用，请检查系统账号、iCloud Drive 和应用授权。": "iCloud không khả dụng. Kiểm tra tài khoản hệ thống, iCloud Drive và quyền của ứng dụng."
+  "iCloud 暂不可用，请检查系统账号、iCloud Drive 和应用授权。": "iCloud không khả dụng. Kiểm tra tài khoản hệ thống, iCloud Drive và quyền của ứng dụng.",
+  "令牌 ID": "ID mã xác thực",
+  "复制令牌 ID": "Sao chép ID mã xác thực",
+  "令牌 ID 已复制": "Đã sao chép ID mã xác thực",
+  "自动化 OTP 配置无效，请检查独立配置文件与环境变量": "Cấu hình OTP tự động hóa không hợp lệ. Kiểm tra tệp cấu hình và biến môi trường",
+  "无法启动自动化 OTP 本机服务，请检查端口是否被占用": "Không thể khởi động dịch vụ OTP tự động hóa cục bộ. Kiểm tra xem cổng có đang được sử dụng không"
 }

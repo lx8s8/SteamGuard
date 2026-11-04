@@ -4662,5 +4662,17 @@
       "file": "src-tauri/plugins/icloud-sync/src/lib.rs",
       "line": 58
     }
+  ],
+  "自动化 OTP 配置无效，请检查独立配置文件与环境变量": [
+    {
+      "file": "src-tauri/src/automation_otp.rs",
+      "line": 30
+    }
+  ],
+  "无法启动自动化 OTP 本机服务，请检查端口是否被占用": [
+    {
+      "file": "src-tauri/src/automation_otp.rs",
+      "line": 31
+    }
   ]
 }

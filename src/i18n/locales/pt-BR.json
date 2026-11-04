@@ -1266,5 +1266,10 @@
   "使用当前系统 iCloud 账号，无需网盘密码。": "Usa a conta atual do iCloud do sistema. Não é necessária uma senha de armazenamento em nuvem.",
   "系统 iCloud 账号": "Conta do iCloud do sistema",
   "iCloud 同步仅支持 macOS 和 iOS。其他平台请选择其他网盘。": "A sincronização do iCloud é compatível apenas com macOS e iOS. Escolha outro provedor nas demais plataformas.",
-  "iCloud 暂不可用，请检查系统账号、iCloud Drive 和应用授权。": "iCloud indisponível. Verifique a conta do sistema, o iCloud Drive e as permissões do aplicativo."
+  "iCloud 暂不可用，请检查系统账号、iCloud Drive 和应用授权。": "iCloud indisponível. Verifique a conta do sistema, o iCloud Drive e as permissões do aplicativo.",
+  "令牌 ID": "ID do token",
+  "复制令牌 ID": "Copiar ID do token",
+  "令牌 ID 已复制": "ID do token copiado",
+  "自动化 OTP 配置无效，请检查独立配置文件与环境变量": "Configuração de OTP de automação inválida. Verifique o arquivo de configuração e as variáveis de ambiente",
+  "无法启动自动化 OTP 本机服务，请检查端口是否被占用": "Não foi possível iniciar o serviço local de OTP de automação. Verifique se a porta está em uso"
 }
