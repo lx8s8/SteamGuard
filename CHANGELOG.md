@@ -4,6 +4,12 @@
 
 暂无。
 
+## 1.8.1
+
+- 扩充离线内置服务图标库至 260 个，全面覆盖主流加密货币交易所（Binance、OKX、Bybit、Bitget、Coinbase、Kraken、KuCoin、Gate.io、HTX、MEXC、Crypto.com、Bitfinex、Bitstamp、Gemini、Upbit、BingX、Deribit、BitMart、HashKey、OSL、Hyperliquid、Backpack、Polymarket 等）、加密与硬件钱包（Bitget Wallet、OKX Wallet、MetaMask、Phantom、Trust Wallet、Ledger、Trezor、SafePal、OneKey、Keystone、Rabby、imToken、TokenPocket、Exodus 等）、港美股与全球主流券商及跨境银行（IBKR、富途 / moomoo、老虎证券、长桥证券、Webull、盈立、雪盈、嘉信理财、富达、先锋领航、Robinhood、eToro、Trading 212、Saxo、DEGIRO、IG、OANDA、TradingView、Wise、Revolut、Stripe、Payoneer、Airwallex、HSBC、OCBC、DBS、ZA Bank 等），并补全 AI 工具、密码管理器、隐私邮箱、云服务/VPS/域名、NAS 自托管及常用游戏与社交平台。
+- 图标选择器新增 8 组分类筛选标签，支持跨分类中英文别名检索与空结果提示，同时对高亮度品牌色做浅底对比度适配。
+- 优化自动品牌识别优先级，长别名优先匹配并支持词元匹配，准确区分 `Bitget Wallet` / `Bitget`、`OKX Wallet` / `OKX` 等前缀重叠服务；补齐 16 种离线语言包对应词条。
+
 ## 1.8.0
 
 - 导入通用令牌时可选择要替换的现有条目，保留名称、分组、头像、备注及备用恢复码，替换结果随现有同步库同步。
