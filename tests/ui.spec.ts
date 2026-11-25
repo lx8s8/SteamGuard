@@ -1312,6 +1312,53 @@ for (const width of [320, 390, 768, 844]) {
   });
 }
 
+test("token tools survive focus loss during mouse activation", async ({ page }) => {
+  const trigger = page.getByRole("button", { name: "管理令牌", exact: true });
+  const dialog = page.getByRole("dialog");
+  const choose = async (name: string) => {
+    await trigger.click();
+    await trigger.focus();
+    const option = page.getByRole("button", { name, exact: true });
+    // Reproduce a press that clears focus before click, including in Chromium.
+    await option.evaluate((button) => {
+      button.addEventListener("mousedown", (event) => {
+        event.preventDefault();
+        (document.activeElement as HTMLElement | null)?.blur();
+      }, { once: true });
+    });
+    await option.click();
+    await expect(page.locator(".token-tools-menu")).toBeHidden();
+  };
+
+  await choose("管理分组");
+  await expect(dialog).toHaveAccessibleName("管理分组");
+  await dialog.getByRole("button", { name: "关闭", exact: true }).click();
+
+  await choose("批量管理");
+  const batch = page.getByRole("region", { name: "批量管理令牌" });
+  await expect(batch).toBeVisible();
+  await choose("退出批量选择");
+  await expect(batch).toBeHidden();
+
+  await choose("导出备份");
+  await expect(dialog).toHaveAccessibleName("导出加密备份");
+  await dialog.getByRole("button", { name: "关闭", exact: true }).click();
+
+  await choose("回收站");
+  await expect(dialog).toHaveAccessibleName("本机回收站");
+  await dialog.getByRole("button", { name: "关闭", exact: true }).click();
+
+  await trigger.click();
+  await page.getByRole("heading", { name: "测试 · Steam", exact: true }).click();
+  await expect(page.locator(".token-tools-menu")).toBeHidden();
+
+  await trigger.press("Enter");
+  const groupOption = page.getByRole("button", { name: "管理分组", exact: true });
+  await groupOption.press("Escape");
+  await expect(groupOption).toBeHidden();
+  await expect(trigger).toBeFocused();
+});
+
 test("custom groups can be created, assigned, renamed and deleted without deleting tokens", async ({
   page,
 }) => {

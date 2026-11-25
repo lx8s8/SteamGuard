@@ -171,6 +171,24 @@ export default function App() {
   const [trashOpen, setTrashOpen] = useState(false);
   const dragging = useRef<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const tokenToolsRef = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const dismissTokenTools = (event: PointerEvent) => {
+      const disclosure = tokenToolsRef.current;
+      if (disclosure?.open && !event.composedPath().includes(disclosure)) {
+        disclosure.open = false;
+      }
+    };
+    document.addEventListener("pointerdown", dismissTokenTools, true);
+    return () => document.removeEventListener("pointerdown", dismissTokenTools, true);
+  }, []);
+  const closeTokenTools = () => {
+    const disclosure = tokenToolsRef.current;
+    if (disclosure?.open) {
+      disclosure.open = false;
+      disclosure.querySelector("summary")?.focus();
+    }
+  };
   const [busy, setBusy] = useState(false);
   const [notification, setNotification] = useState<{
     text: string;
@@ -924,13 +942,23 @@ export default function App() {
                       >
                         {density === "grid" ? <List size={18} /> : <LayoutGrid size={18} />}
                       </button>
-                      {unlocked && <details className="token-tools" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.removeAttribute("open"); }} onKeyDown={(e) => { if (e.key === "Escape") e.currentTarget.removeAttribute("open"); }}>
+                      {unlocked && <details
+                        ref={tokenToolsRef}
+                        className="token-tools"
+                        onBlur={(e) => {
+                          // WebKit can blur the summary without focusing the clicked button.
+                          if (e.relatedTarget && !e.currentTarget.contains(e.relatedTarget)) {
+                            e.currentTarget.open = false;
+                          }
+                        }}
+                        onKeyDown={(e) => { if (e.key === "Escape") closeTokenTools(); }}
+                      >
                         <summary role="button" className="icon-button" aria-label={translate("管理令牌")} title={translate("管理令牌")}><Ellipsis size={20} /></summary>
                         <div className="token-tools-menu">
-                          <button onClick={(e) => { e.currentTarget.closest("details")?.removeAttribute("open"); setGroupsOpen(true); }}>{translate("管理分组")}</button>
-                          <button disabled={busy || !tokens.length} onClick={(e) => { e.currentTarget.closest("details")?.removeAttribute("open"); setSelecting(!selecting); setSelected([]); }}>{selecting ? translate("退出批量选择") : translate("批量管理")}</button>
-                          <button disabled={busy || !tokens.length} onClick={(e) => { e.currentTarget.closest("details")?.removeAttribute("open"); setExportOpen(true); }}>{translate("导出备份")}</button>
-                          <button onClick={(e) => { e.currentTarget.closest("details")?.removeAttribute("open"); setTrashOpen(true); }}>{translate("回收站")}</button>
+                          <button type="button" onClick={() => { closeTokenTools(); setGroupsOpen(true); }}>{translate("管理分组")}</button>
+                          <button type="button" disabled={busy || !tokens.length} onClick={() => { closeTokenTools(); setSelecting(!selecting); setSelected([]); }}>{selecting ? translate("退出批量选择") : translate("批量管理")}</button>
+                          <button type="button" disabled={busy || !tokens.length} onClick={() => { closeTokenTools(); setExportOpen(true); }}>{translate("导出备份")}</button>
+                          <button type="button" onClick={() => { closeTokenTools(); setTrashOpen(true); }}>{translate("回收站")}</button>
                         </div>
                       </details>}
                     </div>
