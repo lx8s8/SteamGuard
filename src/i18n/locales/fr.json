@@ -1305,5 +1305,15 @@
   "保存到图标库": "Enregistrer dans la bibliothèque",
   "已保存图标": "Icônes enregistrées",
   "删除图标 {{name}}": "Supprimer l’icône {{name}}",
-  "最多保存 100 个自定义图标": "Vous pouvez enregistrer jusqu’à 100 icônes personnalisées"
+  "最多保存 100 个自定义图标": "Vous pouvez enregistrer jusqu’à 100 icônes personnalisées",
+  "交易所": "Plateformes crypto",
+  "钱包": "Portefeuilles",
+  "券商金融": "Courtiers et finance",
+  "游戏": "Jeux",
+  "云与开发": "Cloud et dev",
+  "AI 工具": "Outils IA",
+  "安全邮箱": "Sécurité et e-mail",
+  "社交常用": "Réseaux et quotidien",
+  "图标分类": "Catégories d'icônes",
+  "未找到匹配的图标": "Aucune icône correspondante"
 }

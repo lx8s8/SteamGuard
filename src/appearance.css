@@ -74,7 +74,7 @@ input, select, textarea { color-scheme:inherit; color:var(--text); }
 .tray-token:hover, .tray-token:focus-visible, .tray-token.selected { background:var(--accent-soft); }
 .tray-token.selected { box-shadow:inset 2px 0 0 var(--blue); }
 .toast { color:var(--toast-text); }
-.button, .icon-button, .nav-item, .token-tabs button, .dialog-tabs button, .copy-button, .tray-token, .icon-options button, .saved-icon-delete, .token-card, .file-drop, .file-drop-icon, .steam-login-import, .account-tool-grid > button, .search-box, .icon-search, .tray-search, .sort-select, .settings-summary, .token-tools-menu button, .mobile-nav > button {
+.button, .icon-button, .nav-item, .token-tabs button, .dialog-tabs button, .copy-button, .tray-token, .icon-category-tabs button, .icon-options button, .saved-icon-delete, .token-card, .file-drop, .file-drop-icon, .steam-login-import, .account-tool-grid > button, .search-box, .icon-search, .tray-search, .sort-select, .settings-summary, .token-tools-menu button, .mobile-nav > button {
   transition:background-color 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
 }
 .app-shell .button, .modal .button { font-size:calc(14px * var(--text-scale)); }
@@ -116,5 +116,5 @@ html[dir="rtl"] .tray-token, html[dir="rtl"] .settings-summary, html[dir="rtl"] 
 }
 @media (prefers-reduced-motion:reduce) {
   * { scroll-behavior:auto !important; }
-  .button, .icon-button, .nav-item, .token-tabs button, .dialog-tabs button, .copy-button, .tray-token, .icon-options button, .saved-icon-delete, .token-card, .file-drop, .file-drop-icon, .steam-login-import, .account-tool-grid > button, .search-box, .icon-search, .tray-search, .sort-select, .settings-summary, .token-tools-menu button, .mobile-nav > button { transition:none; }
+  .button, .icon-button, .nav-item, .token-tabs button, .dialog-tabs button, .copy-button, .tray-token, .icon-category-tabs button, .icon-options button, .saved-icon-delete, .token-card, .file-drop, .file-drop-icon, .steam-login-import, .account-tool-grid > button, .search-box, .icon-search, .tray-search, .sort-select, .settings-summary, .token-tools-menu button, .mobile-nav > button { transition:none; }
 }

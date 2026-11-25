@@ -1305,5 +1305,15 @@
   "保存到图标库": "In Bibliothek speichern",
   "已保存图标": "Gespeicherte Symbole",
   "删除图标 {{name}}": "Symbol {{name}} löschen",
-  "最多保存 100 个自定义图标": "Maximal 100 eigene Symbole möglich"
+  "最多保存 100 个自定义图标": "Maximal 100 eigene Symbole möglich",
+  "交易所": "Börsen",
+  "钱包": "Wallets",
+  "券商金融": "Broker & Finanzen",
+  "游戏": "Gaming",
+  "云与开发": "Cloud & Dev",
+  "AI 工具": "KI-Tools",
+  "安全邮箱": "Sicherheit & Mail",
+  "社交常用": "Soziales & Alltag",
+  "图标分类": "Symbolkategorien",
+  "未找到匹配的图标": "Keine passenden Symbole gefunden"
 }

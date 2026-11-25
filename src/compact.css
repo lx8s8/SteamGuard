@@ -934,6 +934,37 @@ textarea::placeholder {
   border-color: transparent !important;
   box-shadow: none;
 }
+.icon-category-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: -6px 0 12px;
+}
+.icon-category-tabs button {
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--soft);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.2;
+}
+.icon-category-tabs button:hover {
+  color: var(--text);
+  border-color: var(--control-border);
+}
+.icon-category-tabs button.selected {
+  color: var(--blue);
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+}
+.icon-empty-hint {
+  margin: 18px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+}
 .icon-options {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

@@ -1305,5 +1305,15 @@
   "保存到图标库": "Guardar en la biblioteca",
   "已保存图标": "Iconos guardados",
   "删除图标 {{name}}": "Eliminar icono {{name}}",
-  "最多保存 100 个自定义图标": "Puedes guardar hasta 100 iconos personalizados"
+  "最多保存 100 个自定义图标": "Puedes guardar hasta 100 iconos personalizados",
+  "交易所": "Exchanges",
+  "钱包": "Billeteras",
+  "券商金融": "Brókeres y finanzas",
+  "游戏": "Juegos",
+  "云与开发": "Nube y desarrollo",
+  "AI 工具": "Herramientas IA",
+  "安全邮箱": "Seguridad y correo",
+  "社交常用": "Social y cotidiano",
+  "图标分类": "Categorías de iconos",
+  "未找到匹配的图标": "No se encontraron iconos coincidentes"
 }

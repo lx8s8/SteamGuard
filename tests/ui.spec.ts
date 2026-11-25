@@ -2985,3 +2985,73 @@ test("fetched website icons are saved in the reusable icon library and can be de
   await dialog.getByRole("button", { name: "关闭", exact: true }).click();
   await expect(page.locator(".token-card").filter({ hasText: "测试 · 通用 OTP" }).getByRole("img", { name: "自定义头像" })).toBeVisible();
 });
+
+test("bundled exchanges, wallets, brokers and categories search, filter and auto-match accurately", async ({ page }) => {
+  await page.getByRole("button", { name: "管理 测试 · 通用 OTP", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "更换头像", exact: true }).click();
+
+  // 分类标签按预期筛选对应类别的服务图标。
+  const categories = dialog.getByRole("group", { name: "图标分类", exact: true });
+  await categories.getByRole("button", { name: "交易所", exact: true }).click();
+  await expect(dialog.getByLabel("选择 Bybit 图标", { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("选择 Binance 图标", { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("选择 Gate.io 图标", { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("选择 Steam 图标", { exact: true })).toHaveCount(0);
+
+  await categories.getByRole("button", { name: "钱包", exact: true }).click();
+  await expect(dialog.getByLabel("选择 Bitget Wallet 图标", { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("选择 OKX Wallet 图标", { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("选择 MetaMask 图标", { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("选择 Bybit 图标", { exact: true })).toHaveCount(0);
+
+  await categories.getByRole("button", { name: "券商金融", exact: true }).click();
+  await expect(dialog.getByLabel("选择 IBKR 图标", { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("选择 富途 / moomoo 图标", { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("选择 老虎证券 图标", { exact: true })).toBeVisible();
+  await expect(dialog.getByLabel("选择 Wise 图标", { exact: true })).toBeVisible();
+
+  // 在任意分类下搜索都直接跨全部分类匹配中英文别名。
+  for (const [query, name] of [
+    ["bybit", "Bybit"],
+    ["bitget wallet", "Bitget Wallet"],
+    ["币安", "Binance"],
+    ["火币", "HTX"],
+    ["盈透", "IBKR"],
+    ["moomoo", "富途 / moomoo"],
+    ["小狐狸", "MetaMask"],
+    ["chatgpt", "OpenAI"],
+    ["群晖", "群晖 Synology"],
+  ]) {
+    await dialog.getByLabel("搜索图标").fill(query);
+    await expect(dialog.getByLabel(`选择 ${name} 图标`, { exact: true })).toBeVisible();
+  }
+
+  // 无结果时给出清晰提示。
+  await dialog.getByLabel("搜索图标").fill("no-such-brand-xyz-999");
+  await expect(dialog.getByText("未找到匹配的图标")).toBeVisible();
+
+  // 选择 Bitget Wallet 保存后，在主列表卡片正确展示图标。
+  await dialog.getByLabel("搜索图标").fill("bitget wallet");
+  await dialog.getByLabel("选择 Bitget Wallet 图标", { exact: true }).click();
+  await dialog.getByRole("button", { name: "保存", exact: true }).click();
+  const card = page.locator(".token-card").filter({ hasText: "测试 · 通用 OTP" });
+  await expect(card.getByLabel("Bitget Wallet", { exact: true })).toBeVisible();
+
+  // 通过编辑发行方名称验证自动品牌匹配能准确区分前缀重叠的品牌（如 Bitget Wallet 与 Bitget、OKX Wallet 与 OKX）。
+  for (const [issuer, expected] of [
+    ["Bitget Wallet", "Bitget Wallet"],
+    ["Bitget", "Bitget"],
+    ["OKX Wallet", "OKX Wallet"],
+    ["OKX", "OKX"],
+    ["Bybit", "Bybit"],
+    ["Interactive Brokers", "IBKR"],
+  ]) {
+    await page.getByRole("button", { name: "管理 测试 · 通用 OTP", exact: true }).click();
+    await dialog.getByRole("button", { name: "更换头像", exact: true }).click();
+    await dialog.getByRole("button", { name: "自动图标", exact: true }).click();
+    await dialog.getByLabel("服务名称").fill(issuer);
+    await dialog.getByRole("button", { name: "保存", exact: true }).click();
+    await expect(card.getByLabel(expected, { exact: true })).toBeVisible();
+  }
+});

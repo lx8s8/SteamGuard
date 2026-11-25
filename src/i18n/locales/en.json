@@ -1305,5 +1305,15 @@
   "保存到图标库": "Save to library",
   "已保存图标": "Saved icons",
   "删除图标 {{name}}": "Delete {{name}} icon",
-  "最多保存 100 个自定义图标": "You can save up to 100 custom icons"
+  "最多保存 100 个自定义图标": "You can save up to 100 custom icons",
+  "交易所": "Exchanges",
+  "钱包": "Wallets",
+  "券商金融": "Brokers & Finance",
+  "游戏": "Gaming",
+  "云与开发": "Cloud & Dev",
+  "AI 工具": "AI Tools",
+  "安全邮箱": "Security & Mail",
+  "社交常用": "Social & Everyday",
+  "图标分类": "Icon categories",
+  "未找到匹配的图标": "No matching icons found"
 }

@@ -1305,5 +1305,15 @@
   "保存到图标库": "Kitaplığa kaydet",
   "已保存图标": "Kayıtlı simgeler",
   "删除图标 {{name}}": "{{name}} simgesini sil",
-  "最多保存 100 个自定义图标": "En fazla 100 özel simge kaydedebilirsiniz"
+  "最多保存 100 个自定义图标": "En fazla 100 özel simge kaydedebilirsiniz",
+  "交易所": "Borsalar",
+  "钱包": "Cüzdanlar",
+  "券商金融": "Aracı Kurum ve Finans",
+  "游戏": "Oyun",
+  "云与开发": "Bulut ve Geliştirme",
+  "AI 工具": "YZ Araçları",
+  "安全邮箱": "Güvenlik ve E-posta",
+  "社交常用": "Sosyal ve Günlük",
+  "图标分类": "Simge kategorileri",
+  "未找到匹配的图标": "Eşleşen simge bulunamadı"
 }
