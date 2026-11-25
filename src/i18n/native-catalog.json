@@ -1,4 +1,16 @@
 {
+  "自动化 OTP 配置无效，请检查独立配置文件与环境变量": [
+    {
+      "file": "src-tauri/src/automation_otp.rs",
+      "line": 30
+    }
+  ],
+  "无法启动自动化 OTP 本机服务，请检查端口是否被占用": [
+    {
+      "file": "src-tauri/src/automation_otp.rs",
+      "line": 31
+    }
+  ],
   "头像格式无效": [
     {
       "file": "src-tauri/src/avatar.rs",
@@ -16,7 +28,7 @@
     },
     {
       "file": "src-tauri/src/avatar.rs",
-      "line": 53
+      "line": 56
     }
   ],
   "头像编码无效": [
@@ -40,7 +52,33 @@
   "无法保存头像": [
     {
       "file": "src-tauri/src/avatar.rs",
-      "line": 51
+      "line": 54
+    }
+  ],
+  "未找到可用的网站图标，请检查官网地址或上传图片": [
+    {
+      "file": "src-tauri/src/avatar_website.rs",
+      "line": 13
+    }
+  ],
+  "请输入公开的 HTTPS 网站地址": [
+    {
+      "file": "src-tauri/src/avatar_website.rs",
+      "line": 14
+    }
+  ],
+  "保险库状态已变化，请重试": [
+    {
+      "file": "src-tauri/src/avatar_website.rs",
+      "line": 29
+    },
+    {
+      "file": "src-tauri/src/clipboard.rs",
+      "line": 89
+    },
+    {
+      "file": "src-tauri/src/sync/commands.rs",
+      "line": 486
     }
   ],
   "备份目录无效": [
@@ -387,16 +425,6 @@
       "line": 76
     }
   ],
-  "保险库状态已变化，请重试": [
-    {
-      "file": "src-tauri/src/clipboard.rs",
-      "line": 89
-    },
-    {
-      "file": "src-tauri/src/sync/commands.rs",
-      "line": 486
-    }
-  ],
   "令牌已删除": [
     {
       "file": "src-tauri/src/clipboard.rs",
@@ -440,15 +468,19 @@
   "令牌不存在": [
     {
       "file": "src-tauri/src/clipboard.rs",
-      "line": 226
+      "line": 225
     },
     {
       "file": "src-tauri/src/clipboard.rs",
-      "line": 249
+      "line": 245
+    },
+    {
+      "file": "src-tauri/src/clipboard.rs",
+      "line": 268
     },
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 77
+      "line": 80
     },
     {
       "file": "src-tauri/src/migration.rs",
@@ -466,7 +498,7 @@
   "恢复码不可用": [
     {
       "file": "src-tauri/src/clipboard.rs",
-      "line": 231
+      "line": 250
     }
   ],
   "菜单文字无效": [
@@ -954,7 +986,7 @@
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 469
+      "line": 470
     }
   ],
   "WinAuth 加密记录超过 1000 条限制": [
@@ -1026,7 +1058,7 @@
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 266
+      "line": 267
     }
   ],
   "未知的令牌哈希算法": [
@@ -1036,7 +1068,7 @@
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 287
+      "line": 288
     }
   ],
   "令牌密钥缺失": [
@@ -1046,7 +1078,7 @@
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 270
+      "line": 271
     }
   ],
   "Steam 令牌附加数据损坏": [
@@ -1060,7 +1092,7 @@
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 294
+      "line": 295
     }
   ],
   "导出记录缺少名称": [
@@ -1070,7 +1102,7 @@
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 246
+      "line": 247
     }
   ],
   "导出记录缺少令牌数据": [
@@ -1080,7 +1112,7 @@
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 251
+      "line": 252
     }
   ],
   "Google 迁移二维码格式无效": [
@@ -1245,28 +1277,54 @@
       "line": 335
     }
   ],
+  "请选择不同且仍存在的同类型令牌进行替换": [
+    {
+      "file": "src-tauri/src/import/replace.rs",
+      "line": 77
+    }
+  ],
+  "导入密钥对应多个已有令牌，请先处理重复项": [
+    {
+      "file": "src-tauri/src/import/replace.rs",
+      "line": 103
+    }
+  ],
+  "此 HOTP 的主设备为其他设备，请先切换主设备": [
+    {
+      "file": "src-tauri/src/import/replace.rs",
+      "line": 107
+    },
+    {
+      "file": "src-tauri/src/sync.rs",
+      "line": 408
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 321
+    }
+  ],
   "导入文件为空或超过 16 MiB 限制": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 33
+      "line": 34
     }
   ],
   "文件中没有有效令牌，或令牌数量超过限制": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 59
+      "line": 60
     }
   ],
   "令牌密钥为空或长度无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 72
+      "line": 73
     }
   ],
   "令牌周期或位数无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 75
+      "line": 76
     },
     {
       "file": "src-tauri/src/models.rs",
@@ -1276,435 +1334,435 @@
   "不支持的令牌哈希算法": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 78
+      "line": 79
     }
   ],
   "导出文件嵌套或解压大小超过限制": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 112
+      "line": 113
     }
   ],
   "无法读取 WattToolkit MessagePack 导出格式": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 116
+      "line": 117
     }
   ],
   "导出文件包含无效的尾部数据": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 118
+      "line": 119
     }
   ],
   "LZ4 解压长度无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 126
+      "line": 127
     }
   ],
   "导出文件 LZ4 数据损坏": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 128
+      "line": 129
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 154
+      "line": 155
     }
   ],
   "导出文件 LZ4 长度不匹配": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 130
+      "line": 131
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 156
+      "line": 157
     }
   ],
   "LZ4 分段长度无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 143
+      "line": 144
     }
   ],
   "导出文件解压后超过 16 MiB 限制": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 150
+      "line": 151
     }
   ],
   "LZ4 分段无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 152
+      "line": 153
     }
   ],
   "LZ4 分段数量不匹配": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 161
+      "line": 162
     }
   ],
   "加密数据头不完整": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 171
+      "line": 172
     }
   ],
   "导出文件解密失败：密码错误、数据损坏或不兼容的加密密钥": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 188
+      "line": 189
     }
   ],
   "此文件绑定了原电脑的本地加密。请在原 WattToolkit 中关闭「本机加密」后重新导出": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 195
+      "line": 196
     }
   ],
   "不支持的 WattToolkit 加密模式": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 199
+      "line": 200
     }
   ],
   "此导出需要二级密码，请输入导出密码": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 205
+      "line": 206
     }
   ],
   "不支持的二级密码加密版本": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 207
+      "line": 208
     }
   ],
   "不支持的 WattToolkit 内置加密密钥版本": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 216
+      "line": 217
     }
   ],
   "WattToolkit 导出内容不是令牌列表": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 235
+      "line": 236
     }
   ],
   "令牌数量超过限制": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 237
+      "line": 238
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 483
+      "line": 484
     }
   ],
   "此文件绑定原电脑，请关闭原软件的本机加密后重新导出": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 242
+      "line": 243
     }
   ],
   "令牌名称不是有效 UTF-8": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 248
+      "line": 249
     }
   ],
   "令牌类型数据无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 258
+      "line": 259
     }
   ],
   "令牌平台无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 259
+      "line": 260
     }
   ],
   "无法编码令牌导出文件": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 315
+      "line": 316
     }
   ],
   "内置加密参数无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 322
+      "line": 323
     }
   ],
   "导出密码派生失败": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 331
+      "line": 332
     }
   ],
   "没有可导出的令牌或数量超过限制": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 348
+      "line": 349
     }
   ],
   "系统时间无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 352
+      "line": 353
     }
   ],
   "无法导出未知的令牌类型": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 366
+      "line": 367
     }
   ],
   "无法导出未知哈希算法": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 372
+      "line": 373
     }
   ],
   "导出数据超过 16 MiB 限制": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 438
+      "line": 439
     }
   ],
   "WinAuth 密钥十六进制无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 450
+      "line": 451
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 457
+      "line": 458
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 460
+      "line": 461
     }
   ],
   "XML 中没有 WinAuthAuthenticator 记录": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 480
+      "line": 481
     }
   ],
   "WinAuth 记录缺少类型": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 493
+      "line": 494
     }
   ],
   "WinAuth 记录包含不支持的验证器类型": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 510
+      "line": 511
     }
   ],
   "WinAuth 记录缺少 secretdata": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 518
+      "line": 519
     }
   ],
   "WinAuth 位数无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 531
+      "line": 532
     }
   ],
   "WinAuth 周期无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 545
+      "line": 546
     }
   ],
   "WinAuth HOTP 计数无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 552
+      "line": 553
     }
   ],
   "WinAuth 附加数据不是 UTF-8": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 561
+      "line": 562
     }
   ],
   "WinAuth Steam JSON 无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 570
+      "line": 571
     }
   ],
   "JSON 文件格式错误": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 612
+      "line": 613
     }
   ],
   "不支持的加密备份类型": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 616
+      "line": 617
     }
   ],
   "Steam shared_secret 不是有效 Base64": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 651
+      "line": 652
     }
   ],
   "JSON 缺少 shared_secret、secret 或 otpauth uri": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 661
+      "line": 662
     }
   ],
   "JSON 令牌类型无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 667
+      "line": 668
     }
   ],
   "JSON 令牌数字参数无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 672
+      "line": 673
     }
   ],
   "JSON 令牌位数无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 677
+      "line": 678
     }
   ],
   "令牌密钥不是有效 Base32": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 715
+      "line": 716
     }
   ],
   "Google 导出尚未收齐：已收到 {{value1}}/{{value2}} 张，还缺第 {{value3}} 张。请扫描完整批次后再导入": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 729
+      "line": 730
     }
   ],
   "OTP URI 格式错误": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 745
+      "line": 746
     }
   ],
   "仅支持 otpauth://totp 和 otpauth://hotp": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 747
+      "line": 748
     }
   ],
   "OTP URI 缺少 secret": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 768
+      "line": 769
     }
   ],
   "OTP 位数无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 783
+      "line": 784
     }
   ],
   "OTP 周期无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 788
+      "line": 789
     }
   ],
   "HOTP counter 无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 793
+      "line": 794
     }
   ],
   "HOTP URI 缺少 counter": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 796
+      "line": 797
     }
   ],
   "URI 转义无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 809
+      "line": 810
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 813
+      "line": 814
     }
   ],
   "URI 标签不是有效 UTF-8": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 819
+      "line": 820
     }
   ],
   "令牌库暂不可用": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 58
+      "line": 61
     },
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 174
+      "line": 177
     }
   ],
   "导入缓存不可用": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 65
+      "line": 68
     }
   ],
   "令牌库已锁定，登录已取消": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 87
+      "line": 90
     },
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 94
+      "line": 97
     }
   ],
   "令牌已删除，登录已取消": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 106
+      "line": 109
     }
   ],
   "此令牌尚未关联 SteamID，请重新登录并使用“当前令牌验证”后再关联账号": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 112
+      "line": 115
     }
   ],
   "无法保存登录状态": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 120
+      "line": 123
     }
   ],
   "主题无效": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 155
+      "line": 158
     },
     {
       "file": "src-tauri/plugins/quick-access/src/lib.rs",
@@ -1718,7 +1776,7 @@
   "无法设置主题": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 159
+      "line": 162
     },
     {
       "file": "src-tauri/plugins/quick-access/src/lib.rs",
@@ -1736,17 +1794,17 @@
   "保险库已解锁": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 220
+      "line": 223
     },
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 362
+      "line": 365
     }
   ],
   "未知的解锁选项": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 287
+      "line": 290
     },
     {
       "file": "src-tauri/src/quick_access.rs",
@@ -1764,7 +1822,7 @@
   "请先解锁保险库": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 293
+      "line": 296
     },
     {
       "file": "src-tauri/src/vault.rs",
@@ -1782,49 +1840,49 @@
   "请先在设备系统设置中启用生物认证或 Windows Hello": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 307
+      "line": 310
     }
   ],
   "请确认主密码": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 321
+      "line": 324
     }
   ],
   "保险库已锁定，请重新启用": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 329
+      "line": 332
     }
   ],
   "尚未启用设备认证": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 352
+      "line": 355
     }
   ],
   "解锁已取消，请重试": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 359
+      "line": 362
     }
   ],
   "尚未启用免密码预览": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 379
+      "line": 382
     }
   ],
   "访问状态已改变，请重试": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 386
+      "line": 389
     }
   ],
   "保险库已解锁，请刷新页面": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 397
+      "line": 400
     }
   ],
   "请选择有效的令牌": [
@@ -2955,16 +3013,6 @@
     {
       "file": "src-tauri/src/sync.rs",
       "line": 372
-    }
-  ],
-  "此 HOTP 的主设备为其他设备，请先切换主设备": [
-    {
-      "file": "src-tauri/src/sync.rs",
-      "line": 408
-    },
-    {
-      "file": "src-tauri/src/vault.rs",
-      "line": 321
     }
   ],
   "已使用的备用恢复码": [
@@ -4661,18 +4709,6 @@
     {
       "file": "src-tauri/plugins/icloud-sync/src/lib.rs",
       "line": 58
-    }
-  ],
-  "自动化 OTP 配置无效，请检查独立配置文件与环境变量": [
-    {
-      "file": "src-tauri/src/automation_otp.rs",
-      "line": 30
-    }
-  ],
-  "无法启动自动化 OTP 本机服务，请检查端口是否被占用": [
-    {
-      "file": "src-tauri/src/automation_otp.rs",
-      "line": 31
     }
   ]
 }

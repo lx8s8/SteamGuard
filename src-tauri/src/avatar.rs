@@ -44,7 +44,10 @@ pub fn normalize(value: &str) -> Result<String, String> {
         validate(value)?;
         return Ok(value.into());
     }
-    let image = decode(value)?.resize_to_fill(96, 96, image::imageops::FilterType::Triangle);
+    encode_png(decode(value)?)
+}
+pub(crate) fn encode_png(image: image::DynamicImage) -> Result<String, String> {
+    let image = image.resize_to_fill(96, 96, image::imageops::FilterType::Triangle);
     let mut bytes = Cursor::new(Vec::new());
     image
         .write_to(&mut bytes, ImageFormat::Png)

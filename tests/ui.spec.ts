@@ -409,6 +409,8 @@ async function nativeFixture(page: Page) {
               }
               return;
             }
+            case "avatar_from_website":
+              return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a7C8AAAAASUVORK5CYII=";
             case "backup_status":
               return {
                 enabled: autoBackup,
@@ -607,6 +609,14 @@ async function nativeFixture(page: Page) {
               };
             }
             case "import_preview":
+              if ((window as any).__importReplacement) {
+                const target = tokens.find(t => t.kind === "totp")!;
+                return {
+                  previewId: "fixture-replacement", tokens: [], duplicates: 1, canCommit: false,
+                  replacementSources: [{ index: 0, name: "Source fixture", issuer: "Example", kind: "totp", existingId: null }],
+                  replacementTargets: [{ id: target.id, name: target.name, issuer: target.issuer, kind: target.kind, group: target.group }],
+                };
+              }
               if ((window as any).__deferImportPreview)
                 return new Promise((resolve) =>
                   Object.assign(window, { __resolveImportPreview: resolve }),
@@ -634,6 +644,7 @@ async function nativeFixture(page: Page) {
                 duplicates: 0,
               };
             case "import_commit": {
+              if (args.previewId === "fixture-replacement") return 1;
               const qrTokens = qrPreviews.get(String(args.previewId));
               if (qrTokens) {
                 for (const [index, token] of qrTokens.entries())
@@ -833,6 +844,47 @@ test("filters other tokens and imports only after preview confirmation", async (
     page.getByRole("heading", { name: "测试 · 导入令牌" }),
   ).toBeVisible();
   expect(await commandCount(page, "import_commit")).toBe(1);
+});
+
+test("import replacement requires explicitly pairing a source and same-type target", async ({ page }) => {
+  await page.evaluate(() => { (window as any).__importReplacement = true; });
+  await page.getByRole("button", { name: "添加令牌", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "粘贴密钥 / 链接" }).click();
+  await dialog.getByLabel("OTP 链接或令牌 JSON").fill("otpauth://totp/Example:fixture?secret=GEZDGNBVGY3TQOJQ");
+  await dialog.getByRole("button", { name: "预览令牌" }).click();
+  await expect(dialog.getByRole("button", { name: "确认导入", exact: true })).toBeDisabled();
+  await dialog.getByRole("button", { name: "替换旧令牌", exact: true }).click();
+  const commit = dialog.getByRole("button", { name: "确认替换", exact: true });
+  await expect(commit).toBeDisabled();
+  await dialog.getByLabel("导入来源令牌").selectOption("0");
+  const target = dialog.getByLabel("要替换的现有令牌");
+  await expect(target.locator("option")).toHaveCount(2);
+  await target.selectOption({ index: 1 });
+  const targetId = await target.inputValue();
+  await dialog.getByRole("button", { name: "加入替换列表" }).click();
+  await expect(dialog.getByText(/用「Source fixture.*替换「测试 · 通用 OTP/)).toBeVisible();
+  await commit.click();
+  await expect(dialog).toHaveCount(0);
+  expect(await page.evaluate(() => (window as any).__testCommands.filter((c:any)=>c.command==="import_commit").at(-1).args.replacements))
+    .toEqual([{ sourceIndex: 0, targetId }]);
+});
+
+test("website avatar is previewed and persists only with the token edit", async ({ page }) => {
+  await page.getByRole("button", { name: "管理 测试 · 通用 OTP", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "更换头像", exact: true }).click();
+  await dialog.getByRole("button", { name: "从网站获取", exact: true }).click();
+  await dialog.getByLabel("服务官网地址").fill("example.com");
+  await dialog.getByRole("button", { name: "获取图标", exact: true }).click();
+  const useIcon = dialog.getByRole("button", { name: "使用此图标", exact: true });
+  await expect(useIcon).toBeEnabled();
+  expect(await commandCount(page, "token_update")).toBe(0);
+  await useIcon.click();
+  expect(await commandCount(page, "token_update")).toBe(0);
+  await dialog.getByRole("button", { name: "保存", exact: true }).click();
+  expect(await page.evaluate(() => (window as any).__testCommands.filter((c:any)=>c.command==="token_update").at(-1).args.icon.value))
+    .toMatch(/^data:image\/png;base64,/);
 });
 
 test("requires reviewing a transaction before submitting its confirmation", async ({

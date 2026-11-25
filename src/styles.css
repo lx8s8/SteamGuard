@@ -1728,6 +1728,40 @@ main {
 .import-token-list > div > svg:last-child {
   color: #6dbca0;
 }
+.import-replacement,
+.website-icon-form {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin-top: 12px;
+}
+.import-replacement select,
+.website-icon-form input {
+  min-width: 0;
+  width: 100%;
+}
+.import-replacement > button {
+  justify-self: start;
+}
+.replacement-list {
+  display: grid;
+  gap: 6px;
+  list-style: none;
+  padding: 0;
+}
+.replacement-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.replacement-list li > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.icon-picker-actions button[aria-pressed="true"] {
+  border-color: currentColor;
+}
 .login-account {
   display: flex;
   align-items: center;

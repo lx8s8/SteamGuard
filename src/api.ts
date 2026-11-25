@@ -13,6 +13,7 @@ import type {
   QuickCapabilities,
   TokenView,
   ImportPreview,
+  ImportReplacement,
   QrImportProgress,
   LoginResult,
   Confirmation,
@@ -114,7 +115,9 @@ export const api = {
   discardPreview: (previewId: string) =>
     call<void>("import_discard", { previewId }),
   importCameraSupported: () => call<boolean>("import_camera_supported"),
-  commit: (previewId: string) => call<void>("import_commit", { previewId }),
+  commit: (previewId: string, replacements?: ImportReplacement[]) =>
+    call<void>("import_commit", { previewId, replacements }),
+  avatarFromWebsite: (website: string) => call<string>("avatar_from_website", { website }),
   groups: () => call<string[]>("token_groups"),
   manageGroup: (
     action: "create" | "rename" | "delete",

@@ -1095,6 +1095,43 @@ mod tests {
         b.sync.as_mut().unwrap().merge_bytes(&bytes, actor).unwrap();
         apply(b, actor).unwrap();
     }
+    #[test]
+    fn replacing_a_duplicate_key_syncs_one_correct_record_to_another_device() {
+        let mut a = first();
+        let original = a.tokens[0].clone();
+        a.tokens[0].name = "Existing custom label".into();
+        a.tokens[0].group = Some("Work".into());
+        a.tokens[0].notes = "Keep these notes".into();
+        a.tokens[0].recovery_codes = vec![recovery("SYNTHETIC-EXISTING")];
+        let incoming = Token::new("Another label".into(), "totp".into(), vec![42; 32]);
+        a.tokens.push(incoming.clone());
+        record_local(&mut a, "actor-a").unwrap();
+        let mut b = copy(&a);
+        assert_eq!(b.tokens.len(), 2);
+
+        crate::import::replace::apply(
+            &mut a,
+            std::slice::from_ref(&incoming),
+            &[crate::import::replace::Replacement {
+                source_index: 0,
+                target_id: original.id,
+            }],
+        )
+        .unwrap();
+        record_local(&mut a, "actor-a").unwrap();
+        receive(&a, &mut b, "actor-b");
+        receive(&b, &mut a, "actor-a");
+        for data in [&a, &b] {
+            assert_eq!(data.tokens.len(), 1);
+            let token = &data.tokens[0];
+            assert_eq!(token.secret, incoming.secret);
+            assert_eq!(token.name, "Existing custom label");
+            assert_eq!(token.group.as_deref(), Some("Work"));
+            assert_eq!(token.notes, "Keep these notes");
+            assert_eq!(token.recovery_codes.len(), 1);
+            assert_eq!(crate::otp::code(token, 59), crate::otp::code(&incoming, 59));
+        }
+    }
     fn recovery(code: &str) -> crate::models::RecoveryCode {
         crate::models::RecoveryCode {
             id: uuid::Uuid::new_v4().to_string(),

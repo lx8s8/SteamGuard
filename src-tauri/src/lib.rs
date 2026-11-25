@@ -3,6 +3,7 @@ mod android_proxy;
 #[cfg(desktop)]
 mod automation_otp;
 mod avatar;
+mod avatar_website;
 mod backup;
 mod backup_commands;
 mod backup_external;
@@ -638,6 +639,8 @@ struct ImportPreview {
     duplicates: usize,
     group_count: usize,
     can_commit: bool,
+    replacement_sources: Vec<import::replace::Source>,
+    replacement_targets: Vec<import::replace::Target>,
 }
 #[tauri::command]
 async fn import_preview(
@@ -676,7 +679,7 @@ fn prepare_import_preview(
     imported_groups: Vec<String>,
     epoch: u64,
 ) -> Result<ImportPreview, String> {
-    let staged = Preview {
+    let mut staged = Preview {
         groups: imported_groups,
         tokens,
         created: models::now(),
@@ -689,6 +692,7 @@ fn prepare_import_preview(
         t.validate()?;
     }
     let mut v = s.vault()?;
+    staged.expected_revision = Some(v.revision.clone());
     let existing = &v.ensure()?.tokens;
     if s.epoch.load(Ordering::SeqCst) != epoch {
         return Err("保险库状态已变化，请重新导入".into());
@@ -723,6 +727,8 @@ fn prepare_import_preview(
         }
     }
     checked.tokens.iter_mut().for_each(Token::erase);
+    let (replacement_sources, replacement_targets) =
+        import::replace::choices(&staged.tokens, existing);
     let new_groups = staged
         .groups
         .iter()
@@ -736,6 +742,8 @@ fn prepare_import_preview(
         duplicates: count - visible.len(),
         group_count: staged.groups.len(),
         can_commit: !visible.is_empty() || metadata_changes || new_groups,
+        replacement_sources,
+        replacement_targets,
     };
     drop(visible);
     drop(seen);
@@ -804,10 +812,18 @@ fn import_camera_supported() -> bool {
     cfg!(mobile)
 }
 #[tauri::command(async)]
-fn import_commit(s: State<AppState>, preview_id: String) -> Result<usize, String> {
-    commit_import_preview(&s, &preview_id)
+fn import_commit(
+    s: State<AppState>,
+    preview_id: String,
+    replacements: Option<Vec<import::replace::Replacement>>,
+) -> Result<usize, String> {
+    commit_import_preview(&s, &preview_id, replacements.as_deref().unwrap_or_default())
 }
-fn commit_import_preview(s: &AppState, preview_id: &str) -> Result<usize, String> {
+fn commit_import_preview(
+    s: &AppState,
+    preview_id: &str,
+    replacements: &[import::replace::Replacement],
+) -> Result<usize, String> {
     let mut v = s.vault()?;
     v.ensure()?;
     let mut p = s
@@ -818,6 +834,12 @@ fn commit_import_preview(s: &AppState, preview_id: &str) -> Result<usize, String
         .ok_or("预览已过期，请重新导入")?;
     if models::now().saturating_sub(p.created) > 300 {
         return Err("预览已过期，请重新导入".into());
+    }
+    if !replacements.is_empty() {
+        if p.expected_revision.as_deref() != Some(v.revision.as_str()) {
+            return Err("保险库状态已变化，请重试".into());
+        }
+        return v.update(|d| import::replace::apply(d, &p.tokens, replacements));
     }
     v.update(|d| d.merge_import(std::mem::take(&mut p.tokens), std::mem::take(&mut p.groups)))
 }
@@ -1763,6 +1785,7 @@ pub fn run() {
                 token_groups,
                 token_group_manage,
                 token_update,
+                avatar_website::avatar_from_website,
                 backup_commands::backup_preview,
                 backup_commands::backup_restore_selected,
                 backup_external::backup_external_status,
@@ -1843,6 +1866,77 @@ mod qr_import_tests {
         }
     }
     #[test]
+    fn replacement_keeps_target_metadata_and_never_imports_unselected_entries() {
+        let dir = std::env::temp_dir().join(uuid::Uuid::new_v4().to_string());
+        let s = state(dir.join("vault.sgvault"), "synthetic-password");
+        let mut old = Token::new("My label".into(), "totp".into(), vec![1; 32]);
+        old.group = Some("Work".into());
+        old.issuer = "My issuer".into();
+        old.notes = "My notes".into();
+        old.pinned = true;
+        old.sort_order = 4;
+        let new = Token::new("From export".into(), "totp".into(), vec![2; 32]);
+        let steam = Token::new("Steam fixture".into(), "steam".into(), vec![3; 20]);
+        let unrelated = Token::new("Unselected".into(), "totp".into(), vec![4; 32]);
+        s.vault()
+            .unwrap()
+            .update(|d| {
+                d.tokens = vec![old.clone(), new.clone(), steam.clone()];
+                Ok(())
+            })
+            .unwrap();
+        let replacement = import::replace::Replacement {
+            source_index: 0,
+            target_id: old.id.clone(),
+        };
+        let incoming = || vec![new.clone(), unrelated.clone()];
+        let preview = prepare_import_preview(&s, incoming(), vec![], 0).unwrap();
+        assert_eq!(preview.tokens.len(), 1);
+        assert_eq!(preview.replacement_sources.len(), 2);
+        assert_eq!(preview.replacement_targets.len(), 2);
+        s.vault()
+            .unwrap()
+            .update(|d| {
+                d.tokens[0].notes.push('!');
+                Ok(())
+            })
+            .unwrap();
+        assert!(
+            commit_import_preview(&s, &preview.preview_id, std::slice::from_ref(&replacement))
+                .is_err()
+        );
+
+        let preview = prepare_import_preview(&s, incoming(), vec![], 0).unwrap();
+        assert_eq!(
+            commit_import_preview(&s, &preview.preview_id, &[replacement]).unwrap(),
+            1
+        );
+        let mut v = s.vault().unwrap();
+        v.lock();
+        v.unlock("synthetic-password").unwrap();
+        let data = v.ensure().unwrap();
+        assert_eq!(data.tokens.len(), 2);
+        let result = data.tokens.iter().find(|t| t.id == old.id).unwrap();
+        assert_eq!(result.secret, new.secret);
+        assert_eq!(result.name, old.name);
+        assert_eq!(result.group, old.group);
+        assert_eq!(result.issuer, old.issuer);
+        assert_eq!(result.notes, "My notes!");
+        assert!(result.pinned);
+        assert_eq!(result.sort_order, 4);
+        assert!(data
+            .tokens
+            .iter()
+            .any(|t| t.id == steam.id && t.secret == steam.secret));
+        assert_eq!(data.trash.len(), 2);
+        assert!(data
+            .trash
+            .iter()
+            .any(|entry| entry.token.secret == old.secret && entry.token.id != old.id));
+        v.lock();
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
     fn steam_metadata_only_preview_can_commit_and_conflicting_preview_is_rejected() {
         let dir = std::env::temp_dir().join(format!(
             "steamguard-enrich-preview-{}",
@@ -1865,7 +1959,10 @@ mod qr_import_tests {
         assert!(preview.can_commit);
         assert!(preview.tokens.is_empty());
         assert_eq!(preview.duplicates, 1);
-        assert_eq!(commit_import_preview(&s, &preview.preview_id).unwrap(), 0);
+        assert_eq!(
+            commit_import_preview(&s, &preview.preview_id, &[]).unwrap(),
+            0
+        );
         assert_eq!(
             s.vault().unwrap().ensure().unwrap().tokens[0].steam_id,
             enriched.steam_id
@@ -1892,8 +1989,8 @@ mod qr_import_tests {
         assert!(all.progress.complete && preview.can_commit);
         assert_eq!(preview.tokens.len(), 22);
         assert!(s.vault().unwrap().ensure().unwrap().tokens.is_empty());
-        commit_import_preview(&s, &preview.preview_id).unwrap();
-        assert!(commit_import_preview(&s, &preview.preview_id).is_err());
+        commit_import_preview(&s, &preview.preview_id, &[]).unwrap();
+        assert!(commit_import_preview(&s, &preview.preview_id, &[]).is_err());
         let mut vault = s.vault().unwrap();
         vault.lock();
         vault.unlock("synthetic-password").unwrap();
@@ -1945,7 +2042,7 @@ mod qr_import_tests {
             .preview
             .expect("complete preview required");
         assert!(preview.tokens.len() == unique);
-        commit_import_preview(&s, &preview.preview_id).unwrap();
+        commit_import_preview(&s, &preview.preview_id, &[]).unwrap();
         let mut vault = s.vault().unwrap();
         vault.lock();
         vault.unlock(&password).unwrap();
@@ -1981,7 +2078,7 @@ mod qr_import_tests {
         let progress = qr_import_preview(&s, vec![second.clone()]).unwrap();
         assert!(!progress.progress.complete && progress.preview.is_none());
         assert!(s.previews.lock().unwrap().is_empty());
-        assert!(commit_import_preview(&s, "missing").is_err());
+        assert!(commit_import_preview(&s, "missing", &[]).is_err());
         assert!(s.vault().unwrap().ensure().unwrap().tokens.is_empty());
         let result = qr_import_preview(&s, vec![second.clone(), first.clone(), second]).unwrap();
         let preview = result.preview.unwrap();
@@ -1991,7 +2088,7 @@ mod qr_import_tests {
         let serialized = serde_json::to_string(&preview).unwrap();
         assert!(!serialized.contains("1234567890") && !serialized.contains("otpauth-migration"));
         assert!(s.vault().unwrap().ensure().unwrap().tokens.is_empty());
-        commit_import_preview(&s, &preview.preview_id).unwrap();
+        commit_import_preview(&s, &preview.preview_id, &[]).unwrap();
         assert_eq!(s.vault().unwrap().ensure().unwrap().tokens.len(), 1);
         assert!(s.previews.lock().unwrap().is_empty());
         assert!(qr_import_preview(&s, vec![first])

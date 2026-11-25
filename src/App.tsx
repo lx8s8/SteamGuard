@@ -58,6 +58,7 @@ import { AppearanceSettings } from "./AppearanceSettings";
 import { SteamQrScanner } from "./SteamQrScanner";
 import { DesktopSettings } from "./DesktopSettings";
 import { QrImportPanel } from "./QrImportPanel";
+import { ImportReplacementPicker } from "./ImportReplacement";
 import { api, call, errorText, native } from "./api";
 import { SyncPanel, useSyncWatcher } from "./SyncPanel";
 import { BackupPanel, BackupBrowser } from "./BackupPanel";
@@ -70,6 +71,7 @@ import type {
   Confirmation,
   Enrollment,
   ImportPreview,
+  ImportReplacement,
   LoginResult,
   MarketResult,
   Page,
@@ -1486,6 +1488,8 @@ function ImportDialog({
   const [text, setText] = useState("");
   const [password, setPassword] = useState("");
   const [preview, setPreview] = useState<ImportPreview | null>(null);
+  const [replacing, setReplacing] = useState(false);
+  const [replacements, setReplacements] = useState<ImportReplacement[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const picker = useRef<HTMLInputElement>(null);
@@ -1505,6 +1509,8 @@ function ImportDialog({
       return;
     }
     lastPreview.current = next.previewId;
+    setReplacing(false);
+    setReplacements([]);
     setPreview(next);
   };
   const check = async () => {
@@ -1534,7 +1540,7 @@ function ImportDialog({
     setError("");
     setBusy(true);
     try {
-      await api.commit(preview.previewId);
+      await api.commit(preview.previewId, replacing ? replacements : undefined);
       setPassword("");
       setText("");
       await onComplete();
@@ -1559,6 +1565,11 @@ function ImportDialog({
     >
       {preview ? (
         <>
+          {!!preview.replacementSources?.length && <div className="icon-picker-actions" role="group" aria-label={translate("导入方式")}>
+            <button className="button secondary" aria-pressed={!replacing} disabled={busy} onClick={() => setReplacing(false)}>{translate("普通导入")}</button>
+            <button className="button secondary" aria-pressed={replacing} disabled={busy} onClick={() => setReplacing(true)}>{translate("替换旧令牌")}</button>
+          </div>}
+          {replacing ? <ImportReplacementPicker preview={preview} selected={replacements} onChange={setReplacements} busy={busy} /> : <>
           <div className="import-summary">
             <ShieldCheck size={22} />
             <div>
@@ -1593,6 +1604,7 @@ function ImportDialog({
               </div>
             ))}
           </div>
+          </>}
           {error && (
             <div className="form-error" role="alert">
               {error}
@@ -1607,11 +1619,11 @@ function ImportDialog({
             <button
               className="button primary"
               disabled={
-                busy || !(preview.canCommit ?? preview.tokens.length > 0)
+                busy || (replacing ? !replacements.length : !(preview.canCommit ?? preview.tokens.length > 0))
               }
               onClick={() => void commit()}
             >
-              {busy ? <Spinner /> : <ShieldCheck size={16} />}{translate("确认导入")}</button>
+              {busy ? <Spinner /> : <ShieldCheck size={16} />}{replacing ? translate("确认替换") : translate("确认导入")}</button>
           </div>
         </>
       ) : (

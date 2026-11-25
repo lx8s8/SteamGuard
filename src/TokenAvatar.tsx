@@ -1,6 +1,6 @@
 import { t as translate } from "./i18n";
 import { useRef, useState } from "react";
-import { ImagePlus, Search } from "lucide-react";
+import { Globe2, ImagePlus, Search } from "lucide-react";
 import {
   faSteam,
   faGoogle,
@@ -53,7 +53,7 @@ import {
 } from "@fortawesome/free-brands-svg-icons";
 import { siSony, siEpicgames, siUbisoft, siEa, siRiotgames, siGogdotcom } from "simple-icons";
 import type { TokenView } from "./types";
-import { errorText } from "./api";
+import { api, errorText } from "./api";
 
 type Brand = {
   id: string;
@@ -264,19 +264,24 @@ export function IconPicker({
   onBack: () => void;
 }) {
   const [search, setSearch] = useState("");
+  const [websiteOpen, setWebsiteOpen] = useState(false);
+  const [website, setWebsite] = useState("");
+  const [websiteIcon, setWebsiteIcon] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const picker = useRef<HTMLInputElement>(null);
   return (
     <div className="icon-picker">
       <div className="icon-picker-actions">
-        <button className="button secondary" onClick={() => onSelect(null)}>{translate("自动图标")}</button>
+        <button className="button secondary" disabled={busy} onClick={() => onSelect(null)}>{translate("自动图标")}</button>
         <button
           className="button secondary"
           disabled={busy}
           onClick={() => picker.current?.click()}
         >
           <ImagePlus size={17} />{translate("自定义头像")}</button>
+        <button type="button" className="button secondary" disabled={busy} aria-expanded={websiteOpen} onClick={() => setWebsiteOpen(open => !open)}>
+          <Globe2 size={17} />{translate("从网站获取")}</button>
         <input
           type="file"
           ref={picker}
@@ -299,6 +304,29 @@ export function IconPicker({
           }}
         />
       </div>
+      {websiteOpen && <div className="website-icon-form">
+        <label className="field-label" htmlFor="avatar-website">{translate("服务官网地址")}</label>
+        <input id="avatar-website" type="text" inputMode="url" autoComplete="off" spellCheck={false} maxLength={2048}
+          placeholder="https://example.com" disabled={busy} value={website} onChange={event => {
+            setWebsite(event.target.value);
+            setWebsiteIcon(null);
+            setError("");
+          }} />
+        <div className="icon-picker-actions">
+          <button type="button" className="button secondary" disabled={busy || !website.trim()} onClick={async () => {
+            setBusy(true);
+            setWebsiteIcon(null);
+            setError("");
+            try { setWebsiteIcon(await api.avatarFromWebsite(website)); }
+            catch (error) { setError(errorText(error)); }
+            finally { setBusy(false); }
+          }}>{busy ? translate("正在获取图标…") : translate("获取图标")}</button>
+          {websiteIcon && <>
+            <TokenAvatar token={token} icon={websiteIcon} />
+            <button type="button" className="button primary" onClick={() => onSelect(websiteIcon)}>{translate("使用此图标")}</button>
+          </>}
+        </div>
+      </div>}
       <label className="icon-search">
         <Search size={17} />
         <input
@@ -320,6 +348,7 @@ export function IconPicker({
               key={brand.id}
               className={selected === `brand:${brand.id}` ? "selected" : ""}
               aria-label={translate("选择 {{name}} 图标", { name: brand.name })}
+              disabled={busy}
               onClick={() => onSelect(`brand:${brand.id}`)}
             >
               <TokenAvatar token={token} icon={`brand:${brand.id}`} />

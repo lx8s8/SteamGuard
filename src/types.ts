@@ -35,7 +35,10 @@ export interface ImportPreview {
   duplicates: number;
   groupCount?: number;
   canCommit?: boolean;
+  replacementSources?: { index: number; name: string; issuer: string; kind: string; existingId: string | null }[];
+  replacementTargets?: { id: string; name: string; issuer: string; kind: string; group: string | null }[];
 }
+export interface ImportReplacement { sourceIndex: number; targetId: string }
 export interface QrImportProgress {
   source: "google" | "otp";
   received: number;

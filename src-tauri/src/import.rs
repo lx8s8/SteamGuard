@@ -13,6 +13,7 @@ mod foreign;
 mod legacy;
 mod memorypack;
 pub mod qr;
+pub(crate) mod replace;
 
 const MAX_IMPORT_BYTES: usize = 16 * 1024 * 1024;
 const MAX_RECORDS: usize = 10_000;
