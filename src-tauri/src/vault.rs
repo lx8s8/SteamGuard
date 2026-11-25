@@ -1,4 +1,4 @@
-use crate::models::Token;
+use crate::models::{SavedIcon, Token};
 use aes_gcm::{
     aead::{Aead, KeyInit},
     Aes256Gcm, Nonce,
@@ -16,6 +16,8 @@ pub struct TrashEntry {
     pub token: Token,
     pub deleted_at: u64,
 }
+pub const MAX_SAVED_ICONS: usize = 100;
+
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VaultData {
@@ -28,6 +30,10 @@ pub struct VaultData {
     pub network: crate::network::NetworkSettings,
     #[serde(default)]
     pub groups: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub saved_icons: Vec<SavedIcon>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub saved_icons_initialized: bool,
     #[serde(default = "default_backup_enabled")]
     pub auto_backup: bool,
     #[serde(default)]
@@ -41,6 +47,8 @@ impl Default for VaultData {
             sessions: serde_json::Value::Null,
             network: Default::default(),
             groups: vec![],
+            saved_icons: vec![],
+            saved_icons_initialized: false,
             auto_backup: true,
             sync: None,
         }
@@ -56,6 +64,17 @@ impl VaultData {
         }
         if self.trash.len() > 1000 {
             return Err("回收站已满，请永久删除不再需要的令牌".into());
+        }
+        if self.saved_icons.len() > MAX_SAVED_ICONS {
+            return Err("最多保存 100 个自定义图标".into());
+        }
+        let mut icon_ids = std::collections::HashSet::new();
+        let mut icon_data = std::collections::HashSet::new();
+        for icon in &self.saved_icons {
+            icon.validate()?;
+            if !icon_ids.insert(&icon.id) || !icon_data.insert(&icon.data) {
+                return Err("图标编号无效".into());
+            }
         }
         let names = self.group_names();
         if names.len() > 100
@@ -75,6 +94,130 @@ impl VaultData {
             return Err("备份含重复分组".into());
         }
         Ok(())
+    }
+    /// 首次从旧版升级时，把现有令牌已使用的自定义 PNG 一次性收录进图标库，之后删除不再自动复活。
+    pub fn ensure_saved_icons_initialized(&mut self) -> bool {
+        if self.saved_icons_initialized {
+            return false;
+        }
+        self.saved_icons_initialized = true;
+        let candidates: Vec<(String, String)> = self
+            .tokens
+            .iter()
+            .filter_map(|token| {
+                let data = token.icon.as_deref()?;
+                if !data.starts_with("data:image/png;base64,") {
+                    return None;
+                }
+                let raw_label = if !token.issuer.trim().is_empty() {
+                    token.issuer.trim()
+                } else {
+                    token.name.trim()
+                };
+                Some((raw_label.to_string(), data.to_string()))
+            })
+            .collect();
+        for (label, data) in candidates {
+            if self.saved_icons.len() >= MAX_SAVED_ICONS {
+                break;
+            }
+            let _ = self.remember_icon_if_room(&label, &data);
+        }
+        true
+    }
+    fn sanitize_icon_label(label: &str) -> String {
+        let cleaned: String = label
+            .chars()
+            .filter(|c| !c.is_control())
+            .collect::<String>()
+            .trim()
+            .chars()
+            .take(80)
+            .collect();
+        if cleaned.is_empty() {
+            "Icon".into()
+        } else {
+            cleaned
+        }
+    }
+    /// 保存自定义或官网抓取的 PNG 到可复用图标库，按图像内容去重，最新项排在最前。
+    pub fn save_icon(&mut self, label: &str, data: &str) -> Result<SavedIcon, String> {
+        self.ensure_saved_icons_initialized();
+        let normalized = crate::avatar::normalize_png(data)?;
+        let label = Self::sanitize_icon_label(label);
+        if let Some(pos) = self.saved_icons.iter().position(|item| item.data == normalized) {
+            let mut existing = self.saved_icons.remove(pos);
+            if !label.is_empty() && label != "Icon" {
+                existing.label = label;
+            }
+            self.saved_icons.insert(0, existing.clone());
+            return Ok(existing);
+        }
+        if self.saved_icons.len() >= MAX_SAVED_ICONS {
+            return Err("最多保存 100 个自定义图标".into());
+        }
+        let item = SavedIcon {
+            id: uuid::Uuid::new_v4().to_string(),
+            label,
+            data: normalized,
+        };
+        item.validate()?;
+        self.saved_icons.insert(0, item.clone());
+        Ok(item)
+    }
+    /// 在库未满且尚未收录同图时静默收录，用于同步/编辑/导入顺带积累图标库。
+    pub fn remember_icon_if_room(&mut self, label: &str, data: &str) -> bool {
+        if !data.starts_with("data:image/png;base64,") || self.saved_icons.len() >= MAX_SAVED_ICONS {
+            return false;
+        }
+        let Ok(normalized) = crate::avatar::normalize_png(data) else {
+            return false;
+        };
+        if self.saved_icons.iter().any(|item| item.data == normalized) {
+            return false;
+        }
+        let item = SavedIcon {
+            id: uuid::Uuid::new_v4().to_string(),
+            label: Self::sanitize_icon_label(label),
+            data: normalized,
+        };
+        if item.validate().is_ok() {
+            self.saved_icons.insert(0, item);
+            true
+        } else {
+            false
+        }
+    }
+    /// 从已保存图标库移除条目，不影响已经使用该头像的现有令牌。
+    pub fn delete_icon(&mut self, id: &str) -> Result<bool, String> {
+        self.ensure_saved_icons_initialized();
+        let before = self.saved_icons.len();
+        self.saved_icons.retain(|item| item.id != id);
+        Ok(self.saved_icons.len() != before)
+    }
+    /// 合并来自加密备份的自定义图标库（按内容去重并遵守数量上限）。
+    pub fn merge_saved_icons(&mut self, incoming: Vec<SavedIcon>) {
+        self.ensure_saved_icons_initialized();
+        for icon in incoming {
+            if self.saved_icons.len() >= MAX_SAVED_ICONS {
+                break;
+            }
+            if icon.validate().is_err()
+                || self.saved_icons.iter().any(|item| item.data == icon.data)
+            {
+                continue;
+            }
+            let id = if self.saved_icons.iter().any(|item| item.id == icon.id) {
+                uuid::Uuid::new_v4().to_string()
+            } else {
+                icon.id
+            };
+            self.saved_icons.push(SavedIcon {
+                id,
+                label: icon.label,
+                data: icon.data,
+            });
+        }
     }
     pub fn group_names(&self) -> Vec<String> {
         let mut groups = self.groups.clone();
@@ -202,9 +345,12 @@ impl VaultData {
     }
     pub fn merge_backup(&mut self, mut incoming: VaultData) -> Result<usize, String> {
         let groups = incoming.group_names();
+        let saved_icons = std::mem::take(&mut incoming.saved_icons);
         let tokens = std::mem::take(&mut incoming.tokens);
         wipe_json(&mut incoming.sessions);
-        self.merge_import(tokens, groups)
+        let imported = self.merge_import(tokens, groups)?;
+        self.merge_saved_icons(saved_icons);
+        Ok(imported)
     }
 }
 /// A duplicate may fill absent metadata; identity differences never overwrite silently.
@@ -442,6 +588,10 @@ struct Portable<'a> {
     sessions: &'a serde_json::Value,
     network: &'a crate::network::NetworkSettings,
     groups: &'a [String],
+    #[serde(skip_serializing_if = "<[_]>::is_empty")]
+    saved_icons: &'a [SavedIcon],
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    saved_icons_initialized: bool,
     auto_backup: bool,
 }
 impl<'a> From<&'a VaultData> for Portable<'a> {
@@ -451,6 +601,8 @@ impl<'a> From<&'a VaultData> for Portable<'a> {
             sessions: &d.sessions,
             network: &d.network,
             groups: &d.groups,
+            saved_icons: &d.saved_icons,
+            saved_icons_initialized: d.saved_icons_initialized,
             auto_backup: d.auto_backup,
         }
     }
@@ -1336,5 +1488,45 @@ mod completion_tests {
         assert!(merge_metadata(&mut old, &incoming).is_err());
         old.erase();
         incoming.erase();
+    }
+    #[test]
+    fn saved_icons_deduplicate_survive_backup_and_delete_keeps_token_avatars() {
+        let png = crate::avatar::encode_png(image::DynamicImage::new_rgba8(24, 24)).unwrap();
+        let mut token = Token::new("Example".into(), "totp".into(), vec![9; 20]);
+        token.issuer = "Example".into();
+        token.icon = Some(png.clone());
+
+        // 旧保险库升级时自动把现有令牌自定义 PNG 收录进图标库，删除后不会复活。
+        let mut legacy = VaultData {
+            tokens: vec![token.clone()],
+            ..Default::default()
+        };
+        assert!(legacy.ensure_saved_icons_initialized());
+        assert_eq!(legacy.saved_icons.len(), 1);
+        assert_eq!(legacy.saved_icons[0].data, png);
+        let id = legacy.saved_icons[0].id.clone();
+        assert!(legacy.delete_icon(&id).unwrap());
+        assert!(legacy.saved_icons.is_empty());
+        assert!(!legacy.ensure_saved_icons_initialized());
+        assert!(legacy.saved_icons.is_empty());
+        assert_eq!(legacy.tokens[0].icon.as_deref(), Some(png.as_str()));
+
+        // 保存同一图片自动去重并可随 .sgvault 加密备份导出与合并恢复。
+        let first = legacy.save_icon("example.com", &png).unwrap();
+        let dup = legacy.save_icon("Example Site", &png).unwrap();
+        assert_eq!(first.id, dup.id);
+        assert_eq!(legacy.saved_icons.len(), 1);
+        assert_eq!(legacy.saved_icons[0].label, "Example Site");
+        let encrypted = backup(&legacy, "synthetic-backup-password").unwrap();
+        let decoded = decode(&encrypted, "synthetic-backup-password").unwrap();
+        assert_eq!(decoded.saved_icons.len(), 1);
+        assert_eq!(decoded.saved_icons[0].label, "Example Site");
+
+        let mut target = VaultData::default();
+        target.merge_backup(decoded).unwrap();
+        assert_eq!(target.saved_icons.len(), 1);
+        assert_eq!(target.saved_icons[0].data, png);
+        legacy.tokens.iter_mut().for_each(Token::erase);
+        target.tokens.iter_mut().for_each(Token::erase);
     }
 }

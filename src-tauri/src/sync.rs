@@ -817,12 +817,44 @@ fn materialize(
             }
         }
     }
+    let previous_pngs: std::collections::HashSet<String> = data
+        .tokens
+        .iter()
+        .filter_map(|token| {
+            token
+                .icon
+                .as_deref()
+                .filter(|icon| icon.starts_with("data:image/png;base64,"))
+                .map(str::to_owned)
+        })
+        .collect();
     for token in &mut data.tokens {
         token.erase();
     }
     result.sort_by_key(|t| t.sort_order);
     data.tokens = result;
     data.groups = groups;
+    // 将本次同步新收到的自定义 PNG 自动收录进本机图标库，其他设备无需重拉网址即可复用。
+    data.ensure_saved_icons_initialized();
+    let incoming_pngs: Vec<(String, String)> = data
+        .tokens
+        .iter()
+        .filter_map(|token| {
+            let icon = token.icon.as_deref()?;
+            if !icon.starts_with("data:image/png;base64,") || previous_pngs.contains(icon) {
+                return None;
+            }
+            let label = if !token.issuer.trim().is_empty() {
+                token.issuer.trim()
+            } else {
+                token.name.trim()
+            };
+            Some((label.to_owned(), icon.to_owned()))
+        })
+        .collect();
+    for (label, icon) in incoming_pngs {
+        data.remember_icon_if_room(&label, &icon);
+    }
     if let Some(sessions) = data.sessions.as_object_mut() {
         for id in &logout {
             if let Some(mut value) = sessions.remove(id) {
@@ -1493,5 +1525,30 @@ mod tests {
         assert!(lease.cancellation.is_cancelled());
         drop(lease);
         assert!(controller.begin().is_ok());
+    }
+    #[test]
+    fn synced_custom_png_avatar_is_collected_into_peer_icon_library_without_resurrecting_deleted() {
+        let png = crate::avatar::encode_png(image::DynamicImage::new_rgba8(16, 16)).unwrap();
+        let mut a = first();
+        a.tokens[0].icon = Some(png.clone());
+        record_local(&mut a, "actor-a").unwrap();
+        apply(&mut a, "actor-a").unwrap();
+
+        let mut b = copy(&a);
+        assert_eq!(b.tokens[0].icon.as_deref(), Some(png.as_str()));
+        assert_eq!(b.saved_icons.len(), 1);
+        assert_eq!(b.saved_icons[0].data, png);
+
+        // 在 B 设备删除该图标库条目后，令牌头像保留，且再次同步不会复活已删除的库条目。
+        let id = b.saved_icons[0].id.clone();
+        assert!(b.delete_icon(&id).unwrap());
+        assert!(b.saved_icons.is_empty());
+        assert_eq!(b.tokens[0].icon.as_deref(), Some(png.as_str()));
+        a.tokens[0].name = "Renamed".into();
+        record_local(&mut a, "actor-a").unwrap();
+        receive(&a, &mut b, "actor-b");
+        assert_eq!(b.tokens[0].name, "Renamed");
+        assert!(b.saved_icons.is_empty());
+        assert_eq!(b.tokens[0].icon.as_deref(), Some(png.as_str()));
     }
 }

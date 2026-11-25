@@ -2,13 +2,13 @@
   " · 未登录": [
     {
       "file": "src/App.tsx",
-      "line": 915
+      "line": 1018
     }
   ],
   " · 已登录": [
     {
       "file": "src/App.tsx",
-      "line": 915
+      "line": 1018
     }
   ],
   " · 有待上传的变更": [
@@ -20,13 +20,13 @@
   "（如已设置）": [
     {
       "file": "src/App.tsx",
-      "line": 1732
+      "line": 1985
     }
   ],
   "{{duplicates}} 个已有令牌将保留，可补充分组与 HOTP 计数": [
     {
       "file": "src/App.tsx",
-      "line": 1609
+      "line": 1855
     }
   ],
   "{{length}} 个 HOTP 在本机只读，验证码由主设备生成。": [
@@ -44,7 +44,7 @@
   "{{period}} 秒": [
     {
       "file": "src/App.tsx",
-      "line": 2651
+      "line": 2960
     },
     {
       "file": "src/ClipboardSettings.tsx",
@@ -66,7 +66,7 @@
   "{{value1}} KB · 点击重新选择": [
     {
       "file": "src/App.tsx",
-      "line": 1714
+      "line": 1967
     }
   ],
   "{{value1}}本机现有 {{tokenCount}} 个令牌会保留；重复令牌自动匹配，同字段冲突需选择保留版本。Steam 登录会话留在本机。": [
@@ -132,13 +132,23 @@
   "按类型": [
     {
       "file": "src/App.tsx",
-      "line": 705
+      "line": 914
     }
   ],
   "按名称": [
     {
       "file": "src/App.tsx",
-      "line": 704
+      "line": 913
+    }
+  ],
+  "按下快捷键": [
+    {
+      "file": "src/DesktopSettings.tsx",
+      "line": 125
+    },
+    {
+      "file": "src/DesktopSettings.tsx",
+      "line": 161
     }
   ],
   "按用途整理 Steam 和其他令牌。删除分组会将其中的令牌移到「未分组」。": [
@@ -150,31 +160,25 @@
   "把令牌带到这里": [
     {
       "file": "src/App.tsx",
-      "line": 1588
+      "line": 1829
     }
   ],
   "绑定新令牌": [
     {
       "file": "src/App.tsx",
-      "line": 1967
+      "line": 2220
     }
   ],
   "包含令牌密钥的迁移二维码": [
     {
       "file": "src/App.tsx",
-      "line": 2587
-    }
-  ],
-  "包含密钥的明文文件": [
-    {
-      "file": "src/App.tsx",
-      "line": 2676
+      "line": 2858
     }
   ],
   "保存": [
     {
       "file": "src/App.tsx",
-      "line": 2719
+      "line": 3033
     },
     {
       "file": "src/SystemEntrySettings.tsx",
@@ -197,10 +201,16 @@
       "line": 194
     }
   ],
+  "保存到图标库": [
+    {
+      "file": "src/TokenAvatar.tsx",
+      "line": 457
+    }
+  ],
   "保存快捷键": [
     {
       "file": "src/DesktopSettings.tsx",
-      "line": 20
+      "line": 167
     }
   ],
   "保存连接方式": [
@@ -254,41 +264,41 @@
   "保险库达到大小限制，请导出备份，断开同步后创建新的同步库": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 806
+      "line": 958
     }
   ],
   "保险库已解锁": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 220
+      "line": 224
     },
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 362
+      "line": 366
     }
   ],
   "保险库已解锁，请刷新页面": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 397
+      "line": 401
     }
   ],
   "保险库已锁定": [
     {
       "file": "src/App.tsx",
-      "line": 500
+      "line": 607
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 600
+      "line": 752
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 643
+      "line": 795
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 666
+      "line": 818
     }
   ],
   "保险库已锁定，请重新打开设置": [
@@ -300,7 +310,7 @@
   "保险库已锁定，请重新启用": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 329
+      "line": 333
     }
   ],
   "保险库主密码": [
@@ -310,6 +320,10 @@
     }
   ],
   "保险库状态已变化，请重试": [
+    {
+      "file": "src-tauri/src/avatar_website.rs",
+      "line": 29
+    },
     {
       "file": "src-tauri/src/clipboard.rs",
       "line": 89
@@ -322,13 +336,13 @@
   "保险库状态已变化，请重新检查备份": [
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 80
+      "line": 81
     }
   ],
   "备份包含 {{groupCount}} 个分组，已有令牌的缺失分组可一并补回。": [
     {
       "file": "src/App.tsx",
-      "line": 1605
+      "line": 1851
     }
   ],
   "备份包含暂不支持的 OTP 类型，请改用标准 OTP 二维码或链接导出": [
@@ -358,7 +372,7 @@
   "备份参数无效": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 425
+      "line": 571
     }
   ],
   "备份差异预览": [
@@ -370,13 +384,13 @@
   "备份格式": [
     {
       "file": "src/App.tsx",
-      "line": 2763
+      "line": 3077
     }
   ],
   "备份含重复分组": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 75
+      "line": 94
     }
   ],
   "备份解密失败：密码错误或文件已损坏": [
@@ -398,17 +412,17 @@
   "备份密码": [
     {
       "file": "src/App.tsx",
-      "line": 1732
+      "line": 1985
     },
     {
       "file": "src/App.tsx",
-      "line": 2777
+      "line": 3091
     }
   ],
   "备份密码至少需要 8 个字符": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 461
+      "line": 613
     }
   ],
   "备份目录必须是绝对路径": [
@@ -442,17 +456,17 @@
   "备份内容无效": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 428
+      "line": 574
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 434
+      "line": 580
     }
   ],
   "备份随机数错误": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 423
+      "line": 569
     }
   ],
   "备份为空或超过 1000 个令牌限制": [
@@ -470,17 +484,17 @@
   "备份选择无效": [
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 209
+      "line": 210
     }
   ],
   "备份盐值错误": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 407
+      "line": 553
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 419
+      "line": 565
     }
   ],
   "备份已保存，但旧快照清理失败": [
@@ -492,27 +506,27 @@
   "备份已导出：{{path}}": [
     {
       "file": "src/App.tsx",
-      "line": 1305
+      "line": 1473
     }
   ],
   "备份预览缓存不可用": [
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 176
+      "line": 177
     },
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 199
+      "line": 200
     }
   ],
   "备份预览已过期，请重新检查": [
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 201
+      "line": 202
     },
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 203
+      "line": 204
     }
   ],
   "备份中的 OTP 数字参数无效": [
@@ -546,7 +560,7 @@
     },
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 129
+      "line": 130
     },
     {
       "file": "src-tauri/src/sync.rs",
@@ -562,7 +576,7 @@
   "备用恢复码编号冲突": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 314
+      "line": 460
     }
   ],
   "备用恢复码不存在": [
@@ -580,7 +594,7 @@
   "备用恢复码为空、重复或格式无效": [
     {
       "file": "src-tauri/src/models.rs",
-      "line": 116
+      "line": 142
     }
   ],
   "备用恢复码已不存在，请重新打开后编辑": [
@@ -596,7 +610,7 @@
     },
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 126
+      "line": 127
     },
     {
       "file": "src-tauri/src/sync.rs",
@@ -634,7 +648,7 @@
   "备注最多 4096 个字符，不能包含空字符": [
     {
       "file": "src-tauri/src/models.rs",
-      "line": 98
+      "line": 124
     }
   ],
   "本机版本": [
@@ -754,19 +768,19 @@
   "不支持的 HMAC 算法": [
     {
       "file": "src-tauri/src/models.rs",
-      "line": 134
+      "line": 160
     }
   ],
   "不支持的 WattToolkit 加密模式": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 199
+      "line": 200
     }
   ],
   "不支持的 WattToolkit 内置加密密钥版本": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 216
+      "line": 217
     }
   ],
   "不支持的 WattToolkit MemoryPack 数据版本": [
@@ -794,31 +808,31 @@
   "不支持的二级密码加密版本": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 207
+      "line": 208
     }
   ],
   "不支持的加密备份版本": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 413
+      "line": 559
     }
   ],
   "不支持的加密备份类型": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 616
+      "line": 617
     }
   ],
   "不支持的令牌哈希算法": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 78
+      "line": 79
     }
   ],
   "不支持的令牌类型": [
     {
       "file": "src-tauri/src/models.rs",
-      "line": 128
+      "line": 154
     }
   ],
   "不支持的令牌算法": [
@@ -848,19 +862,19 @@
   "菜单不可用": [
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 390
+      "line": 401
     }
   ],
   "菜单文字无效": [
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 52
+      "line": 53
     }
   ],
   "操作未完成：{{detail}}": [
     {
       "file": "src/i18n.ts",
-      "line": 167
+      "line": 180
     }
   ],
   "查看": [
@@ -872,31 +886,31 @@
   "查看 {{name}}": [
     {
       "file": "src/App.tsx",
-      "line": 1083
+      "line": 1247
     }
   ],
   "查看本机自动备份": [
     {
       "file": "src/App.tsx",
-      "line": 1491
+      "line": 1711
     }
   ],
   "查看并确认": [
     {
       "file": "src/App.tsx",
-      "line": 1003
+      "line": 1166
     }
   ],
   "查看待处理的交易": [
     {
       "file": "src/App.tsx",
-      "line": 1017
+      "line": 1181
     }
   ],
   "查看你的在售物品": [
     {
       "file": "src/App.tsx",
-      "line": 1104
+      "line": 1268
     }
   ],
   "查找已有同步库": [
@@ -908,13 +922,13 @@
   "撤销": [
     {
       "file": "src/App.tsx",
-      "line": 1230
+      "line": 1394
     }
   ],
   "冲突已变化，请刷新": [
     {
       "file": "src-tauri/src/sync.rs",
-      "line": 942
+      "line": 974
     }
   ],
   "创建": [
@@ -926,13 +940,13 @@
   "创建保险库": [
     {
       "file": "src/App.tsx",
-      "line": 1482
+      "line": 1702
     }
   ],
   "创建并发送短信": [
     {
       "file": "src/App.tsx",
-      "line": 2005
+      "line": 2258
     }
   ],
   "创建并同步": [
@@ -955,12 +969,16 @@
   ],
   "此 HOTP 的主设备为其他设备，请先切换主设备": [
     {
+      "file": "src-tauri/src/import/replace.rs",
+      "line": 107
+    },
+    {
       "file": "src-tauri/src/sync.rs",
       "line": 408
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 321
+      "line": 467
     }
   ],
   "此 HOTP 由另一设备递增，请先切换主设备": [
@@ -980,7 +998,7 @@
     },
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 245
+      "line": 256
     }
   ],
   "此 iOS 构建尚未配置 Google 客户端和回调地址": [
@@ -1020,19 +1038,19 @@
   "此操作会关闭账号上的手机令牌保护。删除本地令牌不会解除远端绑定；请仅在确实需要解绑时继续。": [
     {
       "file": "src/App.tsx",
-      "line": 2170
+      "line": 2423
     }
   ],
   "此操作会在 Steam 账号上创建手机令牌，并向已绑定的手机号发送激活短信。完成后请保存恢复代码和加密备份。": [
     {
       "file": "src/App.tsx",
-      "line": 1989
+      "line": 2242
     }
   ],
   "此导出需要二级密码，请输入导出密码": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 205
+      "line": 206
     }
   ],
   "此格式仅支持 30 秒 TOTP 和 HOTP，其他令牌请使用加密备份": [
@@ -1050,7 +1068,7 @@
   "此功能仅适用于桌面端": [
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 270
+      "line": 281
     }
   ],
   "此构建尚未配置 Google 移动端登录，请使用其他同步方式": [
@@ -1062,7 +1080,7 @@
   "此令牌将移入本机回收站，可撤销或稍后还原。Steam 登录会话会被移除。": [
     {
       "file": "src/App.tsx",
-      "line": 2579
+      "line": 2850
     }
   ],
   "此令牌类型不支持修改高级参数": [
@@ -1074,7 +1092,7 @@
   "此令牌尚未关联 SteamID，请重新登录并使用“当前令牌验证”后再关联账号": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 112
+      "line": 116
     }
   ],
   "此令牌需在主设备查看": [
@@ -1084,7 +1102,13 @@
     },
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 255
+      "line": 266
+    }
+  ],
+  "此密钥已保存在「{{name}}」。替换时会将这条重复记录移入本机回收站。": [
+    {
+      "file": "src/ImportReplacement.tsx",
+      "line": 38
     }
   ],
   "此平台不支持原生复制": [
@@ -1118,7 +1142,7 @@
   "此设置仅适用于桌面端": [
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 224
+      "line": 235
     }
   ],
   "此网盘尚未配置 OAuth 客户端，请参阅接入配置文档": [
@@ -1138,13 +1162,13 @@
   "此文件绑定了原电脑的本地加密。请在原 WattToolkit 中关闭「本机加密」后重新导出": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 195
+      "line": 196
     }
   ],
   "此文件绑定原电脑，请关闭原软件的本机加密后重新导出": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 242
+      "line": 243
     }
   ],
   "此系统暂不支持快捷访问": [
@@ -1160,13 +1184,13 @@
   "此账户已建立 Steam 会话，可以读取交易确认和市场信息。": [
     {
       "file": "src/App.tsx",
-      "line": 2208
+      "line": 2461
     }
   ],
   "从 Steam 获取确认列表，再逐笔核对交易信息。": [
     {
       "file": "src/App.tsx",
-      "line": 1022
+      "line": 1186
     }
   ],
   "从另一台设备的配置二维码加入": [
@@ -1175,16 +1199,22 @@
       "line": 126
     }
   ],
+  "从网站获取": [
+    {
+      "file": "src/TokenAvatar.tsx",
+      "line": 378
+    }
+  ],
   "从文件导入": [
     {
       "file": "src/App.tsx",
-      "line": 1677
+      "line": 1924
     }
   ],
   "从原手机转移到本机": [
     {
       "file": "src/App.tsx",
-      "line": 1973
+      "line": 2226
     }
   ],
   "存储目录无效": [
@@ -1194,47 +1224,47 @@
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 501
+      "line": 653
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 808
+      "line": 960
     }
   ],
   "存在未恢复的 Steam 令牌，请保留 recovery 文件并使用其创建时的主密码导入": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 734
+      "line": 886
     }
   ],
   "打开社区市场": [
     {
       "file": "src/App.tsx",
-      "line": 1055
+      "line": 1219
     }
   ],
   "打开相机扫码": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 292
+      "line": 294
     }
   ],
   "打开应用": [
     {
       "file": "src/TrayApp.tsx",
-      "line": 150
+      "line": 210
     },
     {
       "file": "src/TrayApp.tsx",
-      "line": 214
+      "line": 312
     },
     {
       "file": "src/i18n.ts",
-      "line": 71
+      "line": 73
     },
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 512
+      "line": 523
     }
   ],
   "大": [
@@ -1276,13 +1306,13 @@
   "待你确认": [
     {
       "file": "src/App.tsx",
-      "line": 979
+      "line": 1142
     }
   ],
   "当前 Steam 账户": [
     {
       "file": "src/App.tsx",
-      "line": 901
+      "line": 1004
     }
   ],
   "当前版本 {{current}} · 最新版本 {{latest}}": [
@@ -1294,13 +1324,13 @@
   "当前环境无法打开相机，请选择二维码图片导入": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 173
+      "line": 175
     }
   ],
   "当前环境无法读取相机画面，请使用图片导入": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 204
+      "line": 206
     }
   ],
   "当前库：{{libraryId}}。选择要合并到的同步库。原云端库会保留，其他设备也需选择相同编号才能继续同步。": [
@@ -1312,13 +1342,13 @@
   "当前令牌账号：{{value1}} · SteamID：{{value2}}": [
     {
       "file": "src/App.tsx",
-      "line": 1916
+      "line": 2169
     }
   ],
   "当前没有在售物品": [
     {
       "file": "src/App.tsx",
-      "line": 1104
+      "line": 1268
     }
   ],
   "当前设备无法读取图片": [
@@ -1342,19 +1372,19 @@
   "导出": [
     {
       "file": "src/App.tsx",
-      "line": 1149
+      "line": 1313
     }
   ],
   "导出 maFile": [
     {
       "file": "src/App.tsx",
-      "line": 2674
+      "line": 2984
     }
   ],
   "导出 OTP 链接": [
     {
       "file": "src/App.tsx",
-      "line": 2674
+      "line": 2984
     }
   ],
   "导出包含暂不支持的令牌平台": [
@@ -1364,13 +1394,13 @@
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 266
+      "line": 267
     }
   ],
   "导出备份": [
     {
       "file": "src/App.tsx",
-      "line": 612
+      "line": 932
     }
   ],
   "导出记录缺少令牌数据": [
@@ -1380,7 +1410,7 @@
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 251
+      "line": 252
     }
   ],
   "导出记录缺少名称": [
@@ -1390,13 +1420,13 @@
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 246
+      "line": 247
     }
   ],
   "导出加密备份": [
     {
       "file": "src/App.tsx",
-      "line": 2760
+      "line": 3074
     }
   ],
   "导出密码过长": [
@@ -1408,13 +1438,13 @@
   "导出密码派生失败": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 331
+      "line": 332
     }
   ],
   "导出数据超过 16 MiB 限制": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 438
+      "line": 439
     }
   ],
   "导出所选备份": [
@@ -1426,121 +1456,139 @@
   "导出文件 LZ4 数据损坏": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 128
+      "line": 129
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 154
+      "line": 155
     }
   ],
   "导出文件 LZ4 长度不匹配": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 130
+      "line": 131
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 156
+      "line": 157
     }
   ],
   "导出文件包含无效的尾部数据": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 118
+      "line": 119
     }
   ],
   "导出文件解密失败：密码错误、数据损坏或不兼容的加密密钥": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 188
+      "line": 189
     }
   ],
   "导出文件解压后超过 16 MiB 限制": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 150
+      "line": 151
     }
   ],
   "导出文件嵌套或解压大小超过限制": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 112
+      "line": 113
     }
   ],
   "导入": [
     {
       "file": "src/App.tsx",
-      "line": 1158
+      "line": 1322
     }
   ],
   "导入 Steam 令牌": [
     {
       "file": "src/App.tsx",
-      "line": 952
+      "line": 1055
     }
   ],
   "导入包含 Steam 身份密钥的令牌，再登录账户即可使用此功能。": [
     {
       "file": "src/App.tsx",
-      "line": 947
+      "line": 1050
+    }
+  ],
+  "导入方式": [
+    {
+      "file": "src/App.tsx",
+      "line": 1837
     }
   ],
   "导入缓存不可用": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 65
+      "line": 69
+    }
+  ],
+  "导入来源令牌": [
+    {
+      "file": "src/ImportReplacement.tsx",
+      "line": 23
     }
   ],
   "导入令牌或备份": [
     {
       "file": "src/App.tsx",
-      "line": 1153
+      "line": 1317
+    }
+  ],
+  "导入密钥对应多个已有令牌，请先处理重复项": [
+    {
+      "file": "src-tauri/src/import/replace.rs",
+      "line": 103
     }
   ],
   "导入完成": [
     {
       "file": "src/App.tsx",
-      "line": 1270
+      "line": 1438
     }
   ],
   "导入文件为空或超过 16 MiB 限制": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 33
+      "line": 34
     }
   ],
   "导入与导出": [
     {
       "file": "src/App.tsx",
-      "line": 1140
+      "line": 1304
     }
   ],
   "登录": [
     {
       "file": "src/App.tsx",
-      "line": 966
+      "line": 1069
     },
     {
       "file": "src/App.tsx",
-      "line": 2426
+      "line": 2679
     }
   ],
   "登录 Steam": [
     {
       "file": "src/App.tsx",
-      "line": 928
+      "line": 1031
     }
   ],
   "登录 Steam 添加令牌": [
     {
       "file": "src/App.tsx",
-      "line": 1657
+      "line": 1904
     }
   ],
   "登录后即可查看{{value1}}。": [
     {
       "file": "src/App.tsx",
-      "line": 960
+      "line": 1063
     }
   ],
   "登录网盘": [
@@ -1552,13 +1600,13 @@
   "登录位置与近期使用位置不一致，请仔细核对。": [
     {
       "file": "src/App.tsx",
-      "line": 2106
+      "line": 2359
     }
   ],
   "登录已完成。请选择账号当前的令牌状态，继续添加本地令牌。": [
     {
       "file": "src/App.tsx",
-      "line": 1963
+      "line": 2216
     }
   ],
   "独立同步密码": [
@@ -1610,19 +1658,19 @@
   "短信激活码": [
     {
       "file": "src/App.tsx",
-      "line": 1935
+      "line": 2188
     }
   ],
   "短信验证码": [
     {
       "file": "src/App.tsx",
-      "line": 2038
+      "line": 2291
     }
   ],
   "短信转移现有令牌": [
     {
       "file": "src/App.tsx",
-      "line": 1972
+      "line": 2225
     }
   ],
   "断开同步": [
@@ -1644,7 +1692,7 @@
   "多端同步": [
     {
       "file": "src/App.tsx",
-      "line": 1124
+      "line": 1290
     },
     {
       "file": "src/SyncPanel.tsx",
@@ -1654,7 +1702,7 @@
   "二维码包含令牌密钥。仅在受信任的设备上扫描，不要分享或截图发送给他人。": [
     {
       "file": "src/App.tsx",
-      "line": 2583
+      "line": 2854
     }
   ],
   "二维码不是支持的验证器格式，请使用 Google 导出码或 otpauth 设置码": [
@@ -1666,7 +1714,7 @@
   "二维码登录": [
     {
       "file": "src/App.tsx",
-      "line": 2268
+      "line": 2521
     }
   ],
   "二维码来自不同的 Google 导出批次，请继续扫描同一次导出的二维码，或清空后重新开始": [
@@ -1696,19 +1744,19 @@
   "二维码已在本机识别。": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 88
+      "line": 90
     }
   ],
   "发送转移短信": [
     {
       "file": "src/App.tsx",
-      "line": 2071
+      "line": 2324
     }
   ],
   "发行方": [
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 105
+      "line": 106
     }
   ],
   "发行方最多 120 个字符": [
@@ -1720,27 +1768,27 @@
   "返回": [
     {
       "file": "src/App.tsx",
-      "line": 1640
+      "line": 1887
     },
     {
       "file": "src/App.tsx",
-      "line": 1994
+      "line": 2247
     },
     {
       "file": "src/App.tsx",
-      "line": 2053
+      "line": 2306
     },
     {
       "file": "src/App.tsx",
-      "line": 2117
+      "line": 2370
     },
     {
       "file": "src/App.tsx",
-      "line": 2190
+      "line": 2443
     },
     {
       "file": "src/App.tsx",
-      "line": 2691
+      "line": 3001
     },
     {
       "file": "src/SyncSetup.tsx",
@@ -1748,7 +1796,7 @@
     },
     {
       "file": "src/TokenAvatar.tsx",
-      "line": 323
+      "line": 523
     },
     {
       "file": "src/TokenManagement.tsx",
@@ -1758,19 +1806,23 @@
   "返回登录": [
     {
       "file": "src/App.tsx",
-      "line": 1895
+      "line": 2148
     }
   ],
   "返回核对": [
     {
       "file": "src/App.tsx",
-      "line": 1327
+      "line": 1500
+    },
+    {
+      "file": "src/App.tsx",
+      "line": 1547
     }
   ],
   "返回密码登录": [
     {
       "file": "src/App.tsx",
-      "line": 2455
+      "line": 2708
     }
   ],
   "返回选择": [
@@ -1788,13 +1840,13 @@
   "访问状态已改变，请重试": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 386
+      "line": 390
     }
   ],
   "分组": [
     {
       "file": "src/App.tsx",
-      "line": 2629
+      "line": 2912
     },
     {
       "file": "src/TokenManagement.tsx",
@@ -1802,7 +1854,7 @@
     },
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 117
+      "line": 118
     },
     {
       "file": "src-tauri/src/sync.rs",
@@ -1820,49 +1872,49 @@
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 112
+      "line": 255
     }
   ],
   "分组操作无效": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 126
+      "line": 269
     }
   ],
   "分组名称需为 1–40 个字符": [
     {
       "file": "src-tauri/src/models.rs",
-      "line": 92
+      "line": 118
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 98
+      "line": 241
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 117
+      "line": 260
     }
   ],
   "分组筛选": [
     {
       "file": "src/App.tsx",
-      "line": 715
+      "line": 838
     }
   ],
   "分组无效或超过 100 个": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 66
+      "line": 85
     }
   ],
   "分组已存在": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 103
+      "line": 246
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 120
+      "line": 263
     }
   ],
   "分组状态": [
@@ -1871,10 +1923,16 @@
       "line": 535
     }
   ],
+  "服务官网地址": [
+    {
+      "file": "src/TokenAvatar.tsx",
+      "line": 405
+    }
+  ],
   "服务名称": [
     {
       "file": "src/App.tsx",
-      "line": 2645
+      "line": 2946
     },
     {
       "file": "src/TokenManagement.tsx",
@@ -1884,23 +1942,23 @@
   "服务图标": [
     {
       "file": "src/TokenAvatar.tsx",
-      "line": 298
+      "line": 502
     }
   ],
   "复制 {{name}} 验证码": [
     {
-      "file": "src/App.tsx",
-      "line": 797
+      "file": "src/TokenCard.tsx",
+      "line": 157
     },
     {
       "file": "src/TrayApp.tsx",
-      "line": 185
+      "line": 265
     }
   ],
   "复制 OTP 链接": [
     {
       "file": "src/App.tsx",
-      "line": 2599
+      "line": 2871
     }
   ],
   "复制标识不可用": [
@@ -1925,10 +1983,26 @@
       "line": 9
     }
   ],
+  "复制后自动关闭快捷窗口": [
+    {
+      "file": "src/DesktopSettings.tsx",
+      "line": 92
+    },
+    {
+      "file": "src/DesktopSettings.tsx",
+      "line": 96
+    }
+  ],
   "复制恢复码 {{number}}": [
     {
       "file": "src/TokenManagement.tsx",
       "line": 126
+    }
+  ],
+  "复制令牌 ID": [
+    {
+      "file": "src/App.tsx",
+      "line": 2955
     }
   ],
   "复制内容无效": [
@@ -1989,8 +2063,8 @@
   ],
   "复制验证码": [
     {
-      "file": "src/App.tsx",
-      "line": 805
+      "file": "src/TokenCard.tsx",
+      "line": 170
     }
   ],
   "高级参数": [
@@ -2018,11 +2092,11 @@
   "更换头像": [
     {
       "file": "src/App.tsx",
-      "line": 2606
+      "line": 2885
     },
     {
       "file": "src/App.tsx",
-      "line": 2610
+      "line": 2889
     }
   ],
   "更新版本信息无效": [
@@ -2126,47 +2200,47 @@
     },
     {
       "file": "src/TrayApp.tsx",
-      "line": 157
+      "line": 217
     }
   ],
   "关闭窗口后常驻托盘": [
     {
       "file": "src/DesktopSettings.tsx",
-      "line": 18
+      "line": 81
     },
     {
       "file": "src/DesktopSettings.tsx",
-      "line": 18
+      "line": 85
     }
   ],
   "关闭提示": [
     {
       "file": "src/App.tsx",
-      "line": 1231
+      "line": 1395
     }
   ],
   "管理 {{name}}": [
     {
-      "file": "src/App.tsx",
-      "line": 785
+      "file": "src/TokenCard.tsx",
+      "line": 143
     }
   ],
   "管理 Steam 绑定手机号": [
     {
       "file": "src/App.tsx",
-      "line": 1983
+      "line": 2236
     }
   ],
   "管理绑定手机号": [
     {
       "file": "src/App.tsx",
-      "line": 2225
+      "line": 2478
     }
   ],
   "管理分组": [
     {
       "file": "src/App.tsx",
-      "line": 730
+      "line": 930
     },
     {
       "file": "src/TokenGroups.tsx",
@@ -2176,7 +2250,15 @@
   "管理令牌": [
     {
       "file": "src/App.tsx",
-      "line": 2560
+      "line": 928
+    },
+    {
+      "file": "src/App.tsx",
+      "line": 928
+    },
+    {
+      "file": "src/App.tsx",
+      "line": 2831
     }
   ],
   "还没有自定义分组，先创建一个。": [
@@ -2200,19 +2282,19 @@
   "合并已有令牌信息": [
     {
       "file": "src/App.tsx",
-      "line": 1602
+      "line": 1848
     }
   ],
   "核对并批准电脑端登录请求": [
     {
       "file": "src/App.tsx",
-      "line": 2213
+      "line": 2466
     }
   ],
   "核对登录请求": [
     {
       "file": "src/App.tsx",
-      "line": 2160
+      "line": 2413
     }
   ],
   "恢复会添加缺失令牌，并将所选已有令牌的设置还原到备份版本。未选令牌保留，HOTP 计数不会回退。Steam 账号可能需要重新登录。": [
@@ -2230,7 +2312,7 @@
   "恢复码不可用": [
     {
       "file": "src-tauri/src/clipboard.rs",
-      "line": 231
+      "line": 250
     }
   ],
   "恢复码已复制": [
@@ -2254,7 +2336,7 @@
   "回收站": [
     {
       "file": "src/App.tsx",
-      "line": 739
+      "line": 933
     }
   ],
   "回收站令牌": [
@@ -2272,13 +2354,13 @@
   "回收站已满，请永久删除不再需要的令牌": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 58
+      "line": 66
     }
   ],
   "或使用主密码": [
     {
       "file": "src/App.tsx",
-      "line": 1442
+      "line": 1662
     }
   ],
   "或粘贴同步配置": [
@@ -2290,25 +2372,31 @@
   "获取交易确认": [
     {
       "file": "src/App.tsx",
-      "line": 1029
+      "line": 1193
     }
   ],
   "获取市场列表": [
     {
       "file": "src/App.tsx",
-      "line": 1115
+      "line": 1279
+    }
+  ],
+  "获取图标": [
+    {
+      "file": "src/TokenAvatar.tsx",
+      "line": 419
     }
   ],
   "激活令牌": [
     {
       "file": "src/App.tsx",
-      "line": 1956
+      "line": 2209
     }
   ],
   "计数 {{value1}}": [
     {
-      "file": "src/App.tsx",
-      "line": 829
+      "file": "src/TokenCard.tsx",
+      "line": 191
     }
   ],
   "计数版本": [
@@ -2329,20 +2417,20 @@
   ],
   "继续激活": [
     {
-      "file": "src/App.tsx",
-      "line": 847
+      "file": "src/TokenCard.tsx",
+      "line": 210
     }
   ],
   "继续扫码": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 292
+      "line": 294
     }
   ],
   "加密备份": [
     {
       "file": "src/App.tsx",
-      "line": 1143
+      "line": 1307
     }
   ],
   "加密备份包含无效的 Base64 参数": [
@@ -2396,7 +2484,7 @@
   "加密备份格式错误": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 411
+      "line": 557
     }
   ],
   "加密备份已导出，请妥善保存。": [
@@ -2408,25 +2496,31 @@
   "加密密钥错误": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 391
+      "line": 537
     }
   ],
   "加密失败": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 394
+      "line": 540
     }
   ],
   "加密数据头不完整": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 171
+      "line": 172
     }
   ],
   "加入并同步": [
     {
       "file": "src/SyncSetup.tsx",
       "line": 366
+    }
+  ],
+  "加入替换列表": [
+    {
+      "file": "src/ImportReplacement.tsx",
+      "line": 45
     }
   ],
   "加入已有同步库": [
@@ -2444,13 +2538,13 @@
   "加载中…": [
     {
       "file": "src/App.tsx",
-      "line": 1238
+      "line": 1402
     }
   ],
   "价格": [
     {
       "file": "src/App.tsx",
-      "line": 1063
+      "line": 1227
     }
   ],
   "坚果云": [
@@ -2462,7 +2556,7 @@
   "兼容 Watt Toolkit V2，使用原格式的二级密码保护。": [
     {
       "file": "src/App.tsx",
-      "line": 2775
+      "line": 3089
     }
   ],
   "剪贴板清除时间无效": [
@@ -2480,11 +2574,11 @@
   "检查登录状态": [
     {
       "file": "src/App.tsx",
-      "line": 2425
+      "line": 2678
     },
     {
       "file": "src/App.tsx",
-      "line": 2465
+      "line": 2718
     }
   ],
   "检查更新": [
@@ -2496,25 +2590,25 @@
   "检查网络与代理": [
     {
       "file": "src/App.tsx",
-      "line": 2476
+      "line": 2729
     }
   ],
   "将 {{length}} 个令牌移入本机回收站，可撤销或稍后还原。Steam 登录会话会被移除。": [
     {
       "file": "src/App.tsx",
-      "line": 1242
+      "line": 1406
     }
   ],
   "将二维码放入取景框": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 320
+      "line": 322
     }
   ],
   "将还原：{{value1}}": [
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 141
+      "line": 142
     }
   ],
   "将永久删除所选 {{length}} 个令牌。此操作无法撤销，其他设备和导出的备份仍可能保留副本。": [
@@ -2526,7 +2620,7 @@
   "交易确认": [
     {
       "file": "src/App.tsx",
-      "line": 88
+      "line": 90
     }
   ],
   "较大": [
@@ -2538,31 +2632,31 @@
   "解除 Steam 手机令牌": [
     {
       "file": "src/App.tsx",
-      "line": 2169
+      "line": 2422
     },
     {
       "file": "src/App.tsx",
-      "line": 2232
+      "line": 2485
     }
   ],
   "解锁": [
     {
       "file": "src/App.tsx",
-      "line": 662
+      "line": 789
     },
     {
       "file": "src/App.tsx",
-      "line": 1423
+      "line": 1643
     },
     {
       "file": "src/TrayApp.tsx",
-      "line": 214
+      "line": 312
     }
   ],
   "解锁保险库": [
     {
       "file": "src/App.tsx",
-      "line": 1482
+      "line": 1702
     }
   ],
   "解锁保险库后可合并恢复。无法解锁时，可先导出备份，在新安装的应用中导入。": [
@@ -2579,20 +2673,26 @@
   ],
   "解锁后连接": [
     {
-      "file": "src/App.tsx",
-      "line": 844
+      "file": "src/TokenCard.tsx",
+      "line": 205
     }
   ],
   "解锁密码": [
     {
       "file": "src/App.tsx",
-      "line": 1447
+      "line": 1667
     }
   ],
   "解锁已取消，请重试": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 359
+      "line": 363
+    }
+  ],
+  "仅保存所选替换。保留旧令牌的名称、分组、头像、备注和恢复码。": [
+    {
+      "file": "src/ImportReplacement.tsx",
+      "line": 22
     }
   ],
   "仅保存在这台设备，不随令牌同步。": [
@@ -2610,13 +2710,13 @@
   "仅支持 otpauth://totp 和 otpauth://hotp": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 747
+      "line": 748
     }
   ],
   "仅主设备": [
     {
-      "file": "src/App.tsx",
-      "line": 800
+      "file": "src/TokenCard.tsx",
+      "line": 160
     },
     {
       "file": "src/TokenManagement.tsx",
@@ -2624,7 +2724,17 @@
     },
     {
       "file": "src/TrayApp.tsx",
-      "line": 191
+      "line": 275
+    }
+  ],
+  "紧凑视图": [
+    {
+      "file": "src/App.tsx",
+      "line": 921
+    },
+    {
+      "file": "src/App.tsx",
+      "line": 922
     }
   ],
   "旧设备已停止使用此 HOTP 令牌": [
@@ -2636,67 +2746,81 @@
   "拒绝": [
     {
       "file": "src/App.tsx",
-      "line": 997
+      "line": 1160
     },
     {
       "file": "src/App.tsx",
-      "line": 2133
+      "line": 2386
     }
   ],
   "拒绝交易": [
     {
       "file": "src/App.tsx",
-      "line": 1352
+      "line": 1524
+    },
+    {
+      "file": "src/App.tsx",
+      "line": 1572
     }
   ],
   "拒绝这笔交易？": [
     {
       "file": "src/App.tsx",
-      "line": 1311
+      "line": 1531
+    }
+  ],
+  "卡片视图": [
+    {
+      "file": "src/App.tsx",
+      "line": 921
+    },
+    {
+      "file": "src/App.tsx",
+      "line": 922
     }
   ],
   "开机启动": [
     {
       "file": "src/DesktopSettings.tsx",
-      "line": 19
+      "line": 108
     },
     {
       "file": "src/DesktopSettings.tsx",
-      "line": 19
+      "line": 112
     }
   ],
   "开源双重验证器，支持 TOTP 与 HOTP。": [
     {
       "file": "src/App.tsx",
-      "line": 1193
+      "line": 1357
     }
   ],
   "开源双重验证器，支持通用 OTP、Steam 令牌、交易确认与社区市场。": [
     {
       "file": "src/App.tsx",
-      "line": 1192
+      "line": 1356
     }
   ],
   "开源许可": [
     {
       "file": "src/App.tsx",
-      "line": 1202
+      "line": 1366
     },
     {
       "file": "src/App.tsx",
-      "line": 1237
+      "line": 1401
     }
   ],
   "可一次选择多张图片，也能读取一张图片中的多个码。Google 多张二维码请使用同一次导出的全部图片。": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 301
+      "line": 303
     }
   ],
   "快捷窗口不可用": [
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 581
+      "line": 592
     }
   ],
   "快捷访问": [
@@ -2708,33 +2832,33 @@
   "快捷复制": [
     {
       "file": "src/i18n.ts",
-      "line": 72
+      "line": 74
     },
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 372
+      "line": 383
     }
   ],
   "快捷复制快捷键": [
     {
       "file": "src/DesktopSettings.tsx",
-      "line": 20
+      "line": 120
     }
   ],
   "快捷键被占用，请设置其他组合": [
     {
       "file": "src/DesktopSettings.tsx",
-      "line": 20
+      "line": 171
     }
   ],
   "快捷键无效或已被其他应用占用": [
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 414
+      "line": 425
     },
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 446
+      "line": 457
     }
   ],
   "快捷入口令牌无效": [
@@ -2824,7 +2948,7 @@
   "类型": [
     {
       "file": "src/App.tsx",
-      "line": 2649
+      "line": 2958
     }
   ],
   "立即备份": [
@@ -2859,8 +2983,8 @@
   ],
   "连接 Steam": [
     {
-      "file": "src/App.tsx",
-      "line": 853
+      "file": "src/TokenCard.tsx",
+      "line": 220
     }
   ],
   "连接方式": [
@@ -2882,7 +3006,7 @@
   "连接你的 Steam 账户": [
     {
       "file": "src/App.tsx",
-      "line": 959
+      "line": 1062
     }
   ],
   "连接同步网盘超时，请检查网络或代理后重试": [
@@ -2924,11 +3048,11 @@
   "两次输入的密码不一致": [
     {
       "file": "src/App.tsx",
-      "line": 1405
+      "line": 1625
     },
     {
       "file": "src/App.tsx",
-      "line": 2743
+      "line": 3057
     }
   ],
   "两次输入的新密码不一致。": [
@@ -2940,33 +3064,49 @@
   "令牌": [
     {
       "file": "src/App.tsx",
-      "line": 87
+      "line": 89
     },
     {
       "file": "src/i18n.ts",
-      "line": 72
+      "line": 74
     },
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 373
+      "line": 384
     },
     {
       "file": "src-tauri/src/sync.rs",
       "line": 530
     }
   ],
+  "令牌 ID": [
+    {
+      "file": "src/App.tsx",
+      "line": 2953
+    }
+  ],
+  "令牌 ID 已复制": [
+    {
+      "file": "src/App.tsx",
+      "line": 2956
+    }
+  ],
   "令牌不存在": [
     {
       "file": "src-tauri/src/clipboard.rs",
-      "line": 226
+      "line": 225
     },
     {
       "file": "src-tauri/src/clipboard.rs",
-      "line": 249
+      "line": 245
+    },
+    {
+      "file": "src-tauri/src/clipboard.rs",
+      "line": 268
     },
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 77
+      "line": 81
     },
     {
       "file": "src-tauri/src/migration.rs",
@@ -2988,45 +3128,45 @@
     },
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 253
+      "line": 264
     }
   ],
   "令牌库格式错误": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 592
+      "line": 744
     }
   ],
   "令牌库过大": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 589
+      "line": 741
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 631
+      "line": 783
     }
   ],
   "令牌库目录无效": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 708
+      "line": 860
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 714
+      "line": 866
     }
   ],
   "令牌库已变化，请重新预览备份后再还原": [
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 216
+      "line": 217
     }
   ],
   "令牌库已存在，请解锁": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 548
+      "line": 700
     }
   ],
   "令牌库已更新，请解锁后刷新预览": [
@@ -3048,49 +3188,49 @@
   "令牌库已锁定": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 709
+      "line": 861
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 731
+      "line": 883
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 736
+      "line": 888
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 799
+      "line": 951
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 803
+      "line": 955
     }
   ],
   "令牌库已锁定，登录已取消": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 87
+      "line": 91
     },
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 94
+      "line": 98
     }
   ],
   "令牌库已锁定，请先解锁": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 704
+      "line": 856
     }
   ],
   "令牌库暂不可用": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 58
+      "line": 62
     },
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 174
+      "line": 178
     }
   ],
   "令牌类型": [
@@ -3102,13 +3242,13 @@
   "令牌类型数据无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 258
+      "line": 259
     }
   ],
   "令牌密钥不是有效 Base32": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 715
+      "line": 716
     }
   ],
   "令牌密钥缺失": [
@@ -3118,31 +3258,31 @@
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 270
+      "line": 271
     }
   ],
   "令牌密钥为空或过长": [
     {
       "file": "src-tauri/src/models.rs",
-      "line": 125
+      "line": 151
     }
   ],
   "令牌密钥为空或长度无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 72
+      "line": 73
     }
   ],
   "令牌密钥已加密保存。输入 Steam 发往 {{value1}} 的短信验证码，完成激活。": [
     {
       "file": "src/App.tsx",
-      "line": 1922
+      "line": 2175
     }
   ],
   "令牌名称不是有效 UTF-8": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 248
+      "line": 249
     }
   ],
   "令牌名称或密钥过长，请使用加密备份迁移": [
@@ -3154,19 +3294,19 @@
   "令牌排序": [
     {
       "file": "src/App.tsx",
-      "line": 701
+      "line": 911
     }
   ],
   "令牌平台无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 259
+      "line": 260
     }
   ],
   "令牌迁移二维码": [
     {
       "file": "src/App.tsx",
-      "line": 2559
+      "line": 2830
     },
     {
       "file": "src/BatchQrExport.tsx",
@@ -3182,17 +3322,17 @@
   "令牌数量超过限制": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 237
+      "line": 238
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 483
+      "line": 484
     }
   ],
   "令牌详情": [
     {
       "file": "src/App.tsx",
-      "line": 2647
+      "line": 2952
     }
   ],
   "令牌已存在，请先处理重复项": [
@@ -3204,7 +3344,7 @@
   "令牌已恢复，但恢复副本清理失败": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 766
+      "line": 918
     }
   ],
   "令牌已删除": [
@@ -3214,35 +3354,35 @@
     },
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 243
+      "line": 254
     }
   ],
   "令牌已删除，登录已取消": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 106
+      "line": 110
     }
   ],
   "令牌已移入本机回收站": [
     {
       "file": "src/App.tsx",
-      "line": 1288
+      "line": 1456
     }
   ],
   "令牌已转移，请保存恢复代码": [
     {
       "file": "src/App.tsx",
-      "line": 2014
+      "line": 2267
     }
   ],
   "令牌周期或位数无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 75
+      "line": 76
     },
     {
       "file": "src-tauri/src/models.rs",
-      "line": 131
+      "line": 157
     }
   ],
   "另一台设备显示的编号": [
@@ -3251,10 +3391,16 @@
       "line": 292
     }
   ],
+  "录制快捷键": [
+    {
+      "file": "src/DesktopSettings.tsx",
+      "line": 161
+    }
+  ],
   "没有可导出的令牌或数量超过限制": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 348
+      "line": 349
     }
   ],
   "没有可迁出的兼容令牌": [
@@ -3266,13 +3412,13 @@
   "没有找到匹配的令牌": [
     {
       "file": "src/App.tsx",
-      "line": 873
+      "line": 977
     }
   ],
   "每个令牌最多保存 100 个备用恢复码": [
     {
       "file": "src-tauri/src/models.rs",
-      "line": 101
+      "line": 127
     },
     {
       "file": "src-tauri/src/token_commands.rs",
@@ -3288,19 +3434,19 @@
   "密码": [
     {
       "file": "src/App.tsx",
-      "line": 2394
+      "line": 2647
     }
   ],
   "密码错误或备份已损坏": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 432
+      "line": 578
     }
   ],
   "密码仅用于向 Steam 建立登录会话，不会存入保险库。": [
     {
       "file": "src/App.tsx",
-      "line": 2384
+      "line": 2637
     }
   ],
   "密钥（Base32）": [
@@ -3318,7 +3464,7 @@
   "密钥错误": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 427
+      "line": 573
     }
   ],
   "免密码预览令牌": [
@@ -3334,10 +3480,14 @@
   "名称": [
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 102
+      "line": 103
     }
   ],
   "名称需为 1–120 个字符": [
+    {
+      "file": "src-tauri/src/models.rs",
+      "line": 23
+    },
     {
       "file": "src-tauri/src/token_commands.rs",
       "line": 93
@@ -3366,19 +3516,19 @@
   "目前没有待确认的交易": [
     {
       "file": "src/App.tsx",
-      "line": 1016
+      "line": 1180
     }
   ],
   "内置加密参数无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 322
+      "line": 323
     }
   ],
   "你的社区市场": [
     {
       "file": "src/App.tsx",
-      "line": 1039
+      "line": 1203
     }
   ],
   "排列顺序": [
@@ -3394,7 +3544,7 @@
   "排序": [
     {
       "file": "src/App.tsx",
-      "line": 696
+      "line": 909
     }
   ],
   "配置包含密码，请使用另一台设备生成的无密码配置二维码。": [
@@ -3412,41 +3562,71 @@
   "批量管理": [
     {
       "file": "src/App.tsx",
-      "line": 738
+      "line": 931
+    },
+    {
+      "file": "src/App.tsx",
+      "line": 1077
     }
   ],
   "批量管理令牌": [
     {
       "file": "src/App.tsx",
-      "line": 741
+      "line": 938
+    }
+  ],
+  "批量拒绝": [
+    {
+      "file": "src/App.tsx",
+      "line": 1104
+    },
+    {
+      "file": "src/App.tsx",
+      "line": 1479
     }
   ],
   "批量目标分组": [
     {
       "file": "src/App.tsx",
-      "line": 743
+      "line": 940
+    }
+  ],
+  "批量确认": [
+    {
+      "file": "src/App.tsx",
+      "line": 1115
+    },
+    {
+      "file": "src/App.tsx",
+      "line": 1479
     }
   ],
   "批准登录": [
     {
       "file": "src/App.tsx",
-      "line": 2148
+      "line": 2401
     }
   ],
   "批准二维码登录": [
     {
       "file": "src/App.tsx",
-      "line": 2212
+      "line": 2465
     }
   ],
   "屏幕不可用": [
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 587
+      "line": 598
     },
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 598
+      "line": 609
+    }
+  ],
+  "普通导入": [
+    {
+      "file": "src/App.tsx",
+      "line": 1838
     }
   ],
   "其他 WebDAV": [
@@ -3458,7 +3638,7 @@
   "其他令牌": [
     {
       "file": "src/App.tsx",
-      "line": 683
+      "line": 842
     }
   ],
   "其他设备版本 {{value1}}": [
@@ -3470,7 +3650,7 @@
   "其他添加方式": [
     {
       "file": "src/App.tsx",
-      "line": 1662
+      "line": 1909
     }
   ],
   "启用后，能打开此应用的人都能查看、复制验证码。此设置只在这台设备生效，不会开放交易确认或导出权限。": [
@@ -3494,17 +3674,17 @@
   "启用原设备保护的 .mpo 需要先在原设备导出可迁移备份。": [
     {
       "file": "src/App.tsx",
-      "line": 1743
+      "line": 1996
     }
   ],
   "迁移二维码": [
     {
       "file": "src/App.tsx",
-      "line": 1151
+      "line": 1315
     },
     {
       "file": "src/App.tsx",
-      "line": 2663
+      "line": 2972
     },
     {
       "file": "src/BatchQrExport.tsx",
@@ -3526,7 +3706,7 @@
   "前往 Steam 官方页面": [
     {
       "file": "src/App.tsx",
-      "line": 2226
+      "line": 2479
     }
   ],
   "前往下载": [
@@ -3538,7 +3718,7 @@
   "钱包余额 {{walletBalance}}": [
     {
       "file": "src/App.tsx",
-      "line": 1042
+      "line": 1206
     }
   ],
   "浅色": [
@@ -3562,13 +3742,21 @@
   "清除筛选": [
     {
       "file": "src/App.tsx",
-      "line": 882
+      "line": 898
+    },
+    {
+      "file": "src/App.tsx",
+      "line": 985
+    },
+    {
+      "file": "src/TrayApp.tsx",
+      "line": 240
     }
   ],
   "清空本次收集": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 376
+      "line": 378
     }
   ],
   "清理同步旧版本": [
@@ -3596,7 +3784,11 @@
   "请核对交易内容。此操作将直接提交至 Steam。": [
     {
       "file": "src/App.tsx",
-      "line": 1321
+      "line": 1483
+    },
+    {
+      "file": "src/App.tsx",
+      "line": 1541
     }
   ],
   "请确认旧设备已停止使用此 HOTP 令牌": [
@@ -3608,7 +3800,7 @@
   "请确认主密码": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 321
+      "line": 325
     }
   ],
   "请扫描 Steam 登录二维码": [
@@ -3627,6 +3819,12 @@
     {
       "file": "src-tauri/plugins/quick-access/src/lib.rs",
       "line": 180
+    }
+  ],
+  "请输入公开的 HTTPS 网站地址": [
+    {
+      "file": "src-tauri/src/avatar_website.rs",
+      "line": 14
     }
   ],
   "请输入完整的 HTTPS WebDAV 地址": [
@@ -3662,19 +3860,19 @@
   "请通过 Tauri 应用使用此功能。浏览器仅用于界面预览。": [
     {
       "file": "src/api.ts",
-      "line": 32
+      "line": 33
     }
   ],
   "请妥善保存恢复代码": [
     {
       "file": "src/App.tsx",
-      "line": 1925
+      "line": 2178
     }
   ],
   "请完成 Steam 返回的验证方式：令牌验证码、邮箱验证码或手机应用批准。": [
     {
       "file": "src/App.tsx",
-      "line": 2317
+      "line": 2570
     }
   ],
   "请完成当前导入，再扫描另一种验证器二维码": [
@@ -3710,19 +3908,19 @@
   "请先解锁保险库": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 293
+      "line": 297
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 605
+      "line": 757
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 651
+      "line": 803
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 663
+      "line": 815
     }
   ],
   "请先进入令牌预览": [
@@ -3768,7 +3966,17 @@
   "请先在设备系统设置中启用生物认证或 Windows Hello": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 307
+      "line": 311
+    }
+  ],
+  "请选择": [
+    {
+      "file": "src/ImportReplacement.tsx",
+      "line": 28
+    },
+    {
+      "file": "src/ImportReplacement.tsx",
+      "line": 34
     }
   ],
   "请选择 1–1000 个令牌": [
@@ -3780,7 +3988,7 @@
   "请选择 PNG、JPEG 或照片": [
     {
       "file": "src/TokenAvatar.tsx",
-      "line": 202
+      "line": 233
     }
   ],
   "请选择 PNG、JPEG、WebP 或相册照片": [
@@ -3798,19 +4006,25 @@
   "请选择不超过 10 MB 的令牌文件": [
     {
       "file": "src/App.tsx",
-      "line": 1549
+      "line": 1790
     }
   ],
   "请选择不超过 10 MB 的图片": [
     {
       "file": "src/TokenAvatar.tsx",
-      "line": 201
+      "line": 232
     }
   ],
   "请选择不超过 12 MB 的二维码图片": [
     {
       "file": "src/qr-reader.ts",
       "line": 29
+    }
+  ],
+  "请选择不同且仍存在的同类型令牌进行替换": [
+    {
+      "file": "src-tauri/src/import/replace.rs",
+      "line": 77
     }
   ],
   "请选择创建或加入同步库": [
@@ -3834,7 +4048,7 @@
   "请选择有效且不重复的备份令牌": [
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 192
+      "line": 193
     }
   ],
   "请选择有效且不重复的令牌": [
@@ -3876,19 +4090,19 @@
   "取消": [
     {
       "file": "src/App.tsx",
-      "line": 1242
+      "line": 1406
     },
     {
       "file": "src/App.tsx",
-      "line": 1750
+      "line": 2003
     },
     {
       "file": "src/App.tsx",
-      "line": 2411
+      "line": 2664
     },
     {
       "file": "src/App.tsx",
-      "line": 2801
+      "line": 3115
     },
     {
       "file": "src/QuickAccessSettings.tsx",
@@ -3922,7 +4136,15 @@
   "取消置顶": [
     {
       "file": "src/App.tsx",
-      "line": 746
+      "line": 943
+    },
+    {
+      "file": "src/TokenCard.tsx",
+      "line": 131
+    },
+    {
+      "file": "src/TokenCard.tsx",
+      "line": 133
     },
     {
       "file": "src-tauri/src/sync.rs",
@@ -3938,19 +4160,19 @@
   "全部": [
     {
       "file": "src/App.tsx",
-      "line": 671
+      "line": 839
     }
   ],
-  "全部分组": [
+  "全选": [
     {
       "file": "src/App.tsx",
-      "line": 719
+      "line": 1092
     }
   ],
   "确认": [
     {
       "file": "src/App.tsx",
-      "line": 939
+      "line": 1042
     }
   ],
   "确认保险库主密码": [
@@ -3962,23 +4184,27 @@
   "确认编号 {{id}}": [
     {
       "file": "src/App.tsx",
-      "line": 983
+      "line": 1146
     },
     {
       "file": "src/App.tsx",
-      "line": 1319
+      "line": 1490
+    },
+    {
+      "file": "src/App.tsx",
+      "line": 1539
     }
   ],
   "确认导入": [
     {
       "file": "src/App.tsx",
-      "line": 1648
+      "line": 1895
     }
   ],
   "确认导入令牌": [
     {
       "file": "src/App.tsx",
-      "line": 1585
+      "line": 1826
     }
   ],
   "确认断开": [
@@ -3990,23 +4216,23 @@
   "确认后保存到本机加密保险库": [
     {
       "file": "src/App.tsx",
-      "line": 1610
+      "line": 1856
     }
   ],
   "确认解除令牌": [
     {
       "file": "src/App.tsx",
-      "line": 2202
+      "line": 2455
     }
   ],
   "确认密码": [
     {
       "file": "src/App.tsx",
-      "line": 1464
+      "line": 1684
     },
     {
       "file": "src/App.tsx",
-      "line": 2788
+      "line": 3102
     }
   ],
   "确认启用": [
@@ -4018,7 +4244,7 @@
   "确认删除": [
     {
       "file": "src/App.tsx",
-      "line": 2697
+      "line": 3008
     }
   ],
   "确认删除分组": [
@@ -4030,19 +4256,29 @@
   "确认提交": [
     {
       "file": "src/App.tsx",
-      "line": 1352
+      "line": 1524
+    },
+    {
+      "file": "src/App.tsx",
+      "line": 1572
+    }
+  ],
+  "确认替换": [
+    {
+      "file": "src/App.tsx",
+      "line": 1895
     }
   ],
   "确认这笔交易？": [
     {
       "file": "src/App.tsx",
-      "line": 1311
+      "line": 1531
     }
   ],
   "确认转移令牌": [
     {
       "file": "src/App.tsx",
-      "line": 2071
+      "line": 2324
     }
   ],
   "认证正在进行": [
@@ -4068,13 +4304,13 @@
   "扫码 / 图片": [
     {
       "file": "src/App.tsx",
-      "line": 1672
+      "line": 1919
     }
   ],
   "扫码导入令牌": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 270
+      "line": 272
     }
   ],
   "扫描 / 读取配置二维码": [
@@ -4098,7 +4334,7 @@
   "扫描超时，已关闭相机。可以重试或选择二维码图片。": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 256
+      "line": 258
     }
   ],
   "扫描二维码": [
@@ -4116,11 +4352,11 @@
   "扫描验证器二维码": [
     {
       "file": "src/App.tsx",
-      "line": 1587
+      "line": 1828
     },
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 316
+      "line": 318
     }
   ],
   "扫描验证器和 Steam 登录二维码。": [
@@ -4132,13 +4368,17 @@
   "扫描已停止": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 140
+      "line": 142
     }
   ],
   "删除": [
     {
       "file": "src/App.tsx",
-      "line": 747
+      "line": 944
+    },
+    {
+      "file": "src/TokenAvatar.tsx",
+      "line": 491
     }
   ],
   "删除「{{removing}}」？其中的令牌会保留并移到未分组。": [
@@ -4168,7 +4408,7 @@
   "删除令牌": [
     {
       "file": "src/App.tsx",
-      "line": 2713
+      "line": 3026
     },
     {
       "file": "src-tauri/src/sync.rs",
@@ -4178,13 +4418,19 @@
   "删除所选令牌？": [
     {
       "file": "src/App.tsx",
-      "line": 1242
+      "line": 1406
+    }
+  ],
+  "删除图标 {{name}}": [
+    {
+      "file": "src/TokenAvatar.tsx",
+      "line": 490
     }
   ],
   "删除这个令牌？": [
     {
       "file": "src/App.tsx",
-      "line": 2557
+      "line": 2828
     }
   ],
   "上传同步文件": [
@@ -4196,7 +4442,7 @@
   "上传头像": [
     {
       "file": "src/TokenAvatar.tsx",
-      "line": 272
+      "line": 384
     }
   ],
   "上级目录不存在或无法创建，请检查目录权限": [
@@ -4214,7 +4460,7 @@
   "上移": [
     {
       "file": "src/App.tsx",
-      "line": 2644
+      "line": 2940
     }
   ],
   "尚未保存备用恢复码": [
@@ -4260,27 +4506,27 @@
     },
     {
       "file": "src-tauri/src/sync.rs",
-      "line": 926
+      "line": 958
     },
     {
       "file": "src-tauri/src/sync.rs",
-      "line": 939
+      "line": 971
     },
     {
       "file": "src-tauri/src/sync.rs",
-      "line": 982
+      "line": 1014
     }
   ],
   "尚未启用免密码预览": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 379
+      "line": 383
     }
   ],
   "尚未启用设备认证": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 352
+      "line": 356
     }
   ],
   "尚未完成": [
@@ -4316,17 +4562,17 @@
   "稍后激活": [
     {
       "file": "src/App.tsx",
-      "line": 1945
+      "line": 2198
     }
   ],
   "设备标识无效": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 504
+      "line": 656
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 505
+      "line": 657
     }
   ],
   "设备密钥不可用，请使用主密码": [
@@ -4366,15 +4612,15 @@
   "设备密钥格式错误": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 623
+      "line": 775
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 625
+      "line": 777
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 627
+      "line": 779
     }
   ],
   "设备密钥内容无效": [
@@ -4400,13 +4646,13 @@
   "设备密钥与令牌库不匹配，请使用主密码解锁": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 421
+      "line": 567
     }
   ],
   "设备平台 {{value1}}": [
     {
       "file": "src/App.tsx",
-      "line": 2098
+      "line": 2351
     }
   ],
   "设备认证标识无效": [
@@ -4474,7 +4720,7 @@
   "设置": [
     {
       "file": "src/App.tsx",
-      "line": 90
+      "line": 92
     }
   ],
   "设置变更": [
@@ -4486,19 +4732,19 @@
   "设置解锁密码": [
     {
       "file": "src/App.tsx",
-      "line": 1447
+      "line": 1667
     }
   ],
   "设置密码": [
     {
       "file": "src/App.tsx",
-      "line": 1423
+      "line": 1643
     }
   ],
   "社区市场": [
     {
       "file": "src/App.tsx",
-      "line": 89
+      "line": 91
     }
   ],
   "深色": [
@@ -4515,32 +4761,32 @@
   ],
   "剩余 {{remaining}} 秒": [
     {
-      "file": "src/App.tsx",
-      "line": 819
+      "file": "src/TokenCard.tsx",
+      "line": 180
     }
   ],
   "时间已同步": [
     {
       "file": "src/App.tsx",
-      "line": 1173
+      "line": 1337
     }
   ],
   "识别到 {{length}} 个令牌": [
     {
       "file": "src/App.tsx",
-      "line": 1601
+      "line": 1847
     }
   ],
   "识别到 {{tokenCount}} 个令牌{{value2}}": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 338
+      "line": 340
     }
   ],
   "使用 Argon2id 与 AES-GCM 加密，可包含本地登录会话。": [
     {
       "file": "src/App.tsx",
-      "line": 2774
+      "line": 3088
     }
   ],
   "使用 Face ID 解锁本机保险库。": [
@@ -4552,25 +4798,31 @@
   "使用 Steam 绑定手机的短信验证码转移现有令牌。提交验证码后，原手机的令牌将被替换，Steam 可能对交易施加冷却限制。": [
     {
       "file": "src/App.tsx",
-      "line": 2035
+      "line": 2288
     }
   ],
   "使用 Steam 服务器时间生成最新验证码并直接提交，无需复制；邮箱验证仍需输入邮件中的验证码。": [
     {
       "file": "src/App.tsx",
-      "line": 2332
+      "line": 2585
     }
   ],
   "使用 Steam 手机应用扫描，并在手机上批准登录。": [
     {
       "file": "src/App.tsx",
-      "line": 2285
+      "line": 2538
+    }
+  ],
+  "使用此图标": [
+    {
+      "file": "src/TokenAvatar.tsx",
+      "line": 436
     }
   ],
   "使用当前令牌验证": [
     {
       "file": "src/App.tsx",
-      "line": 2331
+      "line": 2584
     }
   ],
   "使用当前系统 iCloud 账号，无需网盘密码。": [
@@ -4588,13 +4840,13 @@
   "使用主密码": [
     {
       "file": "src/i18n.ts",
-      "line": 75
+      "line": 77
     }
   ],
   "市场": [
     {
       "file": "src/App.tsx",
-      "line": 939
+      "line": 1042
     }
   ],
   "手动代理": [
@@ -4606,11 +4858,11 @@
   "手动排序": [
     {
       "file": "src/App.tsx",
-      "line": 703
+      "line": 912
     },
     {
       "file": "src/App.tsx",
-      "line": 2644
+      "line": 2939
     }
   ],
   "手动输入同步库编号": [
@@ -4622,7 +4874,7 @@
   "手动添加": [
     {
       "file": "src/App.tsx",
-      "line": 1667
+      "line": 1914
     }
   ],
   "手动新增仅支持 TOTP 或 HOTP": [
@@ -4646,13 +4898,13 @@
   "输入 Steam 验证码": [
     {
       "file": "src/App.tsx",
-      "line": 2366
+      "line": 2619
     }
   ],
   "输入短信验证码": [
     {
       "file": "src/App.tsx",
-      "line": 2045
+      "line": 2298
     }
   ],
   "输入绝对路径": [
@@ -4664,25 +4916,25 @@
   "输入密码": [
     {
       "file": "src/App.tsx",
-      "line": 1459
+      "line": 1679
     }
   ],
   "数量": [
     {
       "file": "src/App.tsx",
-      "line": 1062
+      "line": 1226
     }
   ],
   "刷新": [
     {
       "file": "src/App.tsx",
-      "line": 939
+      "line": 1042
     }
   ],
   "刷新二维码": [
     {
       "file": "src/App.tsx",
-      "line": 2295
+      "line": 2548
     }
   ],
   "刷新同步库列表": [
@@ -4694,45 +4946,45 @@
   "刷新以获取当前账户的社区市场信息。": [
     {
       "file": "src/App.tsx",
-      "line": 1108
+      "line": 1272
     }
   ],
   "搜索": [
     {
       "file": "src/App.tsx",
-      "line": 692
+      "line": 891
     },
     {
       "file": "src/TrayApp.tsx",
-      "line": 171
+      "line": 232
     }
   ],
   "搜索服务": [
     {
       "file": "src/TokenAvatar.tsx",
-      "line": 293
+      "line": 466
     }
   ],
   "搜索令牌": [
     {
       "file": "src/App.tsx",
-      "line": 693
+      "line": 892
     },
     {
       "file": "src/TrayApp.tsx",
-      "line": 170
+      "line": 231
     }
   ],
   "搜索图标": [
     {
       "file": "src/TokenAvatar.tsx",
-      "line": 292
+      "line": 465
     }
   ],
   "算法": [
     {
       "file": "src/App.tsx",
-      "line": 2654
+      "line": 2963
     },
     {
       "file": "src/TokenManagement.tsx",
@@ -4744,7 +4996,7 @@
     },
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 108
+      "line": 109
     }
   ],
   "所属分组": [
@@ -4756,47 +5008,57 @@
   "所选版本已变化": [
     {
       "file": "src-tauri/src/sync.rs",
-      "line": 947
+      "line": 979
     }
   ],
   "锁定": [
     {
       "file": "src/TrayApp.tsx",
-      "line": 142
+      "line": 202
     },
     {
       "file": "src/i18n.ts",
-      "line": 71
+      "line": 73
     },
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 513
+      "line": 524
     }
   ],
   "锁定保险库": [
     {
       "file": "src/App.tsx",
-      "line": 629
+      "line": 810
     }
   ],
   "提交验证码": [
     {
       "file": "src/App.tsx",
-      "line": 2424
+      "line": 2677
+    }
+  ],
+  "替换旧令牌": [
+    {
+      "file": "src/App.tsx",
+      "line": 1839
+    },
+    {
+      "file": "src/ImportReplacement.tsx",
+      "line": 21
     }
   ],
   "添加 Steam 令牌": [
     {
       "file": "src/App.tsx",
-      "line": 1258
+      "line": 1425
     },
     {
       "file": "src/App.tsx",
-      "line": 1663
+      "line": 1910
     },
     {
       "file": "src/App.tsx",
-      "line": 1901
+      "line": 2154
     }
   ],
   "添加恢复码，每行一个": [
@@ -4808,15 +5070,15 @@
   "添加令牌": [
     {
       "file": "src/App.tsx",
-      "line": 615
+      "line": 793
     },
     {
       "file": "src/App.tsx",
-      "line": 620
+      "line": 801
     },
     {
       "file": "src/App.tsx",
-      "line": 892
+      "line": 995
     }
   ],
   "填写服务提供的设置密钥，空格会自动忽略。": [
@@ -4834,11 +5096,11 @@
   "停止扫描": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 305
+      "line": 307
     },
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 327
+      "line": 329
     },
     {
       "file": "src/SteamQrScanner.tsx",
@@ -4848,7 +5110,7 @@
   "通过 Steam 官方认证接口登录": [
     {
       "file": "src/App.tsx",
-      "line": 1910
+      "line": 2163
     }
   ],
   "通过系统认证解锁。": [
@@ -4860,13 +5122,13 @@
   "同步": [
     {
       "file": "src/App.tsx",
-      "line": 1176
+      "line": 1340
     }
   ],
   "同步 Steam 时间": [
     {
       "file": "src/App.tsx",
-      "line": 1168
+      "line": 1332
     }
   ],
   "同步备用恢复码编号无效": [
@@ -4970,7 +5232,7 @@
   "同步库参数已变化，请重新连接": [
     {
       "file": "src-tauri/src/sync.rs",
-      "line": 875
+      "line": 907
     }
   ],
   "同步库格式无效": [
@@ -5004,7 +5266,7 @@
     },
     {
       "file": "src-tauri/src/sync.rs",
-      "line": 880
+      "line": 912
     }
   ],
   "同步库信息过大": [
@@ -5014,13 +5276,13 @@
     },
     {
       "file": "src-tauri/src/sync.rs",
-      "line": 866
+      "line": 898
     }
   ],
   "同步库信息无效": [
     {
       "file": "src-tauri/src/sync.rs",
-      "line": 868
+      "line": 900
     }
   ],
   "同步令牌名称缺失": [
@@ -5136,11 +5398,11 @@
     },
     {
       "file": "src-tauri/src/sync.rs",
-      "line": 900
+      "line": 932
     },
     {
       "file": "src-tauri/src/sync.rs",
-      "line": 914
+      "line": 946
     }
   ],
   "同步文件版本或大小无效": [
@@ -5250,7 +5512,7 @@
     },
     {
       "file": "src-tauri/src/sync.rs",
-      "line": 1010
+      "line": 1042
     }
   ],
   "同步字段类型无效": [
@@ -5272,7 +5534,7 @@
   "同一 Steam 账号存在不同密钥，请确认已失效令牌后再导入": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 167
+      "line": 310
     }
   ],
   "同一批次序号出现不同内容，请清空后重新扫描完整批次": [
@@ -5284,7 +5546,7 @@
   "头像": [
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 120
+      "line": 121
     },
     {
       "file": "src-tauri/src/sync.rs",
@@ -5320,7 +5582,7 @@
     },
     {
       "file": "src-tauri/src/avatar.rs",
-      "line": 53
+      "line": 62
     }
   ],
   "图标 · {{value1}}": [
@@ -5332,7 +5594,15 @@
   "图标编号无效": [
     {
       "file": "src-tauri/src/avatar.rs",
-      "line": 37
+      "line": 44
+    },
+    {
+      "file": "src-tauri/src/models.rs",
+      "line": 16
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 76
     }
   ],
   "图片分辨率过大，请裁剪到二维码区域后重试": [
@@ -5344,29 +5614,29 @@
   "图片过大，请裁剪后重试": [
     {
       "file": "src/TokenAvatar.tsx",
-      "line": 216
+      "line": 247
     }
   ],
   "退出": [
     {
       "file": "src/i18n.ts",
-      "line": 71
+      "line": 73
     },
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 514
+      "line": 525
     }
   ],
   "退出会话": [
     {
       "file": "src/App.tsx",
-      "line": 2244
+      "line": 2497
     }
   ],
   "退出批量选择": [
     {
       "file": "src/App.tsx",
-      "line": 738
+      "line": 931
     }
   ],
   "外部备份格式无效": [
@@ -5418,11 +5688,11 @@
   "完成": [
     {
       "file": "src/App.tsx",
-      "line": 2030
+      "line": 2283
     },
     {
       "file": "src/App.tsx",
-      "line": 2245
+      "line": 2498
     }
   ],
   "完成登录": [
@@ -5730,21 +6000,21 @@
   "为备份设置独立密码，并与备份文件分开保管。": [
     {
       "file": "src/App.tsx",
-      "line": 2761
+      "line": 3075
     }
   ],
   "未分组": [
     {
       "file": "src/App.tsx",
-      "line": 720
+      "line": 844
     },
     {
       "file": "src/App.tsx",
-      "line": 743
+      "line": 940
     },
     {
       "file": "src/App.tsx",
-      "line": 2636
+      "line": 2919
     },
     {
       "file": "src/TokenManagement.tsx",
@@ -5766,7 +6036,7 @@
   "未加密的备份可留空": [
     {
       "file": "src/App.tsx",
-      "line": 1740
+      "line": 1993
     }
   ],
   "未能启用快捷访问，请确认设备已设置指纹或 Face ID，并完成系统验证": [
@@ -5793,10 +6063,16 @@
       "line": 52
     }
   ],
+  "未找到可用的网站图标，请检查官网地址或上传图片": [
+    {
+      "file": "src-tauri/src/avatar_website.rs",
+      "line": 13
+    }
+  ],
   "未找到令牌": [
     {
       "file": "src/TrayApp.tsx",
-      "line": 204
+      "line": 293
     }
   ],
   "未找到其他同步库。": [
@@ -5814,13 +6090,13 @@
   "未找到验证器二维码，请靠近二维码或裁剪图片后重试": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 71
+      "line": 73
     }
   ],
   "未知的解锁选项": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 287
+      "line": 291
     },
     {
       "file": "src-tauri/src/quick_access.rs",
@@ -5842,13 +6118,13 @@
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 287
+      "line": 288
     }
   ],
   "位数": [
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 111
+      "line": 112
     }
   ],
   "文件夹选择正在进行": [
@@ -5866,7 +6142,7 @@
   "文件中没有有效令牌，或令牌数量超过限制": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 59
+      "line": 60
     }
   ],
   "文字大小": [
@@ -5878,7 +6154,7 @@
   "我确认解除此账号的 Steam 手机令牌保护": [
     {
       "file": "src/App.tsx",
-      "line": 2185
+      "line": 2438
     }
   ],
   "我需要另外创建一个独立库，不与上面的库同步": [
@@ -5890,13 +6166,13 @@
   "我已保存恢复代码": [
     {
       "file": "src/App.tsx",
-      "line": 2021
+      "line": 2274
     }
   ],
   "我已将恢复代码保存在安全位置": [
     {
       "file": "src/App.tsx",
-      "line": 1932
+      "line": 2185
     }
   ],
   "无法保存本机设置": [
@@ -5908,7 +6184,7 @@
   "无法保存登录状态": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 120
+      "line": 124
     }
   ],
   "无法保存复制设置": [
@@ -5958,7 +6234,7 @@
   "无法保存令牌库": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 856
+      "line": 1008
     }
   ],
   "无法保存设备密钥，请使用主密码": [
@@ -5970,7 +6246,7 @@
   "无法保存头像": [
     {
       "file": "src-tauri/src/avatar.rs",
-      "line": 51
+      "line": 60
     }
   ],
   "无法保存网盘登录": [
@@ -5990,7 +6266,7 @@
   "无法保存新令牌恢复副本，请立即释放存储空间": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 363
+      "line": 509
     }
   ],
   "无法保存预览": [
@@ -6002,11 +6278,11 @@
   "无法保存桌面设置": [
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 473
+      "line": 484
     },
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 477
+      "line": 488
     }
   ],
   "无法比较令牌": [
@@ -6022,7 +6298,7 @@
   "无法编码备份": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 826
+      "line": 978
     }
   ],
   "无法编码备份目录": [
@@ -6034,19 +6310,19 @@
   "无法编码加密同步文件": [
     {
       "file": "src-tauri/src/sync.rs",
-      "line": 903
+      "line": 935
     }
   ],
   "无法编码令牌导出文件": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 315
+      "line": 316
     }
   ],
   "无法编码设备标识": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 510
+      "line": 662
     }
   ],
   "无法编码同步数据": [
@@ -6064,7 +6340,7 @@
   "无法处理图片": [
     {
       "file": "src/TokenAvatar.tsx",
-      "line": 220
+      "line": 251
     }
   ],
   "无法创建 Steam 网络客户端": [
@@ -6080,37 +6356,37 @@
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 809
+      "line": 961
     }
   ],
   "无法创建恢复目录": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 349
+      "line": 495
     }
   ],
   "无法创建令牌库": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 819
+      "line": 971
     }
   ],
   "无法创建令牌库事务": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 776
+      "line": 928
     }
   ],
   "无法打开快捷窗口": [
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 633
+      "line": 644
     }
   ],
   "无法打开图片，请使用 PNG 或 JPEG": [
     {
       "file": "src/TokenAvatar.tsx",
-      "line": 209
+      "line": 240
     }
   ],
   "无法打开图片，请使用 PNG、JPEG 或 WebP 图片": [
@@ -6140,19 +6416,19 @@
   "无法打开应用": [
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 574
+      "line": 585
     }
   ],
   "无法导出未知的令牌类型": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 366
+      "line": 367
     }
   ],
   "无法导出未知哈希算法": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 372
+      "line": 373
     }
   ],
   "无法读取 Google 原生登录状态": [
@@ -6164,7 +6440,7 @@
   "无法读取 WattToolkit MessagePack 导出格式": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 116
+      "line": 117
     }
   ],
   "无法读取备份": [
@@ -6200,7 +6476,7 @@
   "无法读取待恢复令牌": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 728
+      "line": 880
     }
   ],
   "无法读取更新清单，请稍后重试": [
@@ -6218,13 +6494,13 @@
   "无法读取恢复目录": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 716
+      "line": 868
     }
   ],
   "无法读取开机启动设置": [
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 453
+      "line": 464
     }
   ],
   "无法读取令牌备注": [
@@ -6240,11 +6516,11 @@
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 587
+      "line": 739
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 629
+      "line": 781
     }
   ],
   "无法读取设备认证状态": [
@@ -6320,7 +6596,7 @@
   "无法读取许可文件": [
     {
       "file": "src/App.tsx",
-      "line": 136
+      "line": 148
     }
   ],
   "无法读取自动备份": [
@@ -6360,7 +6636,7 @@
   "无法复制链接": [
     {
       "file": "src/App.tsx",
-      "line": 2596
+      "line": 2868
     }
   ],
   "无法复制验证码": [
@@ -6384,17 +6660,17 @@
   "无法复制验证码：{{value1}}": [
     {
       "file": "src/App.tsx",
-      "line": 512
+      "line": 619
     }
   ],
   "无法更新菜单": [
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 398
+      "line": 409
     },
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 402
+      "line": 413
     }
   ],
   "无法更新系统快捷入口，请重试": [
@@ -6410,13 +6686,13 @@
   "无法关闭窗口": [
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 286
+      "line": 297
     }
   ],
   "无法关闭快捷窗口": [
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 583
+      "line": 594
     }
   ],
   "无法合并同步历史": [
@@ -6426,13 +6702,13 @@
     },
     {
       "file": "src-tauri/src/sync.rs",
-      "line": 919
+      "line": 951
     }
   ],
   "无法恢复令牌库事务": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 782
+      "line": 934
     }
   ],
   "无法记录同步变更": [
@@ -6462,11 +6738,11 @@
   "无法检查令牌差异": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 212
+      "line": 358
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 327
+      "line": 473
     }
   ],
   "无法连接更新服务器，请稍后重试": [
@@ -6478,7 +6754,7 @@
   "无法派生加密密钥": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 384
+      "line": 530
     }
   ],
   "无法派生同步密钥": [
@@ -6509,6 +6785,12 @@
       "line": 121
     }
   ],
+  "无法启动自动化 OTP 本机服务，请检查端口是否被占用": [
+    {
+      "file": "src-tauri/src/automation_otp.rs",
+      "line": 31
+    }
+  ],
   "无法清除 Windows Hello 密钥，请重试": [
     {
       "file": "src-tauri/plugins/quick-access/src/windows.rs",
@@ -6528,7 +6810,7 @@
   "无法清除预览缓存": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 657
+      "line": 809
     }
   ],
   "无法清理目录写入检查": [
@@ -6546,7 +6828,7 @@
   "无法设置主题": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 159
+      "line": 163
     },
     {
       "file": "src-tauri/plugins/quick-access/src/lib.rs",
@@ -6564,7 +6846,7 @@
   "无法生成令牌版本": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 542
+      "line": 694
     }
   ],
   "无法生成迁移地址": [
@@ -6594,25 +6876,25 @@
   "无法写入加密备份": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 403
+      "line": 549
     }
   ],
   "无法写入令牌库": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 823
+      "line": 975
     }
   ],
   "无法修改开机启动设置": [
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 471
+      "line": 482
     }
   ],
   "无法序列化令牌": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 390
+      "line": 536
     }
   ],
   "无法重置备份目录": [
@@ -6650,13 +6932,13 @@
   "系统时间无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 352
+      "line": 353
     }
   ],
   "下一验证码": [
     {
-      "file": "src/App.tsx",
-      "line": 863
+      "file": "src/TokenCard.tsx",
+      "line": 231
     }
   ],
   "下一张": [
@@ -6668,7 +6950,7 @@
   "下移": [
     {
       "file": "src/App.tsx",
-      "line": 2644
+      "line": 2941
     }
   ],
   "下载并安装，完成后重启": [
@@ -6704,13 +6986,7 @@
   "先添加一个 Steam 令牌": [
     {
       "file": "src/App.tsx",
-      "line": 946
-    }
-  ],
-  "显示 OTP 密钥链接": [
-    {
-      "file": "src/App.tsx",
-      "line": 2664
+      "line": 1049
     }
   ],
   "显示恢复码": [
@@ -6728,7 +7004,7 @@
   "显示名称": [
     {
       "file": "src/App.tsx",
-      "line": 2622
+      "line": 2903
     },
     {
       "file": "src-tauri/src/sync.rs",
@@ -6738,13 +7014,13 @@
   "相机不可用或正被占用，请关闭其他相机应用，或选择二维码图片": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 248
+      "line": 250
     }
   ],
   "相机权限被拒绝，请在系统设置中允许相机访问，或选择二维码图片": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 246
+      "line": 248
     }
   ],
   "相机权限未开启，请允许相机访问或选择图片": [
@@ -6756,31 +7032,31 @@
   "相机权限未开启，请在系统设置中允许相机访问，或选择二维码图片": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 153
+      "line": 155
     }
   ],
   "相机扫码": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 313
+      "line": 315
     }
   ],
   "相机未能完成扫描，请检查相机权限后重试，或选择二维码图片": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 250
+      "line": 252
     }
   ],
   "相机已关闭，已收集的二维码仍保留。": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 257
+      "line": 259
     }
   ],
   "相机预览": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 304
+      "line": 306
     },
     {
       "file": "src/SteamQrScanner.tsx",
@@ -6796,11 +7072,11 @@
   "相同 SteamID 的密钥不同，拒绝恢复旧密钥": [
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 161
+      "line": 162
     },
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 231
+      "line": 232
     }
   ],
   "相同密钥的令牌已存在": [
@@ -6812,7 +7088,7 @@
   "新的交易或市场上架确认会在刷新后显示。": [
     {
       "file": "src/App.tsx",
-      "line": 1021
+      "line": 1185
     }
   ],
   "新的网盘应用密码": [
@@ -6836,13 +7112,13 @@
   "新令牌恢复副本写入失败": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 366
+      "line": 512
     }
   ],
   "新令牌已加密保存在本机。请在设置中导出一份加密备份。": [
     {
       "file": "src/App.tsx",
-      "line": 2023
+      "line": 2276
     }
   ],
   "新增": [
@@ -6895,20 +7171,28 @@
   ],
   "选择": [
     {
-      "file": "src/App.tsx",
-      "line": 762
+      "file": "src/TokenCard.tsx",
+      "line": 111
     }
   ],
   "选择 {{name}}": [
     {
       "file": "src/App.tsx",
-      "line": 762
+      "line": 1125
+    },
+    {
+      "file": "src/TokenCard.tsx",
+      "line": 106
     }
   ],
   "选择 {{name}} 图标": [
     {
       "file": "src/TokenAvatar.tsx",
-      "line": 309
+      "line": 480
+    },
+    {
+      "file": "src/TokenAvatar.tsx",
+      "line": 508
     }
   ],
   "选择 HOTP 令牌": [
@@ -6926,17 +7210,17 @@
   "选择当前筛选的全部令牌": [
     {
       "file": "src/App.tsx",
-      "line": 742
+      "line": 939
     }
   ],
   "选择二维码图片": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 278
+      "line": 280
     },
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 299
+      "line": 301
     },
     {
       "file": "src/SteamQrScanner.tsx",
@@ -6946,10 +7230,14 @@
   "选择令牌": [
     {
       "file": "src/App.tsx",
-      "line": 1151
+      "line": 1315
     }
   ],
   "选择目录": [
+    {
+      "file": "src/BackupPanel.tsx",
+      "line": 245
+    },
     {
       "file": "src/BackupPanel.tsx",
       "line": 246
@@ -6970,19 +7258,19 @@
   "选择头像": [
     {
       "file": "src/App.tsx",
-      "line": 2555
+      "line": 2826
     }
   ],
   "选择位置并导出": [
     {
       "file": "src/App.tsx",
-      "line": 2803
+      "line": 3117
     }
   ],
   "选择文件，或拖放到这里": [
     {
       "file": "src/App.tsx",
-      "line": 1710
+      "line": 1963
     }
   ],
   "选择要迁出的通用令牌。Steam 和非标准周期令牌请使用加密备份迁移。": [
@@ -6994,7 +7282,7 @@
   "盐值错误": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 593
+      "line": 745
     }
   ],
   "验证并更新连接": [
@@ -7012,19 +7300,19 @@
   "验证方式": [
     {
       "file": "src/App.tsx",
-      "line": 2337
+      "line": 2590
     }
   ],
   "验证后解锁 SteamGuard": [
     {
       "file": "src/i18n.ts",
-      "line": 75
+      "line": 77
     }
   ],
   "验证码": [
     {
       "file": "src/App.tsx",
-      "line": 2360
+      "line": 2613
     }
   ],
   "验证码复制": [
@@ -7046,7 +7334,7 @@
   "验证码已提交，正在等待 Steam 完成登录。": [
     {
       "file": "src/App.tsx",
-      "line": 2316
+      "line": 2569
     }
   ],
   "验证已取消或设备密钥不可用，请使用主密码解锁；更改系统生物特征后需重新启用。": [
@@ -7073,6 +7361,12 @@
       "line": 142
     }
   ],
+  "要替换的现有令牌": [
+    {
+      "file": "src/ImportReplacement.tsx",
+      "line": 32
+    }
+  ],
   "一次最多导入 128 张二维码和 1000 个令牌": [
     {
       "file": "src-tauri/src/import/qr.rs",
@@ -7082,19 +7376,25 @@
   "一次最多恢复 1000 个令牌": [
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 74
+      "line": 75
     }
   ],
   "一次最多选择 128 张图片": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 94
+      "line": 96
+    }
+  ],
+  "移除": [
+    {
+      "file": "src/ImportReplacement.tsx",
+      "line": 52
     }
   ],
   "移动端导航": [
     {
       "file": "src/App.tsx",
-      "line": 1211
+      "line": 1375
     }
   ],
   "移动端外部目录需要系统文件授权，请先使用导出备份": [
@@ -7106,35 +7406,45 @@
   "移入回收站": [
     {
       "file": "src/App.tsx",
-      "line": 1242
+      "line": 1406
     }
   ],
   "移至分组": [
     {
       "file": "src/App.tsx",
-      "line": 744
+      "line": 941
+    }
+  ],
+  "已保存图标": [
+    {
+      "file": "src/TokenAvatar.tsx",
+      "line": 473
+    },
+    {
+      "file": "src/TokenAvatar.tsx",
+      "line": 474
     }
   ],
   "已撤销删除": [
     {
       "file": "src/App.tsx",
-      "line": 1230
+      "line": 1394
     }
   ],
   "已导出：{{path}}": [
     {
       "file": "src/App.tsx",
-      "line": 2544
+      "line": 2798
     }
   ],
   "已登录": [
     {
       "file": "src/App.tsx",
-      "line": 850
+      "line": 2166
     },
     {
-      "file": "src/App.tsx",
-      "line": 1913
+      "file": "src/TokenCard.tsx",
+      "line": 215
     }
   ],
   "已登录网盘": [
@@ -7152,7 +7462,7 @@
   "已忽略重复的二维码。": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 88
+      "line": 90
     }
   ],
   "已恢复所选的 {{count}} 个令牌。": [
@@ -7164,13 +7474,17 @@
   "已将 {{length}} 个令牌移入本机回收站": [
     {
       "file": "src/App.tsx",
-      "line": 528
+      "line": 676
     }
   ],
   "已拒绝交易": [
     {
       "file": "src/App.tsx",
-      "line": 1347
+      "line": 1519
+    },
+    {
+      "file": "src/App.tsx",
+      "line": 1567
     }
   ],
   "已连接此同步库，请使用立即同步": [
@@ -7192,7 +7506,11 @@
   "已确认交易": [
     {
       "file": "src/App.tsx",
-      "line": 1347
+      "line": 1519
+    },
+    {
+      "file": "src/App.tsx",
+      "line": 1567
     }
   ],
   "已删除令牌只保留在这台设备，可还原到保险库。Steam 登录会话需要重新建立。": [
@@ -7222,25 +7540,25 @@
   "已收集 {{received}} 张 OTP 二维码": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 336
+      "line": 338
     }
   ],
   "已收集 {{received}}/{{expected}} 张，请切换到下一张": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 319
+      "line": 321
     }
   ],
   "已锁定，请先解锁": [
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 261
+      "line": 272
     }
   ],
   "已选 {{count}} 项": [
     {
       "file": "src/App.tsx",
-      "line": 742
+      "line": 939
     }
   ],
   "已允许 iOS 系统备份收录加密保险库。请在系统设置中开启 iCloud 备份；应用无法检测云端是否已完成。LiveContainer 还取决于容器的数据备份支持。": [
@@ -7258,13 +7576,13 @@
   "已在手机批准，检查登录状态": [
     {
       "file": "src/App.tsx",
-      "line": 2380
+      "line": 2633
     }
   ],
   "已置顶": [
     {
-      "file": "src/App.tsx",
-      "line": 766
+      "file": "src/TokenCard.tsx",
+      "line": 118
     }
   ],
   "隐藏恢复码": [
@@ -7276,7 +7594,7 @@
   "隐藏密钥并返回": [
     {
       "file": "src/App.tsx",
-      "line": 2706
+      "line": 3018
     }
   ],
   "应用更新": [
@@ -7313,16 +7631,22 @@
       "line": 57
     }
   ],
+  "用「{{source}}」替换「{{target}}」": [
+    {
+      "file": "src/ImportReplacement.tsx",
+      "line": 51
+    }
+  ],
   "用于登录的账户名": [
     {
       "file": "src/App.tsx",
-      "line": 2392
+      "line": 2645
     }
   ],
   "邮箱验证码 {{associatedMessage}}": [
     {
       "file": "src/App.tsx",
-      "line": 2356
+      "line": 2609
     }
   ],
   "有 {{length}} 项冲突待确认": [
@@ -7334,7 +7658,7 @@
   "有图片未找到验证器二维码，请重新选择清晰的二维码图片": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 109
+      "line": 111
     }
   ],
   "与当前相同": [
@@ -7392,19 +7716,19 @@
   "预览令牌": [
     {
       "file": "src/App.tsx",
-      "line": 1439
+      "line": 1659
     },
     {
       "file": "src/App.tsx",
-      "line": 1756
+      "line": 2009
     },
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 386
+      "line": 388
     },
     {
       "file": "src/TrayApp.tsx",
-      "line": 220
+      "line": 318
     }
   ],
   "预览密钥无效": [
@@ -7438,31 +7762,31 @@
   "云端同步历史已损坏": [
     {
       "file": "src-tauri/src/sync.rs",
-      "line": 916
+      "line": 948
     }
   ],
   "云端同步文件过大": [
     {
       "file": "src-tauri/src/sync.rs",
-      "line": 907
+      "line": 939
     }
   ],
   "云端文件不是有效同步文件": [
     {
       "file": "src-tauri/src/sync.rs",
-      "line": 910
+      "line": 942
     }
   ],
   "再次输入备份密码": [
     {
       "file": "src/App.tsx",
-      "line": 2797
+      "line": 3111
     }
   ],
   "再次输入解锁密码": [
     {
       "file": "src/App.tsx",
-      "line": 1475
+      "line": 1695
     }
   ],
   "再次输入新主密码": [
@@ -7498,7 +7822,7 @@
   "在售物品": [
     {
       "file": "src/App.tsx",
-      "line": 1061
+      "line": 1225
     }
   ],
   "在系统快捷入口显示所选令牌": [
@@ -7510,7 +7834,7 @@
   "在这里查看在售物品，前往 Steam 完成市场操作。": [
     {
       "file": "src/App.tsx",
-      "line": 1043
+      "line": 1207
     }
   ],
   "暂不支持 Google 迁移格式版本 {{value1}}，请更新应用": [
@@ -7548,23 +7872,23 @@
   "暂无 Steam 令牌": [
     {
       "file": "src/App.tsx",
-      "line": 910
+      "line": 1013
     }
   ],
   "暂无令牌": [
     {
       "file": "src/App.tsx",
-      "line": 886
+      "line": 989
     },
     {
       "file": "src/TrayApp.tsx",
-      "line": 204
+      "line": 293
     }
   ],
   "粘贴 Steam 电脑端登录二维码中的链接，先核对设备和位置，再决定是否批准。": [
     {
       "file": "src/App.tsx",
-      "line": 2080
+      "line": 2333
     }
   ],
   "粘贴浏览器显示的授权码": [
@@ -7576,19 +7900,19 @@
   "粘贴密钥 / 链接": [
     {
       "file": "src/App.tsx",
-      "line": 1682
+      "line": 1929
     }
   ],
   "账号密码": [
     {
       "file": "src/App.tsx",
-      "line": 2258
+      "line": 2511
     }
   ],
   "账号尚未启用手机令牌": [
     {
       "file": "src/App.tsx",
-      "line": 1968
+      "line": 2221
     }
   ],
   "账户或显示名称": [
@@ -7628,7 +7952,7 @@
   "这张二维码已经收集，请切换到下一张。": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 73
+      "line": 75
     }
   ],
   "正在安装更新": [
@@ -7681,10 +8005,16 @@
       "line": 362
     }
   ],
+  "正在获取图标…": [
+    {
+      "file": "src/TokenAvatar.tsx",
+      "line": 419
+    }
+  ],
   "正在加载…": [
     {
       "file": "src/App.tsx",
-      "line": 636
+      "line": 817
     }
   ],
   "正在添加…": [
@@ -7696,7 +8026,7 @@
   "正在同步，请稍候": [
     {
       "file": "src-tauri/src/sync.rs",
-      "line": 1007
+      "line": 1039
     }
   ],
   "正在同步…": [
@@ -7714,7 +8044,7 @@
   "支持 CmdOrCtrl、Alt、Shift 组合；留空关闭。↑↓ 选择令牌，Enter 复制，Esc 关闭。": [
     {
       "file": "src/DesktopSettings.tsx",
-      "line": 20
+      "line": 169
     }
   ],
   "支持 HTTP、HTTPS、SOCKS5 / SOCKS5H。请填写当前设备的实际代理地址；地址中不支持用户名和密码。": [
@@ -7729,6 +8059,12 @@
       "line": 84
     }
   ],
+  "直接导入": [
+    {
+      "file": "src/QrImportPanel.tsx",
+      "line": 407
+    }
+  ],
   "直接连接": [
     {
       "file": "src/SteamNetworkPanel.tsx",
@@ -7738,7 +8074,7 @@
   "只读预览": [
     {
       "file": "src/App.tsx",
-      "line": 658
+      "line": 783
     }
   ],
   "只恢复勾选项。已有令牌的名称、分组、头像及通用参数会恢复到备份版本，HOTP 计数不会降低。冲突项无法恢复，请核对说明。": [
@@ -7768,7 +8104,11 @@
   "指纹 / Face ID 解锁": [
     {
       "file": "src/App.tsx",
-      "line": 1432
+      "line": 1652
+    },
+    {
+      "file": "src/TrayApp.tsx",
+      "line": 305
     }
   ],
   "至少 12 个字符，用于加密云端令牌，与网盘应用密码区分。请妥善保管，无法找回。": [
@@ -7786,17 +8126,25 @@
   "至少 8 位": [
     {
       "file": "src/App.tsx",
-      "line": 1459
+      "line": 1679
     },
     {
       "file": "src/App.tsx",
-      "line": 2786
+      "line": 3100
     }
   ],
   "置顶": [
     {
       "file": "src/App.tsx",
-      "line": 745
+      "line": 942
+    },
+    {
+      "file": "src/TokenCard.tsx",
+      "line": 131
+    },
+    {
+      "file": "src/TokenCard.tsx",
+      "line": 133
     },
     {
       "file": "src-tauri/src/sync.rs",
@@ -7806,13 +8154,13 @@
   "置顶显示": [
     {
       "file": "src/App.tsx",
-      "line": 2643
+      "line": 2936
     }
   ],
   "置顶状态": [
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 123
+      "line": 124
     },
     {
       "file": "src-tauri/src/sync.rs",
@@ -7822,19 +8170,19 @@
   "重复 Steam 令牌的 {{label}} 冲突": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 235
+      "line": 381
     }
   ],
   "重复 Steam 令牌的 steam_data 冲突": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 282
+      "line": 428
     }
   ],
   "重复 Steam 令牌的 SteamID 冲突": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 217
+      "line": 363
     }
   ],
   "重命名「{{editing}}」": [
@@ -7874,7 +8222,7 @@
   "重新输入账号": [
     {
       "file": "src/App.tsx",
-      "line": 2444
+      "line": 2697
     }
   ],
   "重新选择备份": [
@@ -7898,11 +8246,11 @@
   "周期": [
     {
       "file": "src/App.tsx",
-      "line": 2651
+      "line": 2960
     },
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 114
+      "line": 115
     }
   ],
   "周期（秒）": [
@@ -7918,19 +8266,19 @@
   "主窗口不可用": [
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 569
+      "line": 580
     }
   ],
   "主导航": [
     {
       "file": "src/App.tsx",
-      "line": 581
+      "line": 761
     }
   ],
   "主密码错误": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 612
+      "line": 764
     }
   ],
   "主密码已修改。请重新启用需要的快捷访问方式，旧备份仍使用原密码。": [
@@ -7942,11 +8290,11 @@
   "主密码至少需要 8 个字符": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 551
+      "line": 703
     },
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 571
+      "line": 723
     }
   ],
   "主题": [
@@ -7958,7 +8306,7 @@
   "主题无效": [
     {
       "file": "src-tauri/src/lib.rs",
-      "line": 155
+      "line": 159
     },
     {
       "file": "src-tauri/plugins/quick-access/src/lib.rs",
@@ -7972,13 +8320,13 @@
   "桌面": [
     {
       "file": "src/DesktopSettings.tsx",
-      "line": 17
+      "line": 79
     }
   ],
   "桌面设置不可用": [
     {
       "file": "src-tauri/src/desktop.rs",
-      "line": 438
+      "line": 449
     }
   ],
   "自定义本机目录": [
@@ -7990,11 +8338,11 @@
   "自定义头像": [
     {
       "file": "src/TokenAvatar.tsx",
-      "line": 170
+      "line": 201
     },
     {
       "file": "src/TokenAvatar.tsx",
-      "line": 266
+      "line": 372
     },
     {
       "file": "src-tauri/src/sync.rs",
@@ -8004,7 +8352,7 @@
   "自动备份": [
     {
       "file": "src/App.tsx",
-      "line": 1127
+      "line": 1293
     },
     {
       "file": "src/BackupPanel.tsx",
@@ -8015,6 +8363,12 @@
     {
       "file": "src/BackupPanel.tsx",
       "line": 64
+    }
+  ],
+  "自动化 OTP 配置无效，请检查独立配置文件与环境变量": [
+    {
+      "file": "src-tauri/src/automation_otp.rs",
+      "line": 30
     }
   ],
   "自动将加密快照另存到所选目录。重置目录会保留已有备份文件。": [
@@ -8044,17 +8398,27 @@
   "自动图标": [
     {
       "file": "src/TokenAvatar.tsx",
-      "line": 260
+      "line": 365
     },
     {
       "file": "src-tauri/src/sync.rs",
       "line": 493
     }
   ],
+  "最多保存 100 个自定义图标": [
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 69
+    },
+    {
+      "file": "src-tauri/src/vault.rs",
+      "line": 157
+    }
+  ],
   "最多创建 100 个分组": [
     {
       "file": "src-tauri/src/vault.rs",
-      "line": 106
+      "line": 249
     }
   ],
   "最多选择 4 个快捷令牌": [
@@ -8194,13 +8558,13 @@
   "Google 导出：已收集 {{received}}/{{expected}} 张": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 335
+      "line": 337
     }
   ],
   "Google 导出尚未收齐：已收到 {{value1}}/{{value2}} 张，还缺第 {{value3}} 张。请扫描完整批次后再导入": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 729
+      "line": 730
     }
   ],
   "Google 登录需要已登记的 Android 客户端和 Google Play 服务": [
@@ -8238,7 +8602,7 @@
   "Google 二维码收集进度": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 345
+      "line": 347
     }
   ],
   "Google 迁移 Base64 无效": [
@@ -8324,7 +8688,7 @@
   "Google Authenticator：转移账号 → 导出账号。按顺序或乱序扫描这次导出的所有二维码，收齐后统一导入。也支持其他验证器的标准 OTP 设置码。": [
     {
       "file": "src/QrImportPanel.tsx",
-      "line": 271
+      "line": 273
     }
   ],
   "HOTP · 基于计数": [
@@ -8336,7 +8700,7 @@
   "HOTP 计数": [
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 132
+      "line": 133
     }
   ],
   "HOTP 计数不能倒退": [
@@ -8354,7 +8718,7 @@
   "HOTP 令牌不存在": [
     {
       "file": "src-tauri/src/sync.rs",
-      "line": 981
+      "line": 1013
     }
   ],
   "HOTP 主设备": [
@@ -8376,13 +8740,13 @@
   "HOTP counter 无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 793
+      "line": 794
     }
   ],
   "HOTP URI 缺少 counter": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 796
+      "line": 797
     }
   ],
   "iCloud 服务尚未初始化": [
@@ -8466,139 +8830,139 @@
   "JSON 令牌类型无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 667
+      "line": 668
     }
   ],
   "JSON 令牌数字参数无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 672
+      "line": 673
     }
   ],
   "JSON 令牌位数无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 677
+      "line": 678
     }
   ],
   "JSON 缺少 shared_secret、secret 或 otpauth uri": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 661
+      "line": 662
     }
   ],
   "JSON 文件格式错误": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 612
+      "line": 613
     }
   ],
   "LZ4 分段数量不匹配": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 161
+      "line": 162
     }
   ],
   "LZ4 分段无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 152
+      "line": 153
     }
   ],
   "LZ4 分段长度无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 143
+      "line": 144
     }
   ],
   "LZ4 解压长度无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 126
+      "line": 127
     }
   ],
   "OTP 链接或令牌 JSON": [
     {
       "file": "src/App.tsx",
-      "line": 1721
+      "line": 1974
     }
   ],
   "OTP 位数无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 783
+      "line": 784
     }
   ],
   "OTP 周期无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 788
+      "line": 789
     }
   ],
   "OTP URI 格式错误": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 745
+      "line": 746
     }
   ],
   "OTP URI 缺少 secret": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 768
+      "line": 769
     }
   ],
   "otpauth://totp/… 或粘贴 Steam maFile JSON": [
     {
       "file": "src/App.tsx",
-      "line": 1727
+      "line": 1980
     }
   ],
   "R 开头的恢复代码": [
     {
       "file": "src/App.tsx",
-      "line": 2178
+      "line": 2431
     }
   ],
   "Steam 标记此请求为频繁登录，请核对是否由你发起。": [
     {
       "file": "src/App.tsx",
-      "line": 2109
+      "line": 2362
     }
   ],
   "Steam 登录二维码，请使用 Steam 手机应用扫描": [
     {
       "file": "src/App.tsx",
-      "line": 2276
+      "line": 2529
     }
   ],
   "Steam 登录二维码链接": [
     {
       "file": "src/App.tsx",
-      "line": 2081
+      "line": 2334
     }
   ],
   "Steam 登录设备": [
     {
       "file": "src/App.tsx",
-      "line": 2096
+      "line": 2349
     }
   ],
   "Steam 短信验证码": [
     {
       "file": "src/App.tsx",
-      "line": 1942
+      "line": 2195
     }
   ],
   "Steam 恢复代码": [
     {
       "file": "src/App.tsx",
-      "line": 2172
+      "line": 2425
     }
   ],
   "Steam 会话已更新": [
     {
       "file": "src/App.tsx",
-      "line": 1280
+      "line": 1448
     }
   ],
   "Steam 令牌附加数据损坏": [
@@ -8612,25 +8976,25 @@
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 294
+      "line": 295
     }
   ],
   "Steam 令牌验证码": [
     {
       "file": "src/App.tsx",
-      "line": 2355
+      "line": 2608
     }
   ],
   "Steam 社区市场": [
     {
       "file": "src/App.tsx",
-      "line": 1074
+      "line": 1238
     }
   ],
   "Steam 身份资料": [
     {
       "file": "src-tauri/src/backup_commands.rs",
-      "line": 139
+      "line": 140
     }
   ],
   "Steam 网络检测结果": [
@@ -8648,37 +9012,37 @@
   "Steam 网络设置": [
     {
       "file": "src/App.tsx",
-      "line": 1889
+      "line": 2142
     }
   ],
   "Steam 账户": [
     {
       "file": "src/App.tsx",
-      "line": 1901
+      "line": 2154
     }
   ],
   "Steam 账户密码": [
     {
       "file": "src/App.tsx",
-      "line": 2402
+      "line": 2655
     }
   ],
   "Steam 账户名": [
     {
       "file": "src/App.tsx",
-      "line": 2385
+      "line": 2638
     }
   ],
   "Steam shared_secret 不是有效 Base64": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 651
+      "line": 652
     }
   ],
   "SteamGuard 加密备份（.sgvault）": [
     {
       "file": "src/App.tsx",
-      "line": 2769
+      "line": 3083
     }
   ],
   "TOTP · 基于时间": [
@@ -8696,29 +9060,29 @@
   "URI 标签不是有效 UTF-8": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 819
+      "line": 820
     }
   ],
   "URI 转义无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 809
+      "line": 810
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 813
+      "line": 814
     }
   ],
   "Watt Toolkit 原始格式（.mpo）": [
     {
       "file": "src/App.tsx",
-      "line": 2770
+      "line": 3084
     }
   ],
   "WattToolkit 导出内容不是令牌列表": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 235
+      "line": 236
     }
   ],
   "WattToolkit MemoryPack 文件损坏或结构不兼容": [
@@ -8752,25 +9116,25 @@
   "WinAuth 附加数据不是 UTF-8": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 561
+      "line": 562
     }
   ],
   "WinAuth 记录包含不支持的验证器类型": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 510
+      "line": 511
     }
   ],
   "WinAuth 记录缺少 secretdata": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 518
+      "line": 519
     }
   ],
   "WinAuth 记录缺少类型": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 493
+      "line": 494
     }
   ],
   "WinAuth 加密记录超过 1000 条限制": [
@@ -8810,21 +9174,21 @@
   "WinAuth 密钥十六进制无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 450
+      "line": 451
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 457
+      "line": 458
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 460
+      "line": 461
     }
   ],
   "WinAuth 位数无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 531
+      "line": 532
     }
   ],
   "WinAuth 文件绑定了原 Windows 用户或电脑，请在原软件解除本机保护后导出": [
@@ -8842,19 +9206,19 @@
   "WinAuth 周期无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 545
+      "line": 546
     }
   ],
   "WinAuth HOTP 计数无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 552
+      "line": 553
     }
   ],
   "WinAuth Steam JSON 无效": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 570
+      "line": 571
     }
   ],
   "WinAuth XML 格式错误（不允许 DTD）": [
@@ -8864,43 +9228,13 @@
     },
     {
       "file": "src-tauri/src/import.rs",
-      "line": 469
+      "line": 470
     }
   ],
   "XML 中没有 WinAuthAuthenticator 记录": [
     {
       "file": "src-tauri/src/import.rs",
-      "line": 480
-    }
-  ],
-  "令牌 ID": [
-    {
-      "file": "src/App.tsx",
-      "line": 2628
-    }
-  ],
-  "复制令牌 ID": [
-    {
-      "file": "src/App.tsx",
-      "line": 2630
-    }
-  ],
-  "令牌 ID 已复制": [
-    {
-      "file": "src/App.tsx",
-      "line": 2631
-    }
-  ],
-  "自动化 OTP 配置无效，请检查独立配置文件与环境变量": [
-    {
-      "file": "src-tauri/src/automation_otp.rs",
-      "line": 30
-    }
-  ],
-  "无法启动自动化 OTP 本机服务，请检查端口是否被占用": [
-    {
-      "file": "src-tauri/src/automation_otp.rs",
-      "line": 31
+      "line": 481
     }
   ]
 }

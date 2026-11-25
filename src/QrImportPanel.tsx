@@ -9,8 +9,10 @@ let activeCameraOwner: symbol | null = null;
 
 export function QrImportPanel({
   onPreview,
+  onDirectCommit,
 }: {
   onPreview: (preview: ImportPreview) => void;
+  onDirectCommit?: (previewId: string) => Promise<void>;
 }) {
   const [payloads, setPayloads] = useState<string[]>([]);
   const [progress, setProgress] = useState<QrImportProgress | null>(null);
@@ -375,7 +377,7 @@ export function QrImportPanel({
         >
           <RotateCcw size={16} />{translate("清空本次收集")}</button>
         <button
-          className="button primary"
+          className={`button ${onDirectCommit && progress?.complete && progress.preview?.canCommit !== false && !progress.preview?.replacementSources?.length ? "secondary" : "primary"}`}
           disabled={busy || !progress?.complete || !progress.preview}
           onClick={() => {
             if (progress?.preview) {
@@ -384,6 +386,26 @@ export function QrImportPanel({
             }
           }}
         >{translate("预览令牌")}</button>
+        {onDirectCommit && progress?.complete && progress.preview && (progress.preview.canCommit ?? progress.preview.tokens.length > 0) && !progress.preview.replacementSources?.length && (
+          <button
+            className="button primary"
+            disabled={busy}
+            onClick={async () => {
+              const id = progress.preview?.previewId;
+              if (!id) return;
+              setBusy(true);
+              setError("");
+              try {
+                previewId.current = null;
+                await onDirectCommit(id);
+              } catch (e) {
+                setError(errorText(e));
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >{translate("直接导入")}</button>
+        )}
       </div>
     </section>
   );

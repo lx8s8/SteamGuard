@@ -65,47 +65,16 @@
   line-height: 1.7;
   color: #abc0d5;
 }
-.access-dialog input {
-  width: 100%;
-}
-.preview-notice {
-  border: 1px solid #3c6990;
-  background: #152d44;
-  border-radius: 14px;
-  padding: 18px;
-  margin-bottom: 22px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-}
-.preview-notice > div {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.preview-notice svg {
-  flex-shrink: 0;
-  color: #84c4ff;
-}
-.preview-notice strong {
-  font-size: 14px;
-}
-.preview-notice p {
-  font-size: 12px;
-  color: #9cb7cf;
-  margin-top: 5px;
-}
 
 @media (max-width: 900px), (max-width: 1200px) and (pointer: coarse) {
-  html {
+html {
     touch-action: pan-x pan-y;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
   }
   body {
     min-width: 0;
-    background: #0d141e;
+    background: var(--bg);
   }
   .app-shell {
     display: block;
@@ -119,23 +88,12 @@
     width: 100%;
     margin: 0;
   }
-  .topbar {
-    height: 52px;
-    padding: 0 20px;
-  }
-  .breadcrumb {
-    font-size: 14px;
-  }
-  .breadcrumb > span,
-  .breadcrumb > svg:nth-child(3),
-  .profile-badge,
-  .system-state,
-  .topbar-actions > .icon-button {
+  
+  
+  .system-state {
     display: none;
   }
-  .preview-badge {
-    font-size: 12px;
-  }
+  
   main {
     padding: 22px 20px calc(98px + env(safe-area-inset-bottom));
     min-height: calc(100dvh - 52px - env(safe-area-inset-top));
@@ -166,9 +124,7 @@
     margin-left: auto;
     flex-shrink: 0;
   }
-  .desktop-export {
-    display: none;
-  }
+  
   .app-shell .button {
     min-height: 46px;
     padding: 12px 16px;
@@ -182,21 +138,21 @@
     height: 18px;
   }
   .icon-button,
-  .copy-button,
-  .app-shell .modal-heading .icon-button {
+.copy-button,
+.app-shell .modal-heading .icon-button {
     width: 44px;
     height: 44px;
     min-width: 44px;
     min-height: 44px;
   }
   .app-shell input,
-  .app-shell textarea,
-  .app-shell select {
+.app-shell textarea,
+.app-shell select {
     font-size: 16px;
     min-height: 48px;
   }
   .app-shell input,
-  .app-shell textarea {
+.app-shell textarea {
     max-width: 100%;
   }
   .overview-grid {
@@ -204,30 +160,12 @@
     gap: 12px;
     margin-bottom: 22px;
   }
-  .overview-card {
-    min-height: 90px;
-    padding: 16px;
-    gap: 10px;
-    border-radius: 14px;
-  }
-  .overview-card.security-card {
-    display: none;
-  }
-  .overview-card > .overview-icon,
-  .overview-decoration {
-    display: none;
-  }
-  .overview-label {
-    font-size: 13px;
-  }
-  .overview-value {
-    font-size: 26px;
-    margin-top: 10px;
-  }
-  .overview-value > span {
-    font-size: 12px;
-    margin-left: 8px;
-  }
+  
+  
+  
+  
+  
+  
   .section-toolbar {
     flex-direction: column;
     align-items: stretch;
@@ -291,8 +229,7 @@
   .token-card-top {
     gap: 12px;
   }
-  .token-card-top .steam-mark,
-  .token-generic {
+  .token-card-top .steam-mark {
     width: 40px;
     height: 40px;
     flex-shrink: 0;
@@ -328,8 +265,7 @@
     padding-top: 12px;
     gap: 6px;
   }
-  .token-time,
-  .local-tag {
+  .token-time {
     font-size: 12px;
   }
   .session-link {
@@ -410,17 +346,11 @@
     display: block;
     border-radius: 18px;
   }
-  .welcome-art {
-    display: none;
-  }
+  
   .vault-form-wrap {
     padding: 28px 24px;
   }
-  .vault-form-icon {
-    width: 54px;
-    height: 54px;
-    margin-bottom: 22px;
-  }
+  
   .vault-form-wrap > .eyebrow {
     font-size: 11px;
   }
@@ -430,7 +360,7 @@
     margin: 10px 0;
   }
   .vault-form-wrap > p,
-  .privacy-note p {
+.privacy-note p {
     font-size: 14px;
     line-height: 1.7;
   }
@@ -474,7 +404,7 @@
     flex-wrap: wrap;
   }
   .panel-title h2,
-  .about-panel h2 {
+.about-panel h2 {
     font-size: 18px;
   }
   .panel-title p {
@@ -489,18 +419,11 @@
   .panel-title .secure-tag {
     font-size: 11px;
   }
-  .setting-row .local-tag {
-    font-size: 12px;
-    max-width: 100%;
-    overflow-wrap: anywhere;
-    white-space: normal;
-  }
+  
   .about-panel h2 span {
     font-size: 12px;
   }
-  .about-panel .muted-copy {
-    font-size: 12px;
-  }
+  
   .mobile-nav button > span {
     font-size: 12px;
   }
@@ -517,7 +440,7 @@
     line-height: 1.6;
   }
   .setting-row p,
-  .about-panel p {
+.about-panel p {
     font-size: 13px;
     line-height: 1.7;
     margin-top: 6px;
@@ -563,14 +486,8 @@
     gap: 12px;
     border-radius: 14px;
   }
-  .confirmation-body h3 {
-    font-size: 16px;
-  }
-  .confirmation-body p,
-  .confirmation-meta {
-    font-size: 13px;
-    line-height: 1.7;
-  }
+  
+  
   .confirmation-actions {
     width: 100%;
     display: flex;
@@ -579,25 +496,17 @@
   .confirmation-actions .button {
     flex: 1;
   }
-  .market-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-  }
-  .market-card h3 {
-    font-size: 15px;
-    line-height: 1.5;
-  }
-  .market-card p,
-  .market-price,
-  .market-card > span {
+  
+  
+  .market-price {
     font-size: 13px;
   }
   .empty-state h2,
-  .tokens-empty h2 {
+.tokens-empty h2 {
     font-size: 21px;
   }
   .empty-state p,
-  .tokens-empty p {
+.tokens-empty p {
     font-size: 14px;
     line-height: 1.8;
   }
@@ -635,8 +544,7 @@
     font-size: 11px;
   }
   .app-shell .modal p,
-  .app-shell .modal .form-hint,
-  .app-shell .modal .intro-text {
+.app-shell .modal .form-hint {
     font-size: 14px;
     line-height: 1.7;
   }
@@ -644,8 +552,8 @@
     font-size: 14px;
   }
   .app-shell .modal input,
-  .app-shell .modal textarea,
-  .app-shell .modal select {
+.app-shell .modal textarea,
+.app-shell .modal select {
     font-size: 16px;
     min-height: 48px;
     scroll-margin-block: 24px;
@@ -681,7 +589,6 @@
     font-size: 15px;
     flex: 1;
   }
-  .login-methods button,
   .import-tabs button {
     min-height: 46px;
     font-size: 14px;
@@ -690,34 +597,16 @@
     font-size: 12px;
     line-height: 1.7;
   }
-  .app-shell .modal .otp-code-display,
   .recovery-code code {
     font-size: 24px;
   }
-  .app-shell .modal .token-account-hint {
-    font-size: 13px;
-  }
-  .dropzone {
-    padding: 24px 16px;
-    min-height: 170px;
-  }
-  .dropzone strong {
-    font-size: 16px;
-  }
-  .dropzone span {
-    font-size: 13px;
-    line-height: 1.7;
-  }
-  .preview-list strong {
-    font-size: 15px;
-  }
-  .preview-list span {
-    font-size: 12px;
-  }
-  .export-warning {
-    font-size: 13px;
-    line-height: 1.8;
-  }
+  
+  
+  
+  
+  
+  
+  
   .toast {
     left: calc(16px + env(safe-area-inset-left));
     right: calc(16px + env(safe-area-inset-right));
@@ -733,45 +622,28 @@
     flex: 1;
     overflow-wrap: anywhere;
   }
-  .preview-notice {
-    flex-direction: column;
-    align-items: stretch;
-    padding: 16px;
-  }
-  .preview-notice strong {
-    font-size: 15px;
-  }
-  .preview-notice p {
-    font-size: 13px;
-    line-height: 1.6;
-  }
-  .preview-notice .button {
-    width: 100%;
-  }
-  .network-controls {
-    flex-wrap: wrap;
-  }
-  .network-mode-options {
-    flex-wrap: wrap;
-  }
-  .network-mode-options button {
-    min-height: 46px;
-    font-size: 14px;
-  }
-  .network-description,
+  
+  
+  
+  
+  
+  
+  
   .network-panel p,
-  .network-results {
+.network-results {
     font-size: 13px;
     line-height: 1.7;
   }
 }
+
 @media (max-width: 599px) {
-  .token-grid {
+.token-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
 @media (max-width: 359px) {
-  main {
+main {
     padding-left: 14px;
     padding-right: 14px;
   }
@@ -788,13 +660,8 @@
   .token-tabs button {
     font-size: 14px;
   }
-  .overview-card {
-    padding: 14px;
-  }
-  .overview-value > span {
-    display: block;
-    margin: 5px 0 0;
-  }
+  
+  
   .settings-panel {
     padding: 16px;
   }
@@ -809,30 +676,6 @@
   }
 }
 
-.mobile-add {
-  display: none;
-}
-.group-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 0 0 18px;
-}
-.group-toolbar > label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #9fb6cc;
-  min-width: 0;
-}
-.group-toolbar select {
-  min-width: 160px;
-  max-width: 300px;
-  font-size: 13px;
-}
-.group-toolbar > button {
-  margin-left: auto;
-}
 .group-create {
   display: flex;
   gap: 10px;
@@ -906,33 +749,18 @@
   margin-top: 12px;
 }
 @media (max-width: 900px), (max-width: 1200px) and (pointer: coarse) {
-  .token-home .page-heading,
-  .token-home .overview-grid,
-  .token-home .bottom-note {
+.token-home .page-heading,
+.token-home .overview-grid,
+.token-home .bottom-note {
     display: none;
   }
   .token-home main {
     padding-top: 14px;
   }
-  .topbar-actions > .mobile-add {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .group-toolbar {
-    margin-bottom: 14px;
-    min-height: 48px;
-    gap: 8px;
-  }
-  .group-toolbar > label {
-    flex: 1;
-  }
-  .group-toolbar select {
-    flex: 1;
-    width: 100%;
-    max-width: none;
-    font-size: 16px;
-  }
+  
+  
+  
+  
   .token-group-label {
     font-size: 12px;
   }
@@ -952,13 +780,14 @@
     font-size: 14px;
   }
 }
+
 .token-code {
   font-family:
     ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono",
     monospace;
 }
 @media (max-width: 900px), (max-width: 1200px) and (pointer: coarse) {
-  .token-card .code-area {
+.token-card .code-area {
     margin: 10px 0 12px;
     padding: 0;
     min-height: 54px;
@@ -966,17 +795,11 @@
   .token-card {
     padding: 16px;
   }
-  .migration-hint {
-    margin-top: 20px;
-    font-size: 13px;
-    line-height: 1.7;
-    color: var(--muted);
-  }
 }
 
 /* Keep native controls compact inside the full-height touch target. */
 @media (max-width: 700px), (pointer: coarse) {
-  .app-shell .sync-choice {
+.app-shell .sync-choice {
     min-height: 44px;
   }
   .app-shell .sync-choice input {
@@ -990,7 +813,7 @@
 }
 
 @media (max-width: 700px), (pointer: coarse) {
-  .import-tabs {
+.import-tabs {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -1013,3 +836,4 @@
     white-space: normal;
   }
 }
+

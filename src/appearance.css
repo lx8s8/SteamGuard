@@ -6,6 +6,7 @@
   --bg: #f5f5f7;
   --panel: #ffffff;
   --soft: #f0f0f4;
+  --surface-hover: #e5e5ee;
   --text: #1d1d1f;
   --muted: #68686f;
   --line: #e3e3e9;
@@ -22,6 +23,7 @@
   --warning: #9b5518;
   --danger: #b42335;
   --danger-solid: #b42335;
+  --danger-hover: #961c2c;
   --danger-soft: #fff0f2;
   --danger-line: #f3cbd0;
   --success-soft: #eef8f3;
@@ -40,6 +42,7 @@
   --bg: #1c1c1e;
   --panel: #28282a;
   --soft: #333336;
+  --surface-hover: #3e3e44;
   --text: #f5f5f7;
   --muted: #a5a5af;
   --line: #3c3c41;
@@ -53,6 +56,7 @@
   --green: #a2dfbf;
   --warning: #f3bd79;
   --danger: #ff9ba6;
+  --danger-hover: #9b1d2e;
   --danger-soft: #422a31;
   --danger-line: #81505d;
   --success-soft: #243d32;
@@ -64,25 +68,26 @@
   --toast-bg: #f0f0f4;
   --toast-text: #25252d;
 }
-body, .modal, .tray-panel, .vault-form-wrap, .quick-access-actions { color:var(--text); }
+body, .modal, .tray-panel, .vault-form-wrap { color:var(--text); }
 input, select, textarea { color-scheme:inherit; color:var(--text); }
 .token-avatar.brand-avatar { background:var(--brand-surface); }
 .tray-token:hover, .tray-token:focus-visible, .tray-token.selected { background:var(--accent-soft); }
 .tray-token.selected { box-shadow:inset 2px 0 0 var(--blue); }
 .toast { color:var(--toast-text); }
-.button, .icon-button, .nav-item, .token-tabs button, .copy-button, .tray-token, .icon-options button {
-  transition:background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+.button, .icon-button, .nav-item, .token-tabs button, .dialog-tabs button, .copy-button, .tray-token, .icon-options button, .saved-icon-delete, .token-card, .file-drop, .file-drop-icon, .steam-login-import, .account-tool-grid > button, .search-box, .icon-search, .tray-search, .sort-select, .settings-summary, .token-tools-menu button, .mobile-nav > button {
+  transition:background-color 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
 }
 .app-shell .button, .modal .button { font-size:calc(14px * var(--text-scale)); }
 .page-heading h1 { font-size:calc(26px * var(--text-scale)); }
 .token-identity h3 { font-size:calc(16px * var(--text-scale)); }
 .token-identity > span, .setting-row p, .access-note, .about-panel p, .form-hint { font-size:calc(12px * var(--text-scale)); }
-.token-card .token-code { font-size:calc(32px * var(--text-scale)); }
+.token-card .token-code { font-size:calc(30px * var(--text-scale)); }
+.token-grid.density-compact .token-card .token-code { font-size:calc(22px * var(--text-scale)); }
 .setting-row h3, .field-label, .settings-panel > label, .setting-row > label { font-size:calc(14px * var(--text-scale)); }
 .panel-title h2, .settings-summary { font-size:calc(17px * var(--text-scale)); }
 .modal input, .modal select, .modal textarea { font-size:calc(16px * var(--text-scale)); }
 .settings-panel .setting-row > select { width:auto; max-width:55%; min-width:0; }
-.token-tabs button, .sort-select select, .group-toolbar select, .session-link, .tray-search input { font-size:calc(13px * var(--text-scale)); }
+.token-tabs button, .sort-select select, .session-link, .tray-search input { font-size:calc(13px * var(--text-scale)); }
 .nav-item { font-size:calc(14px * var(--text-scale)); }
 .mobile-nav > button span { font-size:calc(11px * var(--text-scale)); }
 .tray-panel { font-size:calc(13px * var(--text-scale)); background:var(--panel); }
@@ -91,7 +96,7 @@ input, select, textarea { color-scheme:inherit; color:var(--text); }
 html[dir="rtl"] .main-shell { margin-left:0; margin-right:192px; }
 html[dir="rtl"] .sidebar { left:auto; right:0; border-left:1px solid var(--line); border-right:0; }
 html[dir="rtl"] .token-code, html[dir="rtl"] .tray-identity > span { direction:ltr; text-align:right; }
-html[dir="rtl"] .token-menu { margin-right:auto; margin-left:0; }
+html[dir="rtl"] .token-card-actions { margin-right:auto; margin-left:0; }
 html[dir="rtl"] .tray-token, html[dir="rtl"] .settings-summary, html[dir="rtl"] .token-identity { text-align:right; }
 .scanner-actions { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0; }
 .generic-scanner .qr-camera-overlay video { width:min(600px,90vw); max-height:60dvh; object-fit:contain; }
@@ -101,7 +106,7 @@ html[dir="rtl"] .tray-token, html[dir="rtl"] .settings-summary, html[dir="rtl"] 
 .export-token-selection input { width:18px; height:18px; min-height:18px; flex:0 0 18px; }
 .update-notes { max-height:240px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; font-size:13px; line-height:1.7; color:var(--muted); }
 .update-progress { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-.update-progress progress { flex:1; min-width:100px; accent-color:var(--accent); }
+.update-progress progress { flex:1; min-width:100px; accent-color:var(--accent-solid); }
 .desktop-shortcut { margin-top:16px; }
 .desktop-shortcut input { flex:1; min-width:120px; }
 @media (max-width:900px), (max-width:1200px) and (pointer:coarse) {
@@ -111,5 +116,5 @@ html[dir="rtl"] .tray-token, html[dir="rtl"] .settings-summary, html[dir="rtl"] 
 }
 @media (prefers-reduced-motion:reduce) {
   * { scroll-behavior:auto !important; }
-  .button, .icon-button, .nav-item, .token-tabs button, .copy-button, .tray-token, .icon-options button { transition:none; }
+  .button, .icon-button, .nav-item, .token-tabs button, .dialog-tabs button, .copy-button, .tray-token, .icon-options button, .saved-icon-delete, .token-card, .file-drop, .file-drop-icon, .steam-login-import, .account-tool-grid > button, .search-box, .icon-search, .tray-search, .sort-select, .settings-summary, .token-tools-menu button, .mobile-nav > button { transition:none; }
 }

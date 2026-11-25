@@ -5,20 +5,20 @@ import { t as translate, formatDateTime } from "./i18n";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
 } from "react";
 import {
-  ArrowDownToLine,
-  ArrowUp, ArrowDown, Pin,
+  ArrowUp,
+  ArrowDown,
   ArrowRight,
   ArrowUpRight,
   Check,
   CheckCheck,
   ChevronDown,
   CircleHelp,
-  Clock3,
   Copy,
   Download,
   Ellipsis,
@@ -27,6 +27,7 @@ import {
   Globe2,
   KeyRound,
   LayoutGrid,
+  List,
   LoaderCircle,
   LockKeyhole,
   LogIn,
@@ -48,7 +49,7 @@ import {
 } from "lucide-react";
 import QRCode from "qrcode";
 import { TokenAvatar, IconPicker } from "./TokenAvatar";
-import { OtpProgress } from "./OtpProgress";
+import { TokenCard } from "./TokenCard";
 import { SettingsDisclosure } from "./SettingsDisclosure";
 import { BatchQrExport } from "./BatchQrExport";
 import { LanguageSettings } from "./LanguageSettings";
@@ -111,9 +112,19 @@ function SteamMark({ small = false }: { small?: boolean }) {
     </span>
   );
 }
-function TokenIcon({ token }: { token: TokenView }) {
-  return <TokenAvatar token={token} />;
+function readStoredChoice<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
+  try {
+    const value = localStorage.getItem(key) as T | null;
+    return value && allowed.includes(value) ? value : fallback;
+  } catch {
+    return fallback;
+  }
 }
+function writeStoredChoice(key: string, value: string) {
+  try { localStorage.setItem(key, value); } catch { /* 忽略隐私存储限制 */ }
+}
+
+const IMPORT_FILE_EXT = /\.(mpo|dat|mafile|json|txt|sgvault|xml|2fas)$/i;
 
 export default function App() {
   const [showUnlock, setShowUnlock] = useState(false);
@@ -145,13 +156,21 @@ export default function App() {
   const [groups, setGroups] = useState<string[]>([]);
   const [groupsOpen, setGroupsOpen] = useState(false);
   const [filter, setFilter] = useState("all");
-  const [sort, setSort] = useState("name");
+  const [sort, setSort] = useState<"manual" | "name" | "type">(() =>
+    readStoredChoice("steamguard.sort", ["manual", "name", "type"] as const, "name"),
+  );
+  const [density, setDensity] = useState<"grid" | "compact">(() =>
+    readStoredChoice("steamguard.density", ["grid", "compact"] as const, "grid"),
+  );
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [batchGroup, setBatchGroup] = useState("");
   const [batchDelete, setBatchDelete] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
   const dragging = useRef<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [notification, setNotification] = useState<{
     text: string;
@@ -159,6 +178,7 @@ export default function App() {
     undo?: string[];
   } | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [importSeed, setImportSeed] = useState<{ file?: File; text?: string } | null>(null);
   const [loginToken, setLoginToken] = useState<TokenView | null>(null);
   const [editToken, setEditToken] = useState<TokenView | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
@@ -167,6 +187,11 @@ export default function App() {
   const [account, setAccount] = useState("");
   const [confirmations, setConfirmations] = useState<Confirmation[]>([]);
   const [confirmationLoaded, setConfirmationLoaded] = useState(false);
+  const [selectedConfirmations, setSelectedConfirmations] = useState<string[]>([]);
+  const [batchConfirmation, setBatchConfirmation] = useState<{
+    items: Confirmation[];
+    approve: boolean;
+  } | null>(null);
   const [market, setMarket] = useState<MarketResult | null>(null);
   const [action, setAction] = useState<{
     item: Confirmation;
@@ -174,10 +199,24 @@ export default function App() {
   } | null>(null);
   const refreshing = useRef(false);
   const statusRef = useRef<VaultStatus | null>(null);
+  const tokensRef = useRef<TokenView[]>([]);
   const revisionRef = useRef<string | null>(null);
   const accessEpoch = useRef(0);
   const resuming = useRef(false);
+  const autoLoadedAccount = useRef<{ confirmations?: string; market?: string }>({});
   statusRef.current = status;
+  tokensRef.current = tokens;
+  const updateSort = useCallback((next: "manual" | "name" | "type") => {
+    setSort(next);
+    writeStoredChoice("steamguard.sort", next);
+  }, []);
+  const toggleDensity = useCallback(() => {
+    setDensity((current) => {
+      const next = current === "grid" ? "compact" : "grid";
+      writeStoredChoice("steamguard.density", next);
+      return next;
+    });
+  }, []);
   const notify = useCallback(
     (text: string, error = false, undo?: string[]) => setNotification({ text, error, undo }),
     [],
@@ -204,8 +243,7 @@ export default function App() {
       let nextTokens: TokenView[] = [];
       let nextGroups: string[] = [];
       if (next.initialized && !next.locked) {
-        nextTokens = await api.tokens();
-        nextGroups = await api.groups();
+        [nextTokens, nextGroups] = await Promise.all([api.tokens(), api.groups()]);
       } else if (next.previewActive) {
         try {
           nextTokens = await api.previewTokens();
@@ -218,8 +256,9 @@ export default function App() {
       }
       if (epoch !== accessEpoch.current || resuming.current) return;
       setStatus(next);
-      setTokens(nextTokens);
-      setGroups(nextGroups);
+      // 拷贝数组及对象引用，确保 React 状态不可变并兼容本地测试桩的原地数组更新。
+      setTokens(nextTokens.map((token) => ({ ...token })));
+      setGroups([...nextGroups]);
       if (!next.locked) setShowUnlock(false);
     } catch (e) {
       if (epoch === accessEpoch.current) notify(errorText(e), true);
@@ -256,10 +295,18 @@ export default function App() {
           }
           revisionRef.current = snapshot.revision;
           const byId = new Map(snapshot.codes.map(code => [code.id, code]));
-          setTokens(current => current.map(token => {
-            const code = byId.get(token.id);
-            return code ? { ...token, code: code.code, remaining: code.remaining, period: code.period } : token;
-          }));
+          setTokens(current => {
+            let changed = false;
+            const nextList = current.map(token => {
+              const code = byId.get(token.id);
+              if (!code || (token.code === code.code && token.remaining === code.remaining && token.period === code.period)) {
+                return token;
+              }
+              changed = true;
+              return { ...token, code: code.code, remaining: code.remaining, period: code.period };
+            });
+            return changed ? nextList : current;
+          });
         }
       } catch { await refresh(); } finally { polling = false; }
     };
@@ -287,7 +334,7 @@ export default function App() {
       return next.length === previous.length ? previous : next;
     });
   }, [tokens]);
-  const steamTokens = tokens.filter((t) => t.kind === "steam");
+  const steamTokens = useMemo(() => tokens.filter((t) => t.kind === "steam"), [tokens]);
   const hasSteam = steamTokens.length > 0;
   const visibleNavigation = navigation.filter(
     (item) => hasSteam || item.id === "tokens" || item.id === "settings",
@@ -304,9 +351,16 @@ export default function App() {
   useEffect(() => {
     setConfirmations([]);
     setConfirmationLoaded(false);
+    setSelectedConfirmations([]);
+    setBatchConfirmation(null);
     setMarket(null);
+    autoLoadedAccount.current = {};
   }, [active?.id]);
   const unlocked = !!status?.initialized && !status.locked;
+  const tokenEntrySignature = useMemo(
+    () => tokens.map((token) => `${token.id}:${token.name}`).join("\0"),
+    [tokens],
+  );
   useEffect(() => {
     if (!unlocked || !native) return;
     let disposed = false;
@@ -323,7 +377,7 @@ export default function App() {
         setPage("tokens");
         setFilter("all"); setSelecting(false);
         if (next.id) {
-          const token = tokens.find(token => token.id === next.id);
+          const token = tokensRef.current.find(token => token.id === next.id);
           if (token) { setSearch(token.name); setEntryTarget(token.id); }
         } else setSearch("");
         // External URLs only navigate. Copy always needs a fresh user gesture.
@@ -347,22 +401,24 @@ export default function App() {
       window.removeEventListener("steamguard:local-change", refreshEntries);
       window.removeEventListener("steamguard:sync-updated", refreshEntries);
     };
-  }, [unlocked, tokens.map(token => `${token.id}:${token.name}`).join("\0")]);
+  }, [unlocked, tokenEntrySignature]);
   const previewMode = !!status?.previewActive && !!status.locked;
-  useSyncWatcher(
-    unlocked,
-    JSON.stringify([
-      groups,
-      tokens.map((t) => [
-        t.id,
-        t.name,
-        t.group,
-        t.counter,
-        t.steamId,
-        t.enrollmentPending,
+  const syncFingerprint = useMemo(
+    () =>
+      JSON.stringify([
+        groups,
+        tokens.map((t) => [
+          t.id,
+          t.name,
+          t.group,
+          t.counter,
+          t.steamId,
+          t.enrollmentPending,
+        ]),
       ]),
-    ]),
+    [groups, tokens],
   );
+  useSyncWatcher(unlocked, syncFingerprint);
   useEffect(() => {
     if (!unlocked) {
       setSelecting(false);
@@ -389,14 +445,40 @@ export default function App() {
       touch();
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        document.querySelector<HTMLInputElement>(".search-box input")?.focus();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      } else if (
+        e.key === "/" &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) &&
+        !document.querySelector('[role="dialog"]')
+      ) {
+        if (searchInputRef.current) {
+          e.preventDefault();
+          searchInputRef.current.focus();
+        }
+      }
+    };
+    // 在主界面非输入区域直接粘贴 otpauth:// 链接时，自动拉起导入弹窗。
+    const paste = (e: ClipboardEvent) => {
+      if (document.querySelector('[role="dialog"]')) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+      const text = e.clipboardData?.getData("text/plain")?.trim() ?? "";
+      if (/^otpauth(?:-migration)?:\/\//i.test(text)) {
+        e.preventDefault();
+        setImportSeed({ text });
+        setImportOpen(true);
       }
     };
     document.addEventListener("pointerdown", touch);
     document.addEventListener("keydown", keyboard);
+    document.addEventListener("paste", paste);
     return () => {
       document.removeEventListener("pointerdown", touch);
       document.removeEventListener("keydown", keyboard);
+      document.removeEventListener("paste", paste);
     };
   }, [unlocked, refresh]);
   useEffect(() => {
@@ -449,23 +531,34 @@ export default function App() {
     document.addEventListener("visibilitychange", visibility);
     return () => { disposed = true; clearTimeout(timer); document.removeEventListener("visibilitychange", visibility); };
   }, [refresh, notify]);
-  const visibleTokens = tokens
-    .filter(
-      (t) =>
-        (filter === "all" ||
-          (filter === "other" && t.kind !== "steam") ||
-          (filter === "steam" && t.kind === "steam") ||
-          (filter === "ungrouped" && !t.group) ||
-          (filter.startsWith("group:") && t.group === filter.slice(6))) &&
-        `${t.name} ${t.issuer} ${t.accountName ?? ""}`
-          .toLowerCase()
-          .includes(search.toLowerCase()),
-    )
-    .sort((a, b) =>
-      Number(!!b.pinned) - Number(!!a.pinned) || (sort === "manual" ? 0 : sort === "type"
-        ? a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name)
-        : a.name.localeCompare(b.name)),
-    );
+  const visibleTokens = useMemo(
+    () =>
+      tokens
+        .filter(
+          (t) =>
+            (filter === "all" ||
+              (filter === "other" && t.kind !== "steam") ||
+              (filter === "steam" && t.kind === "steam") ||
+              (filter === "ungrouped" && !t.group) ||
+              (filter.startsWith("group:") && t.group === filter.slice(6))) &&
+            `${t.name} ${t.issuer} ${t.accountName ?? ""} ${t.group ?? ""}`
+              .toLowerCase()
+              .includes(search.toLowerCase()),
+        )
+        .sort(
+          (a, b) =>
+            Number(!!b.pinned) - Number(!!a.pinned) ||
+            (sort === "manual"
+              ? 0
+              : sort === "type"
+                ? a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name)
+                : a.name.localeCompare(b.name)),
+        ),
+    [tokens, filter, search, sort],
+  );
+  useEffect(() => {
+    setFocusedIndex(-1);
+  }, [search, filter]);
   useEffect(() => {
     if (!entryTarget) return;
     if (unlocked && page === "tokens") {
@@ -475,7 +568,7 @@ export default function App() {
     }
     setEntryTarget(null);
   }, [entryTarget, page, unlocked]);
-  const run = async (job: () => Promise<unknown>, success?: string) => {
+  const run = useCallback(async (job: () => Promise<unknown>, success?: string) => {
     setBusy(true);
     try {
       await job();
@@ -486,10 +579,10 @@ export default function App() {
     } finally {
       setBusy(false);
     }
-  };
-  const unlockFromPreview = async () => {
+  }, [notify, refresh]);
+  const unlockFromPreview = useCallback(async () => {
     if (busy) return;
-    if (!status?.biometricEnabled) {
+    if (!statusRef.current?.biometricEnabled) {
       setShowUnlock(true);
       return;
     }
@@ -503,7 +596,7 @@ export default function App() {
     } finally {
       setBusy(false);
     }
-  };
+  }, [busy, refresh, notify]);
   const lockVault = () => run(async () => {
     accessEpoch.current += 1;
     resuming.current = true;
@@ -512,7 +605,7 @@ export default function App() {
     try { await api.lock(); }
     finally { resuming.current = false; }
   }, translate("保险库已锁定"));
-  const copy = async (token: TokenView) => {
+  const copy = useCallback(async (token: TokenView) => {
     if (!token.code || token.hotpReadOnly || document.hidden || resuming.current) return;
     const epoch = accessEpoch.current;
     try {
@@ -525,16 +618,57 @@ export default function App() {
     } catch (error) {
       if (epoch === accessEpoch.current) notify(translate("无法复制验证码：{{value1}}", { value1: errorText(error) }), true);
     }
-  };
-  const reorder = async (id: string, target: string) => {
+  }, [notify]);
+  // 乐观更新排序与置顶状态，避免每次拖拽或点击置顶都等待全量刷新。
+  const reorder = useCallback(async (id: string, target: string) => {
     if (id === target) return;
-    const ids = tokens.map(t => t.id);
+    const current = tokensRef.current;
+    const ids = current.map(t => t.id);
     const from = ids.indexOf(id), to = ids.indexOf(target);
     if (from < 0 || to < 0) return;
     ids.splice(from, 1); ids.splice(to, 0, id);
-    await run(() => api.reorderTokens(ids));
-    setSort("manual");
-  };
+    const byId = new Map(current.map(t => [t.id, t]));
+    setTokens(ids.map(itemId => byId.get(itemId)!));
+    updateSort("manual");
+    try {
+      await api.reorderTokens(ids);
+    } catch (e) {
+      notify(errorText(e), true);
+      await refresh();
+    }
+  }, [notify, refresh, updateSort]);
+  const togglePin = useCallback(async (token: TokenView) => {
+    const nextPinned = !token.pinned;
+    setTokens(current => current.map(item => item.id === token.id ? { ...item, pinned: nextPinned } : item));
+    try {
+      await api.tokenBatch("pin", [token.id], { pinned: nextPinned });
+    } catch (e) {
+      notify(errorText(e), true);
+      await refresh();
+    }
+  }, [notify, refresh]);
+  const toggleSelect = useCallback((id: string, checked: boolean) => {
+    setSelected(previous => checked ? (previous.includes(id) ? previous : [...previous, id]) : previous.filter(item => item !== id));
+  }, []);
+  const advanceHotp = useCallback((id: string) => {
+    void run(() => api.nextHotp(id));
+  }, [run]);
+  const handleDragStart = useCallback((id: string) => {
+    dragging.current = id;
+  }, []);
+  const handleDragEnter = useCallback((id: string) => {
+    if (dragging.current && dragging.current !== id) setDropTarget(id);
+  }, []);
+  const handleDrop = useCallback((targetId: string) => {
+    const sourceId = dragging.current;
+    dragging.current = null;
+    setDropTarget(null);
+    if (sourceId && sourceId !== targetId) void reorder(sourceId, targetId);
+  }, [reorder]);
+  const handleDragEnd = useCallback(() => {
+    dragging.current = null;
+    setDropTarget(null);
+  }, []);
   const batch = async (action: "group" | "pin" | "delete", options?: { group?: string; pinned?: boolean }) => {
     const ids = [...selected];
     await run(async () => {
@@ -543,19 +677,21 @@ export default function App() {
       setSelected([]); setSelecting(false); setBatchDelete(false);
     });
   };
-  const loadConfirmations = async () => {
+  const loadConfirmations = useCallback(async () => {
     if (!active) return;
     setBusy(true);
     try {
-      setConfirmations(await api.confirmations(active.id));
+      const next = await api.confirmations(active.id);
+      setConfirmations(next);
+      setSelectedConfirmations(prev => prev.filter(id => next.some(item => item.id === id)));
       setConfirmationLoaded(true);
     } catch (e) {
       notify(errorText(e), true);
     } finally {
       setBusy(false);
     }
-  };
-  const loadMarket = async () => {
+  }, [active, notify]);
+  const loadMarket = useCallback(async () => {
     if (!active) return;
     setBusy(true);
     try {
@@ -565,16 +701,46 @@ export default function App() {
     } finally {
       setBusy(false);
     }
-  };
-  const closeImport = useCallback(() => setImportOpen(false), []);
+  }, [active, notify]);
+  // 进入已登录账号的交易确认或社区市场页签时自动加载，省去每次手动点获取。
+  useEffect(() => {
+    if (!unlocked || !active?.loggedIn) return;
+    if (page === "confirmations" && autoLoadedAccount.current.confirmations !== active.id) {
+      autoLoadedAccount.current.confirmations = active.id;
+      void loadConfirmations();
+    } else if (page === "market" && autoLoadedAccount.current.market !== active.id) {
+      autoLoadedAccount.current.market = active.id;
+      void loadMarket();
+    }
+  }, [page, unlocked, active?.id, active?.loggedIn, loadConfirmations, loadMarket]);
+  const closeImport = useCallback(() => {
+    setImportOpen(false);
+    setImportSeed(null);
+  }, []);
   const closeLogin = useCallback(() => setLoginToken(null), []);
   const closeEdit = useCallback(() => setEditToken(null), []);
   const closeExport = useCallback(() => setExportOpen(false), []);
   const closeAction = useCallback(() => setAction(null), []);
+  const closeBatchConfirmation = useCallback(() => setBatchConfirmation(null), []);
   const current = navigation.find((n) => n.id === page)!;
 
   return (
-    <div className={`app-shell ${page === "tokens" ? "token-home" : ""}`}>
+    <div
+      className={`app-shell ${page === "tokens" ? "token-home" : ""}`}
+      onDragOver={(e) => {
+        if (!unlocked || importOpen || dragging.current) return;
+        if (e.dataTransfer.types.includes("Files")) e.preventDefault();
+      }}
+      onDrop={(e) => {
+        if (!unlocked || importOpen || dragging.current) return;
+        const dropped = e.dataTransfer.files?.[0];
+        if (dropped && IMPORT_FILE_EXT.test(dropped.name)) {
+          e.preventDefault();
+          setImportSeed({ file: dropped });
+          setImportOpen(true);
+        }
+      }}
+    >
       <aside className="sidebar">
         <a
           className="brand"
@@ -623,16 +789,13 @@ export default function App() {
                     {busy ? <Spinner /> : <LockKeyhole size={16} />}{translate("解锁")}
                   </button>}
                   <button
-                    className="button secondary desktop-export"
-                    disabled={!unlocked || !tokens.length}
-                    onClick={() => setExportOpen(true)}
-                  >
-                    <ArrowDownToLine size={16} />{translate("导出备份")}</button>
-                  <button
                     className="button primary add-token"
                     aria-label={translate("添加令牌")}
                     disabled={!unlocked}
-                    onClick={() => setImportOpen(true)}
+                    onClick={() => {
+                      setImportSeed(null);
+                      setImportOpen(true);
+                    }}
                   >
                     <Plus size={17} />
                     <span>{translate("添加令牌")}</span>
@@ -685,27 +848,88 @@ export default function App() {
                       <label className="search-box">
                         <Search size={16} />
                         <input
+                          ref={searchInputRef}
                           value={search}
                           onChange={(e) => setSearch(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Escape") {
+                              if (search) {
+                                e.preventDefault();
+                                setSearch("");
+                                setFocusedIndex(-1);
+                              } else {
+                                e.currentTarget.blur();
+                              }
+                              return;
+                            }
+                            if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                              if (!visibleTokens.length) return;
+                              e.preventDefault();
+                              setFocusedIndex((prev) => {
+                                const delta = e.key === "ArrowDown" ? 1 : -1;
+                                const next = prev < 0 ? (delta > 0 ? 0 : visibleTokens.length - 1) : (prev + delta + visibleTokens.length) % visibleTokens.length;
+                                const target = visibleTokens[next];
+                                if (target) {
+                                  document.querySelector<HTMLElement>(`[data-token-id="${CSS.escape(target.id)}"]`)?.scrollIntoView({ block: "nearest" });
+                                }
+                                return next;
+                              });
+                              return;
+                            }
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              if (e.nativeEvent.isComposing || e.keyCode === 229) return;
+                              const chosen = (focusedIndex >= 0 ? visibleTokens[focusedIndex] : undefined)
+                                ?? visibleTokens.find((item) => !item.hotpReadOnly && !!item.code);
+                              if (chosen && !chosen.hotpReadOnly && chosen.code) {
+                                void copy(chosen);
+                              } else {
+                                e.currentTarget.blur();
+                              }
+                            }
+                          }}
                           placeholder={translate("搜索")}
                           aria-label={translate("搜索令牌")}
                         />
+                        {search && (
+                          <button
+                            type="button"
+                            className="search-clear"
+                            aria-label={translate("清除筛选")}
+                            onClick={() => {
+                              setSearch("");
+                              setFocusedIndex(-1);
+                              searchInputRef.current?.focus();
+                            }}
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
                       </label>
                       <label className="sort-select" title={translate("排序")}>
                         <SlidersHorizontal size={16} />
-                        <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label={translate("令牌排序")}>
+                        <select value={sort} onChange={(e) => updateSort(e.target.value as "manual" | "name" | "type")} aria-label={translate("令牌排序")}>
                           <option value="manual">{translate("手动排序")}</option>
                           <option value="name">{translate("按名称")}</option>
                           <option value="type">{translate("按类型")}</option>
                         </select>
                         <ChevronDown size={12} />
                       </label>
+                      <button
+                        type="button"
+                        className="icon-button density-toggle"
+                        aria-label={density === "grid" ? translate("紧凑视图") : translate("卡片视图")}
+                        title={density === "grid" ? translate("紧凑视图") : translate("卡片视图")}
+                        onClick={toggleDensity}
+                      >
+                        {density === "grid" ? <List size={18} /> : <LayoutGrid size={18} />}
+                      </button>
                       {unlocked && <details className="token-tools" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) e.currentTarget.removeAttribute("open"); }} onKeyDown={(e) => { if (e.key === "Escape") e.currentTarget.removeAttribute("open"); }}>
                         <summary role="button" className="icon-button" aria-label={translate("管理令牌")} title={translate("管理令牌")}><Ellipsis size={20} /></summary>
                         <div className="token-tools-menu">
                           <button onClick={(e) => { e.currentTarget.closest("details")?.removeAttribute("open"); setGroupsOpen(true); }}>{translate("管理分组")}</button>
                           <button disabled={busy || !tokens.length} onClick={(e) => { e.currentTarget.closest("details")?.removeAttribute("open"); setSelecting(!selecting); setSelected([]); }}>{selecting ? translate("退出批量选择") : translate("批量管理")}</button>
+                          <button disabled={busy || !tokens.length} onClick={(e) => { e.currentTarget.closest("details")?.removeAttribute("open"); setExportOpen(true); }}>{translate("导出备份")}</button>
                           <button onClick={(e) => { e.currentTarget.closest("details")?.removeAttribute("open"); setTrashOpen(true); }}>{translate("回收站")}</button>
                         </div>
                       </details>}
@@ -720,121 +944,32 @@ export default function App() {
                     <button className="button text danger-text" disabled={busy || !selected.length} onClick={() => setBatchDelete(true)}>{translate("删除")}</button>
                   </div>}
                   {visibleTokens.length ? (
-                    <div className="token-grid">
-                      {visibleTokens.map((token) => (
-                          <article data-token-id={token.id} className={`token-card ${selected.includes(token.id) ? "token-selected" : ""}`} key={token.id}
-                            draggable={unlocked && !busy && sort === "manual" && !selecting}
-                            onDragStart={e => { dragging.current = token.id; e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", token.id); }}
-                            onDragOver={e => { if (sort === "manual" && dragging.current) e.preventDefault(); }}
-                            onDrop={e => { e.preventDefault(); if (dragging.current) void reorder(dragging.current, token.id); dragging.current = null; }}
-                            onDragEnd={() => { dragging.current = null; }}>
-                            {selecting && <label className="token-selection"><input type="checkbox" aria-label={translate("选择 {{name}}", { name: token.name })} disabled={busy} checked={selected.includes(token.id)} onChange={e => setSelected(e.target.checked ? [...selected, token.id] : selected.filter(id => id !== token.id))}/><span>{translate("选择")}</span></label>}
-                            <div className="token-card-top">
-                              <TokenIcon token={token} />
-                              <div className="token-identity">
-                                <h3>{token.pinned && <Pin size={12} aria-label={translate("已置顶")}/>}{token.name}</h3>
-                                {token.group && (
-                                  <small className="token-group-label">
-                                    {token.group}
-                                  </small>
-                                )}
-                                {token.accountName &&
-                                !token.name.includes(token.accountName) ? (
-                                  <span>{token.accountName}</span>
-                                ) : token.kind !== "steam" &&
-                                  token.issuer &&
-                                  !token.name
-                                    .toLowerCase()
-                                    .includes(token.issuer.toLowerCase()) ? (
-                                  <span>{token.issuer}</span>
-                                ) : null}
-                              </div>
-                              <button
-                                className="icon-button token-menu"
-                                aria-label={translate("管理 {{name}}", { name: token.name })}
-                                disabled={!unlocked}
-                                onClick={() => setEditToken(token)}
-                              >
-                                <Ellipsis size={19} />
-                              </button>
-                            </div>
-                            <div className="code-area">
-                              <button
-                                className={`token-code ${token.remaining <= 5 && token.kind !== "hotp" ? "expiring" : ""}`}
-                                onClick={() => void copy(token)}
-                                disabled={token.hotpReadOnly}
-                                aria-label={translate("复制 {{name}} 验证码", { name: token.name })}
-                              >
-                                {token.hotpReadOnly
-                                  ? translate("仅主设备")
-                                  : token.code || "•••••"}
-                              </button>
-                              <button
-                                className={`copy-button ${copied === token.id ? "copied" : ""}`}
-                                aria-label={translate("复制验证码")}
-                                disabled={token.hotpReadOnly}
-                                onClick={() => void copy(token)}
-                              >
-                                {copied === token.id ? (
-                                  <Check size={17} />
-                                ) : (
-                                  <Copy size={17} />
-                                )}
-                              </button>
-                            </div>
-                            {token.kind !== "hotp" && (
-                              <OtpProgress
-                                className="token-progress"
-                                label={translate("剩余 {{remaining}} 秒", { remaining: token.remaining })}
-                                remaining={token.remaining}
-                                period={token.period}
-                                code={token.code}
-                              />
-                            )}
-                            <div className="token-card-bottom">
-                              {token.kind === "hotp" && (
-                                <span className="token-time">
-                                  {token.kind === "hotp"
-                                    ? translate("计数 {{value1}}", { value1: token.counter ?? 0 })
-                                    : ""}
-                                </span>
-                              )}
-                              {token.kind === "steam" ? (
-                                <button
-                                  className={`session-link ${token.loggedIn ? "connected" : ""}`}
-                                  onClick={() =>
-                                    unlocked
-                                      ? setLoginToken(token)
-                                      : void unlockFromPreview()
-                                  }
-                                >
-                                  {previewMode ? (
-                                    <>
-                                      <LockKeyhole size={14} />{translate("解锁后连接")}</>
-                                  ) : token.enrollmentPending ? (
-                                    <>
-                                      <Clock3 size={12} />{translate("继续激活")}</>
-                                  ) : token.loggedIn ? (
-                                    <>
-                                      <span className="status-dot" />{translate("已登录")}</>
-                                  ) : (
-                                    <>
-                                      <LogIn size={12} />{translate("连接 Steam")}</>
-                                  )}
-                                </button>
-                              ) : token.kind === "hotp" ? (
-                                <button
-                                  className="session-link"
-                                  disabled={!unlocked || token.hotpReadOnly}
-                                  onClick={() =>
-                                    void run(() => api.nextHotp(token.id))
-                                  }
-                                >{translate("下一验证码")}<ArrowRight size={12} />
-                                </button>
-                              ) : null}
-                            </div>
-                          </article>
-                        ))}
+                    <div className={`token-grid density-${density}${visibleTokens.length === 1 ? " single-token" : ""}`}>
+                      {visibleTokens.map((token, index) => (
+                        <TokenCard
+                          key={token.id}
+                          token={token}
+                          unlocked={unlocked}
+                          previewMode={previewMode}
+                          busy={busy}
+                          selecting={selecting}
+                          isSelected={selected.includes(token.id)}
+                          isCopied={copied === token.id}
+                          isActive={focusedIndex === index}
+                          isDropTarget={dropTarget === token.id}
+                          onToggleSelect={toggleSelect}
+                          onCopy={copy}
+                          onTogglePin={togglePin}
+                          onEdit={setEditToken}
+                          onLogin={setLoginToken}
+                          onUnlockFromPreview={unlockFromPreview}
+                          onNextHotp={advanceHotp}
+                          onDragStart={handleDragStart}
+                          onDragEnter={handleDragEnter}
+                          onDrop={handleDrop}
+                          onDragEnd={handleDragEnd}
+                        />
+                      ))}
                     </div>
                   ) : tokens.length ? (
                     <div className="empty-state compact">
@@ -937,43 +1072,104 @@ export default function App() {
                     </div>
                   ) : page === "confirmations" ? (
                     confirmations.length ? (
-                      <div className="confirmation-list">
-                        {confirmations.map((item) => (
-                          <article className="confirmation-card" key={item.id}>
-                            <div className="confirmation-icon">
-                              <ShoppingBag size={25} />
-                            </div>
-                            <div className="confirmation-info">
-                              <span className="eyebrow">{translate("待你确认")}</span>
-                              <h3>{item.headline}</h3>
-                              <p>
-                                {item.summary?.join(" · ") ||
-                                  translate("确认编号 {{id}}", { id: item.id })}
-                              </p>
-                              {item.creationTime > 0 && (
-                                <small>
-                                  {formatDateTime(item.creationTime * 1000)}
-                                </small>
+                      <>
+                        {confirmations.length > 1 && (
+                          <div className="batch-toolbar confirmation-batch" role="region" aria-label={translate("批量管理")}>
+                            <label>
+                              <input
+                                type="checkbox"
+                                disabled={busy}
+                                checked={selectedConfirmations.length === confirmations.length}
+                                ref={(node) => {
+                                  if (node) node.indeterminate = selectedConfirmations.length > 0 && selectedConfirmations.length < confirmations.length;
+                                }}
+                                onChange={(e) =>
+                                  setSelectedConfirmations(
+                                    e.target.checked ? confirmations.map((item) => item.id) : [],
+                                  )
+                                }
+                              />
+                              {translate("全选")} ({selectedConfirmations.length}/{confirmations.length})
+                            </label>
+                            <button
+                              type="button"
+                              className="button secondary danger-text"
+                              disabled={busy || !selectedConfirmations.length}
+                              onClick={() =>
+                                setBatchConfirmation({
+                                  items: confirmations.filter((item) => selectedConfirmations.includes(item.id)),
+                                  approve: false,
+                                })
+                              }
+                            >{translate("批量拒绝")}</button>
+                            <button
+                              type="button"
+                              className="button primary"
+                              disabled={busy || !selectedConfirmations.length}
+                              onClick={() =>
+                                setBatchConfirmation({
+                                  items: confirmations.filter((item) => selectedConfirmations.includes(item.id)),
+                                  approve: true,
+                                })
+                              }
+                            >{translate("批量确认")}</button>
+                          </div>
+                        )}
+                        <div className="confirmation-list">
+                          {confirmations.map((item) => (
+                            <article className={`confirmation-card${selectedConfirmations.includes(item.id) ? " token-selected" : ""}`} key={item.id}>
+                              {confirmations.length > 1 && (
+                                <label className="confirmation-check">
+                                  <input
+                                    type="checkbox"
+                                    aria-label={translate("选择 {{name}}", { name: item.headline })}
+                                    checked={selectedConfirmations.includes(item.id)}
+                                    disabled={busy}
+                                    onChange={(e) =>
+                                      setSelectedConfirmations((prev) =>
+                                        e.target.checked
+                                          ? [...prev, item.id]
+                                          : prev.filter((id) => id !== item.id),
+                                      )
+                                    }
+                                  />
+                                </label>
                               )}
-                            </div>
-                            <div className="confirmation-actions">
-                              <button
-                                className="button secondary danger-text"
-                                onClick={() =>
-                                  setAction({ item, approve: false })
-                                }
-                              >{translate("拒绝")}</button>
-                              <button
-                                className="button primary"
-                                onClick={() =>
-                                  setAction({ item, approve: true })
-                                }
-                              >{translate("查看并确认")}<ArrowRight size={14} />
-                              </button>
-                            </div>
-                          </article>
-                        ))}
-                      </div>
+                              <div className="confirmation-icon">
+                                <ShoppingBag size={25} />
+                              </div>
+                              <div className="confirmation-info">
+                                <span className="eyebrow">{translate("待你确认")}</span>
+                                <h3>{item.headline}</h3>
+                                <p>
+                                  {item.summary?.join(" · ") ||
+                                    translate("确认编号 {{id}}", { id: item.id })}
+                                </p>
+                                {item.creationTime > 0 && (
+                                  <small>
+                                    {formatDateTime(item.creationTime * 1000)}
+                                  </small>
+                                )}
+                              </div>
+                              <div className="confirmation-actions">
+                                <button
+                                  className="button secondary danger-text"
+                                  onClick={() =>
+                                    setAction({ item, approve: false })
+                                  }
+                                >{translate("拒绝")}</button>
+                                <button
+                                  className="button primary"
+                                  onClick={() =>
+                                    setAction({ item, approve: true })
+                                  }
+                                >{translate("查看并确认")}<ArrowRight size={14} />
+                                </button>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      </>
                     ) : (
                       <div className="empty-state">
                         <span className="empty-state-icon">
@@ -1089,6 +1285,8 @@ export default function App() {
               )}
               {page === "settings" && (
                 <div className="settings-grid">
+                  <QuickAccessSettings status={status} onChange={refresh} />
+                  <DesktopSettings />
                   <SettingsDisclosure title={translate("多端同步")}>
                     <SyncPanel tokens={tokens} onChange={refresh} />
                   </SettingsDisclosure>
@@ -1096,10 +1294,8 @@ export default function App() {
                     <BackupPanel onChange={refresh} />
                   </SettingsDisclosure>
                   <PasswordSettings onChange={refresh} />
-                  <QuickAccessSettings status={status} onChange={refresh} />
-                  <DesktopSettings />
                   <ClipboardSettings />
-              <SystemEntrySettings tokens={tokens} />
+                  <SystemEntrySettings tokens={tokens} />
                   <AppearanceSettings />
                   <LanguageSettings />
                   <UpdateSettings />
@@ -1219,8 +1415,11 @@ export default function App() {
         <ImportDialog
           hasSteam={hasSteam}
           groups={groups}
+          initialFile={importSeed?.file}
+          initialText={importSeed?.text}
           onLogin={() => {
             setImportOpen(false);
+            setImportSeed(null);
             setLoginToken({
               id: "new-account",
               name: translate("添加 Steam 令牌"),
@@ -1234,6 +1433,7 @@ export default function App() {
           onClose={closeImport}
           onComplete={async () => {
             setImportOpen(false);
+            setImportSeed(null);
             await refresh();
             notify(translate("导入完成"));
           }}
@@ -1273,6 +1473,58 @@ export default function App() {
             if (path) notify(translate("备份已导出：{{path}}", { path: path }));
           }}
         />
+      )}
+      {batchConfirmation && (
+        <Modal
+          title={batchConfirmation.approve ? translate("批量确认") : translate("批量拒绝")}
+          eyebrow="STEAM CONFIRMATION"
+          onClose={closeBatchConfirmation}
+        >
+          <p className="dialog-intro">{translate("请核对交易内容。此操作将直接提交至 Steam。")}</p>
+          <div className="import-token-list">
+            {batchConfirmation.items.map((item) => (
+              <div key={item.id}>
+                <ShoppingBag size={18} />
+                <div>
+                  <strong>{item.headline}</strong>
+                  <small>{item.summary?.join(" · ") || translate("确认编号 {{id}}", { id: item.id })}</small>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="modal-actions">
+            <button
+              className="button secondary"
+              disabled={busy}
+              onClick={closeBatchConfirmation}
+            >{translate("返回核对")}</button>
+            <button
+              className={`button ${batchConfirmation.approve ? "primary" : "danger"}`}
+              disabled={busy}
+              onClick={() => {
+                if (!active) return;
+                const { items, approve } = batchConfirmation;
+                void run(
+                  async () => {
+                    try {
+                      for (const item of items) {
+                        await api.confirm(active.id, item.id, item.nonce, approve);
+                      }
+                    } finally {
+                      setBatchConfirmation(null);
+                      setSelectedConfirmations([]);
+                      await loadConfirmations();
+                    }
+                  },
+                  approve ? translate("已确认交易") : translate("已拒绝交易"),
+                );
+              }}
+            >
+              {busy ? <Spinner /> : <Check size={16} />}
+              {batchConfirmation.approve ? translate("确认提交") : translate("拒绝交易")}
+            </button>
+          </div>
+        </Modal>
       )}
       {action && (
         <Modal
@@ -1473,6 +1725,8 @@ function VaultGate({
 function ImportDialog({
   hasSteam,
   groups,
+  initialFile,
+  initialText,
   onClose,
   onComplete,
   onLogin,
@@ -1482,10 +1736,15 @@ function ImportDialog({
   onLogin: () => void;
   hasSteam: boolean;
   groups: string[];
+  initialFile?: File;
+  initialText?: string;
 }) {
-  const [mode, setMode] = useState<"file" | "text" | "qr" | "manual">("file");
-  const [file, setFile] = useState<File | null>(null);
-  const [text, setText] = useState("");
+  const [mode, setMode] = useState<"file" | "text" | "qr" | "manual">(
+    initialText ? "text" : "file",
+  );
+  const [file, setFile] = useState<File | null>(initialFile ?? null);
+  const [dragOver, setDragOver] = useState(false);
+  const [text, setText] = useState(initialText ?? "");
   const [password, setPassword] = useState("");
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [replacing, setReplacing] = useState(false);
@@ -1495,6 +1754,7 @@ function ImportDialog({
   const picker = useRef<HTMLInputElement>(null);
   const lastPreview = useRef<string | null>(null);
   const live = useRef(true);
+  const autoChecked = useRef(false);
   useEffect(() => {
     live.current = true;
     return () => {
@@ -1513,6 +1773,16 @@ function ImportDialog({
     setReplacements([]);
     setPreview(next);
   };
+  // 从主界面直接粘贴 otpauth:// 链接打开弹窗时，自动触发预览，减少一步点击。
+  useEffect(() => {
+    if (!initialText || autoChecked.current) return;
+    autoChecked.current = true;
+    setBusy(true);
+    void api.preview({ text: initialText })
+      .then((result) => acceptPreview(result))
+      .catch((e) => { if (live.current) setError(errorText(e)); })
+      .finally(() => { if (live.current) setBusy(false); });
+  }, [initialText]);
   const check = async () => {
     setError("");
     setBusy(true);
@@ -1660,7 +1930,13 @@ function ImportDialog({
               <KeyRound size={15} />{translate("粘贴密钥 / 链接")}</button>
           </div>
           {mode === "manual" ? <ManualTokenForm groups={groups} onComplete={onComplete} /> : mode === "qr" ? (
-            <QrImportPanel onPreview={acceptPreview} />
+            <QrImportPanel
+              onPreview={acceptPreview}
+              onDirectCommit={async (previewId) => {
+                await api.commit(previewId);
+                await onComplete();
+              }}
+            />
           ) : (
             <>
               {mode === "file" ? (
@@ -1673,11 +1949,23 @@ function ImportDialog({
                     onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                   />
                   <button
-                    className={`file-drop ${file ? "has-file" : ""}`}
+                    className={`file-drop ${file ? "has-file" : ""}${dragOver ? " drag-over" : ""}`}
                     onClick={() => picker.current?.click()}
-                    onDragOver={(e) => e.preventDefault()}
+                    onDragEnter={(e) => {
+                      e.preventDefault();
+                      setDragOver(true);
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (!dragOver) setDragOver(true);
+                    }}
+                    onDragLeave={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget as Node | null))
+                        setDragOver(false);
+                    }}
                     onDrop={(e) => {
                       e.preventDefault();
+                      setDragOver(false);
                       setFile(e.dataTransfer.files[0] ?? null);
                     }}
                   >
@@ -2527,13 +2815,17 @@ function EditDialog({
       setBusy(false);
     }
   };
+  const idCopiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(idCopiedTimer.current), []);
   const copyId = async () => {
     setBusy(true);
     setError("");
     setIdCopied(false);
+    clearTimeout(idCopiedTimer.current);
     try {
       await api.copyTokenId(token.id);
       setIdCopied(true);
+      idCopiedTimer.current = setTimeout(() => setIdCopied(false), 2500);
     } catch (e) {
       setError(errorText(e));
     } finally {
@@ -2582,6 +2874,7 @@ function EditDialog({
             />
           </div>
           <button
+            type="button"
             className="button secondary full-width"
             onClick={() =>
               void api.copyUri(token.id)
@@ -2591,9 +2884,16 @@ function EditDialog({
             <Copy size={15} />{translate("复制 OTP 链接")}</button>
         </>
       ) : (
-        <>
+        <form
+          id="edit-token-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!busy && name.trim()) void act(false);
+          }}
+        >
           <div className="login-account">
             <button
+              type="button"
               className="avatar-edit"
               aria-label={translate("更换头像")}
               onClick={() => setPickIcon(true)}
@@ -2611,30 +2911,56 @@ function EditDialog({
               {token.steamId && <span>{token.steamId}</span>}
             </div>
           </div>
-          <label className="field-label" htmlFor="token-name">{translate("显示名称")}</label>
-          <input
-            id="token-name"
-            value={name}
-            maxLength={120}
-            onChange={(e) => setName(e.target.value)}
-          />
-          <label className="field-label" htmlFor="token-group">{translate("分组")}</label>
-          <select
-            id="token-group"
-            value={group}
-            onChange={(e) => setGroup(e.target.value)}
-            disabled={busy}
-          >
-            <option value="">{translate("未分组")}</option>
-            {groups.map((g) => (
-              <option key={g} value={g}>
-                {g}
-              </option>
-            ))}
-          </select>
-          <label className="sync-choice"><input type="checkbox" checked={!!parameters.pinned} disabled={busy} onChange={e => setParameters({ ...parameters, pinned: e.target.checked })}/><span>{translate("置顶显示")}</span></label>
-          <div className="manual-order-actions"><span>{translate("手动排序")}</span><button className="button secondary" disabled={busy || !canMoveUp} onClick={() => void onMove(-1)}><ArrowUp size={15}/>{translate("上移")}</button><button className="button secondary" disabled={busy || !canMoveDown} onClick={() => void onMove(1)}><ArrowDown size={15}/>{translate("下移")}</button></div>
-          {token.kind !== "steam" && <><label className="field-label" htmlFor="token-issuer">{translate("服务名称")}</label><input id="token-issuer" value={parameters.issuer ?? ""} disabled={busy} maxLength={120} onChange={e => setParameters({ ...parameters, issuer: e.target.value })}/><OtpParameters kind={token.kind} value={parameters} onChange={setParameters} disabled={busy} counterReadOnly={token.hotpReadOnly}/></>}
+          <div className="edit-fields-grid">
+            <div>
+              <label className="field-label" htmlFor="token-name">{translate("显示名称")}</label>
+              <input
+                id="token-name"
+                value={name}
+                maxLength={120}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="field-label" htmlFor="token-group">{translate("分组")}</label>
+              <select
+                id="token-group"
+                value={group}
+                onChange={(e) => setGroup(e.target.value)}
+                disabled={busy}
+              >
+                <option value="">{translate("未分组")}</option>
+                {groups.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="edit-quick-row">
+            <label className="sync-choice">
+              <input
+                type="checkbox"
+                checked={!!parameters.pinned}
+                disabled={busy}
+                onChange={e => setParameters({ ...parameters, pinned: e.target.checked })}
+              />
+              <span>{translate("置顶显示")}</span>
+            </label>
+            <div className="manual-order-actions">
+              <span>{translate("手动排序")}</span>
+              <button type="button" className="button secondary" disabled={busy || !canMoveUp} onClick={() => void onMove(-1)}><ArrowUp size={15}/>{translate("上移")}</button>
+              <button type="button" className="button secondary" disabled={busy || !canMoveDown} onClick={() => void onMove(1)}><ArrowDown size={15}/>{translate("下移")}</button>
+            </div>
+          </div>
+          {token.kind !== "steam" && (
+            <>
+              <label className="field-label" htmlFor="token-issuer">{translate("服务名称")}</label>
+              <input id="token-issuer" value={parameters.issuer ?? ""} disabled={busy} maxLength={120} onChange={e => setParameters({ ...parameters, issuer: e.target.value })}/>
+              <OtpParameters kind={token.kind} value={parameters} onChange={setParameters} disabled={busy} counterReadOnly={token.hotpReadOnly}/>
+            </>
+          )}
           <details className="token-details">
             <summary>{translate("令牌详情")}</summary>
             <label className="field-label" htmlFor="token-identifier">{translate("令牌 ID")}</label>
@@ -2653,26 +2979,26 @@ function EditDialog({
             </div>
           </details>
           {token.kind !== "steam" && <TokenPrivateDetailsEditor id={token.id} disabled={busy}/>}
-          <div className="account-tool-grid">
-            <button disabled={busy} onClick={() => void revealQr()}>
-              <QrCode size={20} />
-              <strong>{translate("迁移二维码")}</strong>
-              <span>{translate("显示 OTP 密钥链接")}</span>
+          <div className="edit-export-row">
+            <button type="button" className="button secondary" disabled={busy} onClick={() => void revealQr()}>
+              <QrCode size={16} />
+              <span>{translate("迁移二维码")}</span>
             </button>
             <button
+              type="button"
+              className="button secondary"
               disabled={busy}
               onClick={() =>
                 void exportToken(token.kind === "steam" ? "mafile" : "otpauth")
               }
             >
-              <Download size={20} />
-              <strong>
+              <Download size={16} />
+              <span>
                 {token.kind === "steam" ? translate("导出 maFile") : translate("导出 OTP 链接")}
-              </strong>
-              <span>{translate("包含密钥的明文文件")}</span>
+              </span>
             </button>
           </div>
-        </>
+        </form>
       )}
       {error && <div className="form-error">{error}</div>}
       {exported && <div className="inline-success">{exported}</div>}
@@ -2681,11 +3007,13 @@ function EditDialog({
           {deleting ? (
             <>
               <button
+                type="button"
                 className="button secondary"
                 disabled={busy}
                 onClick={() => setDeleting(false)}
               >{translate("返回")}</button>
               <button
+                type="button"
                 className="button danger"
                 disabled={busy}
                 onClick={() => void act(true)}
@@ -2694,6 +3022,7 @@ function EditDialog({
             </>
           ) : showQr ? (
             <button
+              type="button"
               className="button secondary"
               onClick={() => {
                 setShowQr(false);
@@ -2703,14 +3032,16 @@ function EditDialog({
           ) : (
             <>
               <button
+                type="button"
                 className="button text danger-text"
                 onClick={() => setDeleting(true)}
               >
                 <Trash2 size={15} />{translate("删除令牌")}</button>
               <button
+                type="submit"
+                form="edit-token-form"
                 className="button primary"
                 disabled={busy || !name.trim()}
-                onClick={() => void act(false)}
               >
                 {busy ? <Spinner /> : <Check size={15} />}{translate("保存")}</button>
             </>

@@ -40,6 +40,7 @@ use zeroize::Zeroizing;
 struct Preview {
     groups: Vec<String>,
     tokens: Vec<Token>,
+    saved_icons: Vec<models::SavedIcon>,
     created: u64,
     expected_revision: Option<String>,
 }
@@ -659,10 +660,12 @@ async fn import_preview(
     }
     let filename = filename.unwrap_or_default();
     let mut imported_groups = vec![];
+    let mut imported_icons = vec![];
     let tokens =
         if filename.ends_with(".sgvault") || bytes.windows(16).any(|w| w == b"SteamGuard Vault") {
             let decoded = vault::decode(&bytes, &p)?;
             imported_groups = decoded.group_names();
+            imported_icons = decoded.saved_icons;
             decoded.tokens
         } else {
             import::parse_import(
@@ -671,17 +674,19 @@ async fn import_preview(
                 &filename,
             )?
         };
-    prepare_import_preview(&s, tokens, imported_groups, epoch)
+    prepare_import_preview(&s, tokens, imported_groups, imported_icons, epoch)
 }
 fn prepare_import_preview(
     s: &AppState,
     tokens: Vec<Token>,
     imported_groups: Vec<String>,
+    imported_icons: Vec<models::SavedIcon>,
     epoch: u64,
 ) -> Result<ImportPreview, String> {
     let mut staged = Preview {
         groups: imported_groups,
         tokens,
+        saved_icons: imported_icons,
         created: models::now(),
         expected_revision: None,
     };
@@ -774,6 +779,7 @@ fn qr_import_preview(s: &AppState, payloads: Vec<String>) -> Result<QrImportPrev
             s,
             std::mem::take(&mut collection.tokens),
             vec![],
+            vec![],
             epoch,
         )?)
     } else {
@@ -841,7 +847,11 @@ fn commit_import_preview(
         }
         return v.update(|d| import::replace::apply(d, &p.tokens, replacements));
     }
-    v.update(|d| d.merge_import(std::mem::take(&mut p.tokens), std::mem::take(&mut p.groups)))
+    v.update(|d| {
+        let count = d.merge_import(std::mem::take(&mut p.tokens), std::mem::take(&mut p.groups))?;
+        d.merge_saved_icons(std::mem::take(&mut p.saved_icons));
+        Ok(count)
+    })
 }
 #[tauri::command(async)]
 fn token_groups(s: State<AppState>) -> Result<Vec<String>, String> {
@@ -897,9 +907,51 @@ fn token_update(
         token.name = name.into();
         token.group = group;
         if let Some(value) = icon {
-            token.icon = value;
+            if let Some(png) = value
+                .as_deref()
+                .filter(|v| v.starts_with("data:image/png;base64,"))
+            {
+                let label = if !token.issuer.trim().is_empty() {
+                    token.issuer.trim().to_owned()
+                } else {
+                    token.name.clone()
+                };
+                let png = png.to_owned();
+                token.icon = value;
+                d.ensure_saved_icons_initialized();
+                d.remember_icon_if_room(&label, &png);
+            } else {
+                token.icon = value;
+            }
         }
         Ok(())
+    })
+}
+#[tauri::command(async)]
+fn saved_icons_list(s: State<AppState>) -> Result<Vec<models::SavedIcon>, String> {
+    let mut v = s.vault()?;
+    let needs_init = !v.ensure()?.saved_icons_initialized;
+    if needs_init {
+        v.update(|d| {
+            d.ensure_saved_icons_initialized();
+            Ok(())
+        })?;
+    }
+    Ok(v.ensure()?.saved_icons.clone())
+}
+#[tauri::command(async)]
+fn saved_icon_save(
+    s: State<AppState>,
+    label: String,
+    data: String,
+) -> Result<models::SavedIcon, String> {
+    s.vault()?.update(|d| d.save_icon(&label, &data))
+}
+#[tauri::command(async)]
+fn saved_icon_delete(s: State<AppState>, id: String) -> Result<Vec<models::SavedIcon>, String> {
+    s.vault()?.update(|d| {
+        d.delete_icon(&id)?;
+        Ok(d.saved_icons.clone())
     })
 }
 #[derive(Serialize)]
@@ -954,6 +1006,34 @@ fn backup_directory_configure(s: State<AppState>, path: Option<String>) -> Resul
     let mut v = s.vault()?;
     v.ensure()?;
     backup::configure_directory(&v.path, path.as_deref())
+}
+#[tauri::command]
+async fn backup_directory_choose(
+    app: tauri::AppHandle,
+    s: State<'_, AppState>,
+) -> Result<Option<String>, String> {
+    #[cfg(desktop)]
+    {
+        let vault_path = {
+            let mut v = s.vault()?;
+            v.ensure()?;
+            v.path.clone()
+        };
+        let Some(selected) = app.dialog().file().blocking_pick_folder() else {
+            return Ok(None);
+        };
+        let folder = match selected {
+            tauri_plugin_dialog::FilePath::Path(p) => p.to_string_lossy().to_string(),
+            tauri_plugin_dialog::FilePath::Url(_) => return Err("备份目录无效".into()),
+        };
+        backup::configure_directory(&vault_path, Some(&folder))?;
+        Ok(Some(folder))
+    }
+    #[cfg(mobile)]
+    {
+        let _ = (app, s);
+        Err("此设置仅适用于桌面端".into())
+    }
 }
 #[tauri::command(async)]
 fn backup_configure(s: State<AppState>, enabled: bool) -> Result<(), String> {
@@ -1785,6 +1865,9 @@ pub fn run() {
                 token_groups,
                 token_group_manage,
                 token_update,
+                saved_icons_list,
+                saved_icon_save,
+                saved_icon_delete,
                 avatar_website::avatar_from_website,
                 backup_commands::backup_preview,
                 backup_commands::backup_restore_selected,
@@ -1793,6 +1876,7 @@ pub fn run() {
                 backup_external::backup_external_clear,
                 backup_status,
                 backup_directory_configure,
+                backup_directory_choose,
                 backup_configure,
                 backup_now,
                 backup_export,
@@ -1890,7 +1974,7 @@ mod qr_import_tests {
             target_id: old.id.clone(),
         };
         let incoming = || vec![new.clone(), unrelated.clone()];
-        let preview = prepare_import_preview(&s, incoming(), vec![], 0).unwrap();
+        let preview = prepare_import_preview(&s, incoming(), vec![], vec![], 0).unwrap();
         assert_eq!(preview.tokens.len(), 1);
         assert_eq!(preview.replacement_sources.len(), 2);
         assert_eq!(preview.replacement_targets.len(), 2);
@@ -1906,7 +1990,7 @@ mod qr_import_tests {
                 .is_err()
         );
 
-        let preview = prepare_import_preview(&s, incoming(), vec![], 0).unwrap();
+        let preview = prepare_import_preview(&s, incoming(), vec![], vec![], 0).unwrap();
         assert_eq!(
             commit_import_preview(&s, &preview.preview_id, &[replacement]).unwrap(),
             1
@@ -1955,7 +2039,8 @@ mod qr_import_tests {
         enriched.steam_id = Some("12345".into());
         enriched.identity_secret = Some("synthetic-identity".into());
         enriched.device_id = Some("android:fixture".into());
-        let preview = prepare_import_preview(&s, vec![enriched.clone()], vec![], 0).unwrap();
+        let preview =
+            prepare_import_preview(&s, vec![enriched.clone()], vec![], vec![], 0).unwrap();
         assert!(preview.can_commit);
         assert!(preview.tokens.is_empty());
         assert_eq!(preview.duplicates, 1);
@@ -1968,7 +2053,7 @@ mod qr_import_tests {
             enriched.steam_id
         );
         enriched.steam_id = Some("different-steam-id".into());
-        assert!(prepare_import_preview(&s, vec![enriched], vec![], 0).is_err());
+        assert!(prepare_import_preview(&s, vec![enriched], vec![], vec![], 0).is_err());
         s.vault().unwrap().lock();
         std::fs::remove_dir_all(dir).unwrap();
     }

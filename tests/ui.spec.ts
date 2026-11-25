@@ -108,6 +108,7 @@ async function nativeFixture(page: Page) {
       ["biometric", "cancel", "preview-biometric", "preview-cancel"].includes(quickScenario ?? "");
     let previewActive = false;
     const groups: string[] = [];
+    const savedIcons: { id: string; label: string; data: string }[] = [];
     let autoBackup = true;
     const backupEntries = [
       {
@@ -411,6 +412,28 @@ async function nativeFixture(page: Page) {
             }
             case "avatar_from_website":
               return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a7C8AAAAASUVORK5CYII=";
+            case "saved_icons_list":
+              return [...savedIcons];
+            case "saved_icon_save": {
+              const label = String(args.label || "Icon");
+              const data = String(args.data || "");
+              const existingIndex = savedIcons.findIndex((item) => item.data === data);
+              if (existingIndex >= 0) {
+                const [existing] = savedIcons.splice(existingIndex, 1);
+                existing.label = label;
+                savedIcons.unshift(existing);
+                return { ...existing };
+              }
+              const next = { id: `saved-icon-${savedIcons.length + 1}`, label, data };
+              savedIcons.unshift(next);
+              return { ...next };
+            }
+            case "saved_icon_delete": {
+              const id = String(args.id || "");
+              const idx = savedIcons.findIndex((item) => item.id === id);
+              if (idx >= 0) savedIcons.splice(idx, 1);
+              return [...savedIcons];
+            }
             case "backup_status":
               return {
                 enabled: autoBackup,
@@ -894,7 +917,6 @@ test("requires reviewing a transaction before submitting its confirmation", asyn
     .getByRole("button", { name: "交易确认", exact: true })
     .first()
     .click();
-  await page.getByRole("button", { name: "获取交易确认" }).click();
   await page.getByRole("button", { name: "查看并确认" }).click();
   await expect(page.getByRole("dialog")).toContainText("物品示例");
   expect(await commandCount(page, "steam_confirmation_action")).toBe(0);
@@ -2840,4 +2862,126 @@ test("token details expose an exact read-only identifier and copy it through nat
   expect(await commandCount(page, "token_copy")).toBe(0);
   expect(await commandCount(page, "token_uri")).toBe(0);
   expect(await page.evaluate(() => (window as any).__testCommands.find((item: any) => item.command === "token_id_copy").args)).toEqual({ id: "ec2ed188-254b-47c6-907c-1e8ea221d633" });
+});
+
+test("streamlined token interactions: Enter-to-copy, card click, quick pin, persistent sort and density toggle", async ({ page, context }) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.setViewportSize({ width: 1180, height: 860 });
+  const search = page.getByRole("textbox", { name: "搜索令牌", exact: true });
+  await search.fill("通用");
+  await search.press("Enter");
+  expect(await commandCount(page, "token_copy")).toBe(1);
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("654321");
+  await page.getByRole("button", { name: "清除筛选", exact: true }).click();
+  await expect(search).toHaveValue("");
+  await expect(page.locator(".token-card")).toHaveCount(3);
+
+  // 点击卡片空白区域直接复制验证码。
+  const otpCard = page.locator(".token-card").filter({ hasText: "测试 · 通用 OTP" });
+  await otpCard.getByRole("heading", { name: "测试 · 通用 OTP", exact: true }).click();
+  expect(await commandCount(page, "token_copy")).toBe(2);
+
+  // 一键置顶无需打开管理弹窗。
+  await otpCard.getByRole("button", { name: "置顶", exact: true }).click();
+  await expect(page.locator(".token-card").first()).toContainText("测试 · 通用 OTP");
+  expect(await commandCount(page, "token_batch")).toBe(1);
+
+  // 排序方式与视图密度均持久化，刷新后保持。
+  await page.getByLabel("令牌排序", { exact: true }).selectOption("type");
+  await page.getByRole("button", { name: "紧凑视图", exact: true }).click();
+  await expect(page.locator(".token-grid")).toHaveClass(/density-compact/);
+  await page.reload();
+  await expect(page.getByLabel("令牌排序", { exact: true })).toHaveValue("type");
+  await expect(page.locator(".token-grid")).toHaveClass(/density-compact/);
+  await page.getByRole("button", { name: "卡片视图", exact: true }).click();
+  await expect(page.locator(".token-grid")).toHaveClass(/density-grid/);
+});
+
+test("tray supports autofocus search, digit shortcuts and auto-hide preference", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("steamguard.trayAutoHide", "1"));
+  await page.goto("/?view=tray&manyTokens");
+  const search = page.getByRole("textbox", { name: "搜索令牌", exact: true });
+  await expect(search).toBeFocused();
+  await page.keyboard.press("Alt+2");
+  await expect.poll(() => commandCount(page, "desktop_copy")).toBe(1);
+  expect(await page.evaluate(() => (window as any).__testCommands.filter((c: any) => c.command === "desktop_copy").at(-1).args.id)).toBe("steam-offline");
+  await expect.poll(() => commandCount(page, "desktop_hide")).toBe(1);
+});
+
+test("desktop shortcut recorder captures key combinations and persists tray auto-hide", async ({ page }) => {
+  await page.goto("/?desktop");
+  await openSettings(page);
+  const autoHide = page.getByRole("switch", { name: "复制后自动关闭快捷窗口", exact: true });
+  await expect(autoHide).not.toBeChecked();
+  await autoHide.click();
+  await expect(autoHide).toBeChecked();
+  expect(await page.evaluate(() => localStorage.getItem("steamguard.trayAutoHide"))).toBe("1");
+  await page.getByRole("button", { name: "录制快捷键", exact: true }).click();
+  await page.keyboard.press("Control+Shift+KeyK");
+  await expect(page.getByLabel("快捷复制快捷键", { exact: true })).toHaveValue("CmdOrCtrl+Shift+K");
+});
+
+test("QR import offers one-click direct import once collection is complete", async ({ page }) => {
+  const panel = await openQrImport(page);
+  await panel.getByLabel("选择二维码图片", { exact: true }).setInputFiles(await qrImage(ordinaryQr));
+  await panel.getByRole("button", { name: "直接导入", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(await commandCount(page, "import_commit")).toBe(1);
+});
+
+test("batch Steam confirmations review selected items before submitting", async ({ page }) => {
+  await page.addInitScript(() => {
+    const bridge = (window as any).__TAURI_INTERNALS__;
+    const original = bridge.invoke;
+    bridge.invoke = async (command: string, args: Record<string, unknown> = {}) => {
+      if (command === "steam_confirmations") {
+        return [
+          { id: "c-1", nonce: "n-1", kind: 2, typeName: "交易确认", headline: "批量交易 A", summary: ["物品 A"], creationTime: 1_700_000_000, icon: "" },
+          { id: "c-2", nonce: "n-2", kind: 2, typeName: "交易确认", headline: "批量交易 B", summary: ["物品 B"], creationTime: 1_700_000_001, icon: "" },
+        ];
+      }
+      return original(command, args);
+    };
+  });
+  await page.reload();
+  await page.getByRole("button", { name: "交易确认", exact: true }).first().click();
+  await expect(page.getByRole("heading", { name: "批量交易 A" })).toBeVisible();
+  await page.getByRole("checkbox", { name: /全选/ }).check();
+  await page.getByRole("button", { name: "批量确认", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("批量交易 A");
+  await expect(dialog).toContainText("批量交易 B");
+  expect(await commandCount(page, "steam_confirmation_action")).toBe(0);
+  await dialog.getByRole("button", { name: "确认提交", exact: true }).click();
+  await expect.poll(() => commandCount(page, "steam_confirmation_action")).toBe(2);
+});
+
+test("fetched website icons are saved in the reusable icon library and can be deleted without clearing token avatars", async ({ page }) => {
+  await page.getByRole("button", { name: "管理 测试 · 通用 OTP", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "更换头像", exact: true }).click();
+  await dialog.getByRole("button", { name: "从网站获取", exact: true }).click();
+  await dialog.getByLabel("服务官网地址").fill("https://portal.example.org/login");
+  await dialog.getByRole("button", { name: "获取图标", exact: true }).click();
+  await dialog.getByRole("button", { name: "使用此图标", exact: true }).click();
+  await dialog.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+
+  // 打开另一令牌的头像选择器，直接复用刚保存的网站图标，无需重新抓取。
+  await page.getByRole("button", { name: "管理 测试 · Steam", exact: true }).click();
+  await dialog.getByRole("button", { name: "更换头像", exact: true }).click();
+  const savedGroup = dialog.getByRole("group", { name: "已保存图标", exact: true });
+  await expect(savedGroup.getByRole("button", { name: "选择 portal.example.org 图标", exact: true })).toBeVisible();
+  await savedGroup.getByRole("button", { name: "选择 portal.example.org 图标", exact: true }).click();
+  await dialog.getByRole("button", { name: "保存", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(await commandCount(page, "avatar_from_website")).toBe(1);
+
+  // 从图标库删除后，库里不再出现，但原令牌已绑定的头像依然保留。
+  await page.getByRole("button", { name: "管理 测试 · 通用 OTP", exact: true }).click();
+  await dialog.getByRole("button", { name: "更换头像", exact: true }).click();
+  await dialog.getByRole("button", { name: "删除图标 portal.example.org", exact: true }).click();
+  await expect(dialog.getByRole("group", { name: "已保存图标", exact: true })).toHaveCount(0);
+  await dialog.getByRole("button", { name: "关闭", exact: true }).click();
+  await expect(page.locator(".token-card").filter({ hasText: "测试 · 通用 OTP" }).getByRole("img", { name: "自定义头像" })).toBeVisible();
 });

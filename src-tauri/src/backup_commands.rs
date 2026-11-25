@@ -66,6 +66,7 @@ pub fn preview(s: &AppState, name: &str, password: &str) -> Result<BackupPreview
     let mut staged = Preview {
         groups: decoded.group_names(),
         tokens: std::mem::take(&mut decoded.tokens),
+        saved_icons: std::mem::take(&mut decoded.saved_icons),
         created: models::now(),
         expected_revision: None,
     };
@@ -245,6 +246,7 @@ pub fn restore_selected(s: &AppState, preview_id: &str, ids: &[String]) -> Resul
             }
         }
         data.groups = data.group_names();
+        data.merge_saved_icons(std::mem::take(&mut preview.saved_icons));
         Ok(changed)
     });
     // Rechecking after a conflict or disk error is explicit and avoids stale merges.

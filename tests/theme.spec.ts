@@ -87,3 +87,47 @@ test("branded token lists remain compact across desktop, phone and tray", async 
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(361);
   await page.screenshot({path:"artifacts/preview-tray-light.png"});
 });
+
+for (const theme of ["light", "dark"] as const) {
+  test(`file drop, navigation and modal hover surfaces stay harmonized in ${theme}`, async ({ page }) => {
+    await page.setViewportSize({ width: 1180, height: 860 });
+    await themeFixture(page, theme, "zh-CN");
+    await page.goto("/");
+    await expect(page.locator(".token-card")).toHaveCount(1);
+
+    const resolveVar = (name: string) =>
+      page.evaluate((varName) => {
+        const probe = document.createElement("div");
+        probe.style.backgroundColor = `var(${varName})`;
+        document.body.appendChild(probe);
+        const color = getComputedStyle(probe).backgroundColor;
+        probe.remove();
+        return color;
+      }, name);
+
+    const expectedSoft = await resolveVar("--soft");
+    const expectedAccentSoft = await resolveVar("--accent-soft");
+    const expectedPanel = await resolveVar("--panel");
+
+    // 侧边栏非激活导航悬停应使用主题 --soft，而非旧版深海蓝
+    const settingsNav = page.locator(".sidebar nav .nav-item").last();
+    await settingsNav.hover();
+    await expect(settingsNav).toHaveCSS("background-color", expectedSoft);
+    await assertContrast(page, ".sidebar nav .nav-item:hover");
+
+    // 打开新增令牌对话框并检查文件选择区悬停与图标配色
+    await page.locator(".page-heading .add-token").click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    const fileDrop = page.locator(".file-drop");
+    await expect(fileDrop).toBeVisible();
+    await expect(page.locator(".file-drop-icon")).toHaveCSS("background-color", expectedPanel);
+    await fileDrop.hover();
+    await expect(fileDrop).toHaveCSS("background-color", expectedAccentSoft);
+    await assertContrast(page, ".file-drop strong, .file-drop > span:last-child");
+
+    // 弹窗关闭按钮悬停也应呈现主题柔和背景而非被透明覆写压死
+    const closeBtn = page.locator(".modal-heading .icon-button");
+    await closeBtn.hover();
+    await expect(closeBtn).toHaveCSS("background-color", expectedSoft);
+  });
+}

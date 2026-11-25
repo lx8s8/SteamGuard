@@ -2,6 +2,32 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SavedIcon {
+    pub id: String,
+    pub label: String,
+    pub data: String,
+}
+impl SavedIcon {
+    pub fn validate(&self) -> Result<(), String> {
+        if uuid::Uuid::parse_str(&self.id)
+            .ok()
+            .is_none_or(|id| id.to_string() != self.id)
+        {
+            return Err("图标编号无效".into());
+        }
+        if self.label.is_empty()
+            || self.label.trim() != self.label
+            || self.label.chars().count() > 120
+            || self.label.chars().any(char::is_control)
+        {
+            return Err("名称需为 1–120 个字符".into());
+        }
+        crate::avatar::validate_png(&self.data)
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RecoveryCode {
     pub id: String,
     pub code: String,

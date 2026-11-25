@@ -1292,5 +1292,18 @@
   "导入密钥对应多个已有令牌，请先处理重复项": "Khóa trùng với nhiều mục. Hãy xử lý các mục trùng trước.",
   "请输入公开的 HTTPS 网站地址": "Nhập địa chỉ trang web HTTPS công khai.",
   "请选择不同且仍存在的同类型令牌进行替换": "Chọn các mục hiện có khác nhau cùng loại.",
-  "未找到可用的网站图标，请检查官网地址或上传图片": "Không tìm thấy biểu tượng phù hợp. Kiểm tra địa chỉ hoặc tải ảnh lên."
+  "未找到可用的网站图标，请检查官网地址或上传图片": "Không tìm thấy biểu tượng phù hợp. Kiểm tra địa chỉ hoặc tải ảnh lên.",
+  "紧凑视图": "Chế độ thu gọn",
+  "卡片视图": "Chế độ thẻ",
+  "全选": "Chọn tất cả",
+  "批量拒绝": "Từ chối mục đã chọn",
+  "批量确认": "Xác nhận mục đã chọn",
+  "复制后自动关闭快捷窗口": "Tự đóng cửa sổ nhanh sau khi sao chép",
+  "按下快捷键": "Nhấn phím tắt",
+  "录制快捷键": "Ghi phím tắt",
+  "直接导入": "Nhập ngay",
+  "保存到图标库": "Lưu vào thư viện",
+  "已保存图标": "Biểu tượng đã lưu",
+  "删除图标 {{name}}": "Xóa biểu tượng {{name}}",
+  "最多保存 100 个自定义图标": "Bạn có thể lưu tối đa 100 biểu tượng tùy chỉnh"
 }

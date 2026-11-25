@@ -1292,5 +1292,18 @@
   "导入密钥对应多个已有令牌，请先处理重复项": "La clave coincide con varios tokens. Resuelve primero los duplicados.",
   "请输入公开的 HTTPS 网站地址": "Introduce una dirección HTTPS pública.",
   "请选择不同且仍存在的同类型令牌进行替换": "Selecciona tokens existentes distintos del mismo tipo.",
-  "未找到可用的网站图标，请检查官网地址或上传图片": "No se encontró un icono válido. Comprueba la dirección o sube una imagen."
+  "未找到可用的网站图标，请检查官网地址或上传图片": "No se encontró un icono válido. Comprueba la dirección o sube una imagen.",
+  "紧凑视图": "Vista compacta",
+  "卡片视图": "Vista de tarjetas",
+  "全选": "Seleccionar todo",
+  "批量拒绝": "Rechazar selección",
+  "批量确认": "Confirmar selección",
+  "复制后自动关闭快捷窗口": "Cerrar ventana rápida al copiar",
+  "按下快捷键": "Pulsa el atajo",
+  "录制快捷键": "Grabar atajo",
+  "直接导入": "Importar ahora",
+  "保存到图标库": "Guardar en la biblioteca",
+  "已保存图标": "Iconos guardados",
+  "删除图标 {{name}}": "Eliminar icono {{name}}",
+  "最多保存 100 个自定义图标": "Puedes guardar hasta 100 iconos personalizados"
 }

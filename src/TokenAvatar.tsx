@@ -1,6 +1,6 @@
 import { t as translate } from "./i18n";
-import { useRef, useState } from "react";
-import { Globe2, ImagePlus, Search } from "lucide-react";
+import { memo, useEffect, useRef, useState } from "react";
+import { BookmarkPlus, Globe2, ImagePlus, Search, X } from "lucide-react";
 import {
   faSteam,
   faGoogle,
@@ -52,7 +52,7 @@ import {
   faXbox,
 } from "@fortawesome/free-brands-svg-icons";
 import { siSony, siEpicgames, siUbisoft, siEa, siRiotgames, siGogdotcom } from "simple-icons";
-import type { TokenView } from "./types";
+import type { SavedIcon, TokenView } from "./types";
 import { api, errorText } from "./api";
 
 type Brand = {
@@ -152,22 +152,40 @@ export const brands: Brand[] = [
 })) as Brand[];
 const normalized = (value: string) =>
   value.toLowerCase().replace(/[\s._:-]/g, "");
+const brandIndex = brands.map((brand) => ({
+  brand,
+  normalizedAliases: brand.aliases.split(" ").map(normalized),
+}));
+const brandById = new Map(brands.map((brand) => [brand.id, brand]));
+const automaticBrandCache = new Map<string, Brand | undefined>();
+
 export function automaticBrand(
   token: Pick<TokenView, "kind" | "issuer" | "name">,
 ) {
   if (token.kind === "steam") return brands[0];
+  const key = `${token.kind}\0${token.issuer}\0${token.name}`;
+  if (automaticBrandCache.has(key)) return automaticBrandCache.get(key);
   const issuer = normalized(token.issuer);
-  return (
-    brands.find((brand) =>
-      brand.aliases.split(" ").some((alias) => normalized(alias) === issuer),
-    ) ??
-    brands.find(
-      (brand) =>
-        brand.id.length > 2 && normalized(token.name).includes(brand.id),
-    )
-  );
+  const name = normalized(token.name);
+  const matched =
+    brandIndex.find(({ normalizedAliases }) => normalizedAliases.includes(issuer))?.brand ??
+    brandIndex.find(({ brand }) => brand.id.length > 2 && name.includes(brand.id))?.brand;
+  if (automaticBrandCache.size > 512) automaticBrandCache.clear();
+  automaticBrandCache.set(key, matched);
+  return matched;
 }
-export function TokenAvatar({
+
+/** 根据令牌发行方或账户邮箱猜测服务官网域名，用于自动预填图标地址。 */
+function guessWebsiteHost(token: Pick<TokenView, "issuer" | "name" | "accountName">): string {
+  const raw = `${token.issuer || ""} ${token.accountName || ""} ${token.name || ""}`;
+  const domainMatch = raw.match(/\b([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+)\b/i);
+  if (domainMatch) return domainMatch[1].toLowerCase();
+  const issuer = (token.issuer || "").trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
+  if (issuer.length >= 2 && issuer !== "example") return `${issuer}.com`;
+  return "";
+}
+
+export const TokenAvatar = memo(function TokenAvatar({
   token,
   icon = token.icon,
 }: {
@@ -175,7 +193,7 @@ export function TokenAvatar({
   icon?: string | null;
 }) {
   const brand = icon?.startsWith("brand:")
-    ? brands.find((brand) => brand.id === icon.slice(6))
+    ? brandById.get(icon.slice(6))
     : automaticBrand(token);
   if (icon?.startsWith("data:image/png;base64,"))
     return (
@@ -208,7 +226,7 @@ export function TokenAvatar({
       {(token.issuer || token.name).trim().slice(0, 1).toUpperCase() || "#"}
     </span>
   );
-}
+});
 async function imageAvatar(file: File) {
   if (file.size > 10 * 1024 * 1024)
     throw new Error(translate("请选择不超过 10 MB 的图片"));
@@ -252,6 +270,18 @@ async function imageAvatar(file: File) {
     URL.revokeObjectURL(url);
   }
 }
+/** 从输入的网址提取适合作为图标标签的主机名（去掉 www.）。 */
+function labelFromWebsite(input: string, fallback: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return fallback;
+  try {
+    const parsed = new URL(trimmed.includes("://") ? trimmed : `https://${trimmed}`);
+    return parsed.hostname.replace(/^www\./i, "") || fallback;
+  } catch {
+    return trimmed.slice(0, 60) || fallback;
+  }
+}
+
 export function IconPicker({
   token,
   selected,
@@ -267,20 +297,84 @@ export function IconPicker({
   const [websiteOpen, setWebsiteOpen] = useState(false);
   const [website, setWebsite] = useState("");
   const [websiteIcon, setWebsiteIcon] = useState<string | null>(null);
+  const [savedIcons, setSavedIcons] = useState<SavedIcon[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const picker = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let live = true;
+    void api
+      .savedIcons()
+      .then((items) => {
+        if (live && Array.isArray(items)) setSavedIcons(items);
+      })
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
+
+  const persistSavedIcon = async (label: string, data: string) => {
+    try {
+      const saved = await api.savedIconSave(label, data);
+      if (saved && typeof saved.id === "string") {
+        setSavedIcons((prev) => [saved, ...prev.filter((item) => item.id !== saved.id && item.data !== saved.data)]);
+      }
+    } catch {
+      /* 图标库保存失败或预览环境下无原生接口时，仍允许正常使用当前头像。 */
+    }
+  };
+
+  const fetchWebsiteIcon = async () => {
+    if (busy || !website.trim()) return;
+    setBusy(true);
+    setWebsiteIcon(null);
+    setError("");
+    try {
+      setWebsiteIcon(await api.avatarFromWebsite(website));
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeSavedIcon = async (item: SavedIcon) => {
+    setBusy(true);
+    setError("");
+    try {
+      const next = await api.savedIconDelete(item.id);
+      setSavedIcons(Array.isArray(next) ? next : savedIcons.filter((row) => row.id !== item.id));
+    } catch (err) {
+      setError(errorText(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredSaved = savedIcons.filter((item) =>
+    !normalizedSearch || item.label.toLowerCase().includes(normalizedSearch),
+  );
+  const filteredBrands = brands.filter((brand) =>
+    `${brand.name} ${brand.aliases}`.toLowerCase().includes(normalizedSearch),
+  );
+
   return (
     <div className="icon-picker">
       <div className="icon-picker-actions">
-        <button className="button secondary" disabled={busy} onClick={() => onSelect(null)}>{translate("自动图标")}</button>
+        <button type="button" className="button secondary" disabled={busy} onClick={() => onSelect(null)}>{translate("自动图标")}</button>
         <button
+          type="button"
           className="button secondary"
           disabled={busy}
           onClick={() => picker.current?.click()}
         >
           <ImagePlus size={17} />{translate("自定义头像")}</button>
-        <button type="button" className="button secondary" disabled={busy} aria-expanded={websiteOpen} onClick={() => setWebsiteOpen(open => !open)}>
+        <button type="button" className="button secondary" disabled={busy} aria-expanded={websiteOpen} onClick={() => setWebsiteOpen(open => {
+          const next = !open;
+          if (next && !website) setWebsite(guessWebsiteHost(token));
+          return next;
+        })}>
           <Globe2 size={17} />{translate("从网站获取")}</button>
         <input
           type="file"
@@ -295,7 +389,10 @@ export function IconPicker({
             setBusy(true);
             setError("");
             try {
-              onSelect(await imageAvatar(file));
+              const data = await imageAvatar(file);
+              const label = file.name.replace(/\.[^.]+$/, "").trim() || token.issuer || token.name;
+              await persistSavedIcon(label, data);
+              onSelect(data);
             } catch (error) {
               setError(errorText(error));
             } finally {
@@ -311,19 +408,54 @@ export function IconPicker({
             setWebsite(event.target.value);
             setWebsiteIcon(null);
             setError("");
+          }} onKeyDown={event => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+            void fetchWebsiteIcon();
           }} />
         <div className="icon-picker-actions">
-          <button type="button" className="button secondary" disabled={busy || !website.trim()} onClick={async () => {
-            setBusy(true);
-            setWebsiteIcon(null);
-            setError("");
-            try { setWebsiteIcon(await api.avatarFromWebsite(website)); }
-            catch (error) { setError(errorText(error)); }
-            finally { setBusy(false); }
-          }}>{busy ? translate("正在获取图标…") : translate("获取图标")}</button>
+          <button type="button" className="button secondary" disabled={busy || !website.trim()} onClick={() => void fetchWebsiteIcon()}>
+            {busy ? translate("正在获取图标…") : translate("获取图标")}
+          </button>
           {websiteIcon && <>
             <TokenAvatar token={token} icon={websiteIcon} />
-            <button type="button" className="button primary" onClick={() => onSelect(websiteIcon)}>{translate("使用此图标")}</button>
+            <button
+              type="button"
+              className="button primary"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                try {
+                  await persistSavedIcon(labelFromWebsite(website, token.issuer || token.name), websiteIcon);
+                  onSelect(websiteIcon);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >{translate("使用此图标")}</button>
+            <button
+              type="button"
+              className="button secondary"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                setError("");
+                try {
+                  const saved = await api.savedIconSave(labelFromWebsite(website, token.issuer || token.name), websiteIcon);
+                  if (saved && typeof saved.id === "string") {
+                    setSavedIcons((prev) => [saved, ...prev.filter((item) => item.id !== saved.id && item.data !== saved.data)]);
+                  }
+                } catch (err) {
+                  setError(errorText(err));
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              <BookmarkPlus size={15} />
+              {translate("保存到图标库")}
+            </button>
           </>}
         </div>
       </div>}
@@ -336,15 +468,41 @@ export function IconPicker({
           onChange={(event) => setSearch(event.target.value)}
         />
       </label>
+      {filteredSaved.length > 0 && (
+        <div className="saved-icons-section">
+          <div className="icon-section-title">{translate("已保存图标")}</div>
+          <div className="icon-options saved-icon-options" role="group" aria-label={translate("已保存图标")}>
+            {filteredSaved.map((item) => (
+              <div className="saved-icon-item" key={item.id}>
+                <button
+                  type="button"
+                  className={selected === item.data ? "selected" : ""}
+                  aria-label={translate("选择 {{name}} 图标", { name: item.label })}
+                  disabled={busy}
+                  onClick={() => onSelect(item.data)}
+                >
+                  <TokenAvatar token={token} icon={item.data} />
+                  <span>{item.label}</span>
+                </button>
+                <button
+                  type="button"
+                  className="saved-icon-delete"
+                  aria-label={translate("删除图标 {{name}}", { name: item.label })}
+                  title={translate("删除")}
+                  disabled={busy}
+                  onClick={() => void removeSavedIcon(item)}
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="icon-options" role="group" aria-label={translate("服务图标")}>
-        {brands
-          .filter((brand) =>
-            `${brand.name} ${brand.aliases}`
-              .toLowerCase()
-              .includes(search.toLowerCase()),
-          )
-          .map((brand) => (
+        {filteredBrands.map((brand) => (
             <button
+              type="button"
               key={brand.id}
               className={selected === `brand:${brand.id}` ? "selected" : ""}
               aria-label={translate("选择 {{name}} 图标", { name: brand.name })}
@@ -362,7 +520,7 @@ export function IconPicker({
         </p>
       )}
       <div className="modal-actions">
-        <button className="button secondary" onClick={onBack}>{translate("返回")}</button>
+        <button type="button" className="button secondary" onClick={onBack}>{translate("返回")}</button>
       </div>
     </div>
   );

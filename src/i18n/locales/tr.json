@@ -1292,5 +1292,18 @@
   "导入密钥对应多个已有令牌，请先处理重复项": "Anahtar birden fazla belirteçle eşleşiyor. Önce yinelenenleri çözün.",
   "请输入公开的 HTTPS 网站地址": "Herkese açık bir HTTPS web adresi girin.",
   "请选择不同且仍存在的同类型令牌进行替换": "Aynı türden farklı mevcut belirteçler seçin.",
-  "未找到可用的网站图标，请检查官网地址或上传图片": "Kullanılabilir simge bulunamadı. Adresi kontrol edin veya bir resim yükleyin."
+  "未找到可用的网站图标，请检查官网地址或上传图片": "Kullanılabilir simge bulunamadı. Adresi kontrol edin veya bir resim yükleyin.",
+  "紧凑视图": "Kompakt görünüm",
+  "卡片视图": "Kart görünümü",
+  "全选": "Tümünü seç",
+  "批量拒绝": "Seçilenleri reddet",
+  "批量确认": "Seçilenleri onayla",
+  "复制后自动关闭快捷窗口": "Kopyaladıktan sonra hızlı pencereyi kapat",
+  "按下快捷键": "Kısayola basın",
+  "录制快捷键": "Kısayol kaydet",
+  "直接导入": "Doğrudan içe aktar",
+  "保存到图标库": "Kitaplığa kaydet",
+  "已保存图标": "Kayıtlı simgeler",
+  "删除图标 {{name}}": "{{name}} simgesini sil",
+  "最多保存 100 个自定义图标": "En fazla 100 özel simge kaydedebilirsiniz"
 }

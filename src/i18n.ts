@@ -1,7 +1,7 @@
 import i18n, { type FormatterModule } from "i18next";
 import { initReactI18next } from "react-i18next";
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { resources } from "./i18n/resources";
+import { loadLocaleMessages } from "./i18n/resources";
 import nativeMessages from "./i18n/native-messages.json";
 import {
   languages, languageStorageKey, parsePreference, resolveLanguage,
@@ -47,9 +47,11 @@ function updateDocument(language: string) {
   document.documentElement.lang = language;
   document.documentElement.dir = language === "ar" ? "rtl" : "ltr";
 }
+const initialLanguage = getCurrentLanguage();
+const initialMessages = await loadLocaleMessages(initialLanguage);
 void i18n.use(quantityFormatter).use(initReactI18next).init({
-  resources,
-  lng: getCurrentLanguage(),
+  resources: { [initialLanguage]: { translation: initialMessages } },
+  lng: initialLanguage,
   fallbackLng: ["en", "zh-CN"],
   supportedLngs: languages.map(({ code }) => code),
   load: "currentOnly",
@@ -82,10 +84,21 @@ i18n.on("languageChanged", (language) => {
   localizeDesktopMenu();
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("steamguard:languagechange", { detail: { language, preference } }));
 });
+let switchGeneration = 0;
 function applyPreference(value: LanguagePreference) {
   preference = value;
-  void i18n.changeLanguage(getCurrentLanguage());
+  const next = getCurrentLanguage();
+  const generation = ++switchGeneration;
   listeners.forEach((listener) => listener());
+  if (i18n.hasResourceBundle(next, "translation")) {
+    void i18n.changeLanguage(next);
+    return;
+  }
+  void loadLocaleMessages(next).then((messages) => {
+    if (generation !== switchGeneration) return;
+    i18n.addResourceBundle(next, "translation", messages, true, true);
+    void i18n.changeLanguage(next);
+  });
 }
 export function setLanguagePreference(value: LanguagePreference) {
   const valid = parsePreference(value);
@@ -162,7 +175,7 @@ export function translateError(error: unknown): string {
   const translated = translateNativeText(message);
   if (translated !== message) return translated;
   if (i18n.exists(message)) return t(message);
-  const activeMessages = resources[getCurrentLanguage()].translation;
+  const activeMessages = (i18n.getResourceBundle(getCurrentLanguage(), "translation") ?? {}) as Record<string, string>;
   if (Object.values(activeMessages).includes(message)) return message;
   return t("操作未完成：{{detail}}", { detail: message });
 }

@@ -24,6 +24,13 @@ fn decode(value: &str) -> Result<image::DynamicImage, String> {
         .decode()
         .map_err(|_| "头像图片无效，请重新选择".into())
 }
+pub fn validate_png(value: &str) -> Result<(), String> {
+    decode(value)?;
+    Ok(())
+}
+pub fn normalize_png(value: &str) -> Result<String, String> {
+    encode_png(decode(value)?)
+}
 pub fn validate(value: &str) -> Result<(), String> {
     if let Some(slug) = value.strip_prefix("brand:") {
         if !slug.is_empty()
@@ -36,15 +43,14 @@ pub fn validate(value: &str) -> Result<(), String> {
         }
         return Err("图标编号无效".into());
     }
-    decode(value)?;
-    Ok(())
+    validate_png(value)
 }
 pub fn normalize(value: &str) -> Result<String, String> {
     if value.starts_with("brand:") {
         validate(value)?;
         return Ok(value.into());
     }
-    encode_png(decode(value)?)
+    normalize_png(value)
 }
 pub(crate) fn encode_png(image: image::DynamicImage) -> Result<String, String> {
     let image = image.resize_to_fill(96, 96, image::imageops::FilterType::Triangle);

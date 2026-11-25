@@ -1292,5 +1292,18 @@
   "导入密钥对应多个已有令牌，请先处理重复项": "La clé correspond à plusieurs jetons. Traitez d’abord les doublons.",
   "请输入公开的 HTTPS 网站地址": "Saisissez une adresse de site HTTPS public.",
   "请选择不同且仍存在的同类型令牌进行替换": "Sélectionnez des jetons existants différents du même type.",
-  "未找到可用的网站图标，请检查官网地址或上传图片": "Aucune icône utilisable. Vérifiez l’adresse ou importez une image."
+  "未找到可用的网站图标，请检查官网地址或上传图片": "Aucune icône utilisable. Vérifiez l’adresse ou importez une image.",
+  "紧凑视图": "Vue compacte",
+  "卡片视图": "Vue cartes",
+  "全选": "Tout sélectionner",
+  "批量拒绝": "Refuser la sélection",
+  "批量确认": "Confirmer la sélection",
+  "复制后自动关闭快捷窗口": "Fermer la fenêtre rapide après copie",
+  "按下快捷键": "Appuyez sur un raccourci",
+  "录制快捷键": "Enregistrer un raccourci",
+  "直接导入": "Importer directement",
+  "保存到图标库": "Enregistrer dans la bibliothèque",
+  "已保存图标": "Icônes enregistrées",
+  "删除图标 {{name}}": "Supprimer l’icône {{name}}",
+  "最多保存 100 个自定义图标": "Vous pouvez enregistrer jusqu’à 100 icônes personnalisées"
 }

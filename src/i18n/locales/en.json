@@ -1292,5 +1292,18 @@
   "导入密钥对应多个已有令牌，请先处理重复项": "The key matches multiple existing tokens. Resolve duplicates first.",
   "请输入公开的 HTTPS 网站地址": "Enter a public HTTPS website address.",
   "请选择不同且仍存在的同类型令牌进行替换": "Select distinct existing tokens of the same type.",
-  "未找到可用的网站图标，请检查官网地址或上传图片": "No usable icon found. Check the website address or upload an image."
+  "未找到可用的网站图标，请检查官网地址或上传图片": "No usable icon found. Check the website address or upload an image.",
+  "紧凑视图": "Compact view",
+  "卡片视图": "Card view",
+  "全选": "Select all",
+  "批量拒绝": "Decline selected",
+  "批量确认": "Confirm selected",
+  "复制后自动关闭快捷窗口": "Close quick popup after copying",
+  "按下快捷键": "Press shortcut",
+  "录制快捷键": "Record shortcut",
+  "直接导入": "Import now",
+  "保存到图标库": "Save to library",
+  "已保存图标": "Saved icons",
+  "删除图标 {{name}}": "Delete {{name}} icon",
+  "最多保存 100 个自定义图标": "You can save up to 100 custom icons"
 }

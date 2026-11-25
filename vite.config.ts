@@ -7,6 +7,10 @@ const host = process.env.TAURI_DEV_HOST;
 // https://vite.dev/config/
 export default defineConfig(() => ({
   plugins: [react()],
+  build: {
+    // 桌面与移动端现代 WebView 均原生支持 top-level await，便于按语言拆分离线 chunk。
+    target: "esnext",
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //

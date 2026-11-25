@@ -1,6 +1,6 @@
 import { t as translate, awaitNativeLocalization } from "./i18n";
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import type { TokenPrivateDetails, RecoveryCodeInput } from "./types";
+import type { TokenPrivateDetails, RecoveryCodeInput, SavedIcon } from "./types";
 import type {
   DesktopSnapshot,
   BackupPreview, ManualTokenInput, TokenParameters, TokenCode, TrashEntry, SyncConnectionInfo,
@@ -118,6 +118,9 @@ export const api = {
   commit: (previewId: string, replacements?: ImportReplacement[]) =>
     call<void>("import_commit", { previewId, replacements }),
   avatarFromWebsite: (website: string) => call<string>("avatar_from_website", { website }),
+  savedIcons: () => call<SavedIcon[]>("saved_icons_list"),
+  savedIconSave: (label: string, data: string) => call<SavedIcon>("saved_icon_save", { label, data }),
+  savedIconDelete: (id: string) => call<SavedIcon[]>("saved_icon_delete", { id }),
   groups: () => call<string[]>("token_groups"),
   manageGroup: (
     action: "create" | "rename" | "delete",
@@ -138,6 +141,7 @@ export const api = {
   backupPreview: (name: string, password: string) => call<BackupPreview>("backup_preview", { name, password }),
   backupRestoreSelected: (previewId: string, ids: string[]) => call<number>("backup_restore_selected", { previewId, ids }),
   backupDirectory: (path?: string) => call<void>("backup_directory_configure", { path }),
+  backupDirectoryChoose: () => call<string | null>("backup_directory_choose"),
   backupStatus: () => call<BackupStatus>("backup_status"),
   backupExternalStatus: () => call<ExternalBackupStatus>("backup_external_status"),
   backupExternalChoose: () => call<ExternalBackupStatus>("backup_external_choose"),

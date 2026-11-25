@@ -165,11 +165,14 @@ export type DesktopSnapshot = {
   locked: boolean;
   preview: boolean;
   previewEnabled: boolean;
+  biometricEnabled?: boolean;
   tokens: Pick<
     TokenView,
     | "id"
     | "name"
     | "issuer"
+    | "accountName"
+    | "group"
     | "icon"
     | "kind"
     | "code"
@@ -202,6 +205,7 @@ export interface BackupPreview {
 }
 export interface SyncConnectionInfo { endpoint: string; username: string; libraryId: string; alias?: string; connectionQr: string }
 
+export interface SavedIcon { id: string; label: string; data: string }
 export interface RecoveryCode { id: string; code: string; used: boolean }
 export interface RecoveryCodeInput { id?: string; code: string; used: boolean }
 export interface TokenPrivateDetails { revision: string; notes: string; recoveryCodes: RecoveryCode[] }

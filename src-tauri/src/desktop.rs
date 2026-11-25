@@ -17,6 +17,7 @@ pub fn allowed_invoke(label: &str, command: &str) -> bool {
                 | "desktop_hide"
                 | "vault_lock"
                 | "quick_preview_enter"
+                | "quick_biometric_unlock"
         )
 }
 #[derive(Serialize)]
@@ -66,6 +67,7 @@ pub struct Snapshot {
     locked: bool,
     preview: bool,
     preview_enabled: bool,
+    biometric_enabled: bool,
     tokens: Vec<PopupToken>,
 }
 #[derive(Serialize)]
@@ -74,6 +76,8 @@ struct PopupToken {
     id: String,
     name: String,
     issuer: String,
+    account_name: Option<String>,
+    group: Option<String>,
     icon: Option<String>,
     kind: String,
     code: String,
@@ -87,6 +91,8 @@ impl From<TokenView> for PopupToken {
             id: t.id,
             name: t.name,
             issuer: t.issuer,
+            account_name: t.account_name,
+            group: t.group,
             icon: t.icon,
             kind: t.kind,
             code: t.code,
@@ -112,6 +118,8 @@ fn snapshot(s: &AppState, q: &QuickAccess) -> Result<Snapshot, String> {
                     id: t.id.clone(),
                     name: t.name.clone(),
                     issuer: t.issuer.clone(),
+                    account_name: t.account_name.clone(),
+                    group: t.group.clone(),
                     icon: t.icon.clone(),
                     kind: t.kind.clone(),
                     code: if t.hotp_read_only {
@@ -144,7 +152,9 @@ fn snapshot(s: &AppState, q: &QuickAccess) -> Result<Snapshot, String> {
     } else {
         String::new()
     };
-    let preview_enabled = q.preferences()?.preview_enabled;
+    let prefs = q.preferences()?;
+    let preview_enabled = prefs.preview_enabled;
+    let biometric_enabled = prefs.biometric_enabled;
     if !locked {
         vault.ensure()?;
     }
@@ -154,6 +164,7 @@ fn snapshot(s: &AppState, q: &QuickAccess) -> Result<Snapshot, String> {
         locked,
         preview,
         preview_enabled,
+        biometric_enabled,
         tokens,
     })
 }
